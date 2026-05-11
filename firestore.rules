@@ -1,0 +1,73 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function owns(userId) {
+      return signedIn() && request.auth.uid == userId;
+    }
+
+    function isMatchOrganiser(matchId) {
+      return signedIn()
+        && get(/databases/$(database)/documents/matches/$(matchId)).data.organiserId == request.auth.uid;
+    }
+
+    function validJoinCounterUpdate() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'joinedPlayerCount',
+          'status',
+          'updatedAt'
+        ])
+        && resource.data.joinedPlayerCount < resource.data.totalPlayersNeeded
+        && request.resource.data.joinedPlayerCount == resource.data.joinedPlayerCount + 1
+        && request.resource.data.status in ['Open', 'Nearly Full', 'Full'];
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      allow create, update: if owns(userId);
+      allow delete: if false;
+
+      match /joinedMatches/{matchId} {
+        allow read: if owns(userId);
+        allow create, update: if owns(userId);
+        allow delete: if false;
+      }
+    }
+
+    match /matches/{matchId} {
+      allow read: if signedIn()
+        && (resource.data.visibility == 'Public' || resource.data.organiserId == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.organiserId == request.auth.uid
+        && request.resource.data.joinedPlayerCount == 0;
+
+      allow update: if isMatchOrganiser(matchId) || validJoinCounterUpdate();
+      allow delete: if isMatchOrganiser(matchId);
+
+      match /participants/{participantId} {
+        allow read: if signedIn();
+        allow create: if owns(participantId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.paymentStatus == 'Confirmed';
+        allow update, delete: if isMatchOrganiser(matchId);
+      }
+    }
+
+    match /payments/{paymentId} {
+      allow create: if signedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.mockPayment == true;
+
+      allow read: if signedIn()
+        && (resource.data.userId == request.auth.uid
+          || resource.data.organiserId == request.auth.uid);
+
+      allow update, delete: if false;
+    }
+  }
+}

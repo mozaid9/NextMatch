@@ -18,12 +18,14 @@ Install FlutterFire CLI if needed, then run:
 
 ```bash
 dart pub global activate flutterfire_cli
-flutterfire configure
+flutterfire configure --project=nextmatch-eb038
 ```
 
 Replace the placeholder values in `lib/firebase_options.dart`, `android/app/google-services.json`, and the Apple `GoogleService-Info.plist` files with the generated local Firebase config.
 
 Important: if GitHub secret scanning flags the generated Google API keys, either keep the generated files local or ensure the keys are restricted to the correct app identifiers in Google Cloud Console before committing.
+
+If the login screen says the app is using placeholder API keys, this step has not been completed for your local workspace yet.
 
 ## 3. Deploy Firestore rules
 

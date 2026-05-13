@@ -149,6 +149,14 @@ class MatchService {
       final existingParticipant = await transaction.get(participantRef);
       if (existingParticipant.exists) {
         final participant = MatchParticipant.fromFirestore(existingParticipant);
+        if (participant.isPendingPayment) {
+          return const JoinRequestResult(
+            requiresApproval: false,
+            canContinueToPayment: false,
+            message:
+                'You have joined this match. Pay when ready to secure your spot.',
+          );
+        }
         if (participant.isPendingApproval && participant.organiserApproved) {
           return const JoinRequestResult(
             requiresApproval: false,
@@ -173,15 +181,54 @@ class MatchService {
             latestMatch.minimumReliabilityRequired,
           );
 
-      if (!requiresApproval) {
+      final now = DateTime.now();
+
+      if (!requiresApproval && latestMatch.isSplitPayment) {
+        final participant = MatchParticipant(
+          userId: user.uid,
+          fullName: user.fullName,
+          position: position,
+          skillLevel: user.skillLevel,
+          abilityRatingAtJoin: user.abilityRating,
+          reliabilityScoreAtJoin: user.reliabilityScore,
+          paymentStatus: 'PendingPayment',
+          joinedAt: now,
+          amountPaid: 0,
+          amountOwed: 0,
+          attendanceStatus: 'PendingPayment',
+          organiserApproved: true,
+          requiresApproval: false,
+        );
+
+        transaction.set(participantRef, participant.toMap());
+        transaction.set(userJoinedRef, {
+          'matchId': latestMatch.id,
+          'joinedAt': Timestamp.fromDate(now),
+          'paymentStatus': 'PendingPayment',
+          'attendanceStatus': 'PendingPayment',
+          'position': position,
+          'matchDateTime': Timestamp.fromDate(latestMatch.startDateTime),
+          'amountOwed': 0,
+          'requiresApproval': false,
+          'organiserApproved': true,
+        });
+
         return const JoinRequestResult(
           requiresApproval: false,
-          canContinueToPayment: true,
-          message: 'Continue to secure your spot.',
+          canContinueToPayment: false,
+          message:
+              'You have joined this match view. Pay when ready to secure your spot.',
         );
       }
 
-      final now = DateTime.now();
+      if (!requiresApproval) {
+        return const JoinRequestResult(
+          requiresApproval: false,
+          canContinueToPayment: false,
+          message: 'Join request ready.',
+        );
+      }
+
       final participant = MatchParticipant(
         userId: user.uid,
         fullName: user.fullName,
@@ -256,8 +303,15 @@ class MatchService {
             !existingParticipant.organiserApproved) {
           throw Exception('This spot still needs organiser approval.');
         }
-        if (!existingParticipant.isPendingApproval) {
+        if (existingParticipant.hasConfirmedSlot) {
           throw Exception('You are already in this match.');
+        }
+        if (existingParticipant.isRejected || existingParticipant.isWithdrawn) {
+          throw Exception('This match request is no longer active.');
+        }
+        if (!existingParticipant.isPendingApproval &&
+            !existingParticipant.isPendingPayment) {
+          throw Exception('This place cannot be paid for yet.');
         }
       }
 
@@ -453,9 +507,11 @@ class MatchService {
 
       if (match.isSplitPayment) {
         update['paymentStatus'] = 'ApprovedPendingPayment';
+        update['attendanceStatus'] = 'PendingPayment';
         transaction.update(participantRef, update);
         transaction.set(userJoinedRef, {
           'paymentStatus': 'ApprovedPendingPayment',
+          'attendanceStatus': 'PendingPayment',
           'organiserApproved': true,
           'requiresApproval': false,
           'approvedAt': Timestamp.fromDate(now),
@@ -541,7 +597,7 @@ class MatchService {
       if (match.hasStarted || match.isCompleted || match.isCancelled) {
         throw Exception('You cannot withdraw after kick-off.');
       }
-      if (!participant.canWithdraw && !participant.isPendingApproval) {
+      if (!participant.canWithdraw) {
         throw Exception('This place cannot be withdrawn.');
       }
 
@@ -575,29 +631,31 @@ class MatchService {
         'cancelledAt': Timestamp.fromDate(now),
         'withdrawalReason': reason,
       }, SetOptions(merge: true));
-      transaction.set(userRef, {
-        'reliabilityScore': scoreAfter,
-        'cancelledMatches': FieldValue.increment(1),
-        if (isLate) 'lateCancellations': FieldValue.increment(1),
-        'lastReliabilityUpdateAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
+      if (confirmedSlot) {
+        transaction.set(userRef, {
+          'reliabilityScore': scoreAfter,
+          'cancelledMatches': FieldValue.increment(1),
+          if (isLate) 'lateCancellations': FieldValue.increment(1),
+          'lastReliabilityUpdateAt': Timestamp.fromDate(now),
+          'updatedAt': Timestamp.fromDate(now),
+        }, SetOptions(merge: true));
 
-      final eventId = _uuid.v4();
-      final event = ReliabilityEvent(
-        eventId: eventId,
-        matchId: matchId,
-        eventType: isLate ? 'LateCancellation' : 'EarlyCancellation',
-        scoreChange: penalty,
-        scoreBefore: scoreBefore,
-        scoreAfter: scoreAfter,
-        createdAt: now,
-        note: reason ?? 'Player withdrew before kick-off.',
-      );
-      transaction.set(
-        userRef.collection('reliabilityEvents').doc(eventId),
-        event.toMap(),
-      );
+        final eventId = _uuid.v4();
+        final event = ReliabilityEvent(
+          eventId: eventId,
+          matchId: matchId,
+          eventType: isLate ? 'LateCancellation' : 'EarlyCancellation',
+          scoreChange: penalty,
+          scoreBefore: scoreBefore,
+          scoreAfter: scoreAfter,
+          createdAt: now,
+          note: reason ?? 'Player withdrew before kick-off.',
+        );
+        transaction.set(
+          userRef.collection('reliabilityEvents').doc(eventId),
+          event.toMap(),
+        );
+      }
 
       if (confirmedSlot) {
         transaction.update(matchRef, {
@@ -649,10 +707,21 @@ class MatchService {
     if (match.isCancelled) {
       throw Exception('Cancelled matches cannot complete.');
     }
+    if (!match.hasStarted) {
+      throw Exception('You can complete a match after kick-off.');
+    }
 
     final participantsSnapshot = await matchRef
         .collection('participants')
         .get();
+    final confirmedParticipants = participantsSnapshot.docs
+        .map(MatchParticipant.fromFirestore)
+        .where((participant) => participant.hasConfirmedSlot)
+        .toList();
+    if (confirmedParticipants.isEmpty) {
+      throw Exception('Add confirmed players before completing this match.');
+    }
+
     final now = DateTime.now();
     final batch = _firestore.batch();
 
@@ -734,6 +803,7 @@ class MatchService {
       if (participant.attendanceStatus == attendanceStatus) return;
       if (participant.isWithdrawn ||
           participant.isPendingApproval ||
+          participant.isPendingPayment ||
           participant.isRejected) {
         throw Exception('This player does not have a confirmed place.');
       }

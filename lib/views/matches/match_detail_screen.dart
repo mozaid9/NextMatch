@@ -78,17 +78,8 @@ class MatchDetailScreen extends StatelessWidget {
                             PrimaryButton(
                               label: 'Organiser dashboard',
                               icon: Icons.admin_panel_settings_outlined,
-                              onPressed: () {
-                                Navigator.of(context).push(
-                                  MaterialPageRoute<void>(
-                                    builder: (_) =>
-                                        OrganiserMatchDashboardScreen(
-                                          matchId: match.id,
-                                          currentUser: currentUser,
-                                        ),
-                                  ),
-                                );
-                              },
+                              onPressed: () =>
+                                  _openOrganiserDashboard(context, match),
                             ),
                           ],
                           if (canRate) ...[
@@ -174,6 +165,8 @@ class MatchDetailScreen extends StatelessWidget {
                     _BottomJoinBar(
                       match: match,
                       participant: currentParticipant,
+                      isOrganiser: isOrganiser,
+                      onManage: () => _openOrganiserDashboard(context, match),
                       onJoin: () => _choosePosition(context, match),
                       onPayApproved: currentParticipant == null
                           ? null
@@ -200,11 +193,25 @@ class MatchDetailScreen extends StatelessWidget {
     );
   }
 
+  void _openOrganiserDashboard(BuildContext context, FootballMatch match) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => OrganiserMatchDashboardScreen(
+          matchId: match.id,
+          currentUser: currentUser,
+        ),
+      ),
+    );
+  }
+
   Future<void> _choosePosition(
     BuildContext context,
     FootballMatch match,
   ) async {
-    String selectedPosition = currentUser.preferredPosition;
+    String selectedPosition =
+        AppStrings.positions.contains(currentUser.preferredPosition)
+        ? currentUser.preferredPosition
+        : 'Any';
 
     final result = await showModalBottomSheet<String>(
       context: context,
@@ -225,34 +232,35 @@ class MatchDetailScreen extends StatelessWidget {
                     Text('Choose your position', style: AppTextStyles.h2),
                     const SizedBox(height: 8),
                     Text(
-                      'This helps the organiser balance the teams.',
+                      match.isSplitPayment
+                          ? 'Join the match first so you can review the player list. Payment secures your slot afterwards.'
+                          : 'This helps the organiser balance the teams.',
                       style: AppTextStyles.bodyMuted,
                     ),
                     const SizedBox(height: 18),
-                    DropdownButtonFormField<String>(
-                      initialValue: selectedPosition,
-                      dropdownColor: AppColours.card,
-                      decoration: const InputDecoration(
-                        labelText: 'Match position',
-                      ),
-                      items: AppStrings.positions
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: AppStrings.positions
                           .map(
-                            (position) => DropdownMenuItem<String>(
-                              value: position,
-                              child: Text(position),
+                            (position) => _PositionOption(
+                              label: position,
+                              selected: selectedPosition == position,
+                              onTap: () => setModalState(
+                                () => selectedPosition = position,
+                              ),
                             ),
                           )
                           .toList(),
-                      onChanged: (value) {
-                        if (value != null) {
-                          setModalState(() => selectedPosition = value);
-                        }
-                      },
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
-                      label: 'Continue to payment',
-                      icon: Icons.lock,
+                      label: match.isSplitPayment
+                          ? 'Join match'
+                          : 'Join and owe organiser',
+                      icon: match.isSplitPayment
+                          ? Icons.how_to_reg
+                          : Icons.payments_outlined,
                       onPressed: () =>
                           Navigator.of(context).pop(selectedPosition),
                     ),
@@ -266,28 +274,6 @@ class MatchDetailScreen extends StatelessWidget {
     );
 
     if (result == null || !context.mounted) return;
-
-    final matchViewModel = context.read<MatchViewModel>();
-    final request = await matchViewModel.requestToJoinMatch(
-      match: match,
-      user: currentUser,
-      position: result,
-    );
-    if (!context.mounted) return;
-    if (request == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(matchViewModel.errorMessage ?? 'Could not join match.'),
-        ),
-      );
-      return;
-    }
-    if (request.requiresApproval) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(request.message)));
-      return;
-    }
 
     if (match.isOrganiserPays) {
       final paymentViewModel = context.read<PaymentViewModel>();
@@ -314,7 +300,36 @@ class MatchDetailScreen extends StatelessWidget {
       return;
     }
 
-    await _openPayment(context, match, result);
+    final matchViewModel = context.read<MatchViewModel>();
+    final request = await matchViewModel.requestToJoinMatch(
+      match: match,
+      user: currentUser,
+      position: result,
+    );
+    if (!context.mounted) return;
+    if (request == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(matchViewModel.errorMessage ?? 'Could not join match.'),
+        ),
+      );
+      return;
+    }
+    if (request.requiresApproval) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(request.message)));
+      return;
+    }
+
+    if (request.canContinueToPayment) {
+      await _openPayment(context, match, result);
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(request.message)));
   }
 
   Future<void> _openPayment(
@@ -393,6 +408,56 @@ class MatchDetailScreen extends StatelessWidget {
           success
               ? 'You have withdrawn from this match.'
               : viewModel.errorMessage ?? 'Could not withdraw.',
+        ),
+      ),
+    );
+  }
+}
+
+class _PositionOption extends StatelessWidget {
+  const _PositionOption({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 140),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColours.accent.withValues(alpha: 0.14)
+              : AppColours.card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? AppColours.accent : AppColours.line,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              selected ? Icons.check_circle : Icons.circle_outlined,
+              size: 16,
+              color: selected ? AppColours.accent : AppColours.mutedText,
+            ),
+            const SizedBox(width: 7),
+            Text(
+              label,
+              style: AppTextStyles.small.copyWith(
+                color: selected ? AppColours.accent : AppColours.text,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -648,7 +713,7 @@ class _PlayerTile extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 6,
                   children: [
-                    _MiniBadge(label: participant.attendanceStatus),
+                    _MiniBadge(label: _statusLabel(participant)),
                     if (participant.reliabilityScoreAtJoin <
                         lowReliabilityThreshold)
                       const _MiniBadge(
@@ -661,7 +726,11 @@ class _PlayerTile extends StatelessWidget {
             ),
           ),
           Icon(
-            participant.hasConfirmedSlot ? Icons.verified : Icons.hourglass_top,
+            participant.hasConfirmedSlot
+                ? Icons.verified
+                : participant.isPendingPayment
+                ? Icons.lock_clock
+                : Icons.hourglass_top,
             color: participant.hasConfirmedSlot
                 ? AppColours.accent
                 : AppColours.warning,
@@ -670,6 +739,16 @@ class _PlayerTile extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _statusLabel(MatchParticipant participant) {
+    return switch (participant.attendanceStatus) {
+      'PendingPayment' => 'Pending payment',
+      'PendingApproval' => 'Pending approval',
+      'LateCancelled' => 'Late cancelled',
+      'NoShow' => 'No-show',
+      _ => participant.attendanceStatus,
+    };
   }
 }
 
@@ -699,6 +778,8 @@ class _BottomJoinBar extends StatelessWidget {
   const _BottomJoinBar({
     required this.match,
     required this.participant,
+    required this.isOrganiser,
+    required this.onManage,
     required this.onJoin,
     required this.onPayApproved,
     required this.onWithdraw,
@@ -706,6 +787,8 @@ class _BottomJoinBar extends StatelessWidget {
 
   final FootballMatch match;
   final MatchParticipant? participant;
+  final bool isOrganiser;
+  final VoidCallback onManage;
   final VoidCallback onJoin;
   final VoidCallback? onPayApproved;
   final VoidCallback? onWithdraw;
@@ -716,24 +799,31 @@ class _BottomJoinBar extends StatelessWidget {
         participant?.isPendingApproval == true &&
         participant?.organiserApproved == true &&
         match.isSplitPayment;
-    final label = switch (participant?.attendanceStatus) {
-      'Joined' => "You're in",
-      'Attended' => 'Attended',
-      'NoShow' => 'No-show',
-      'Cancelled' || 'LateCancelled' => 'Withdrawn',
-      'Rejected' => 'Rejected',
-      'PendingApproval' when isApprovedPendingPayment => 'Pay to secure',
-      'PendingApproval' => 'Pending approval',
-      _ => match.isFull ? 'Match Full' : 'Join Match',
-    };
+    final isPendingPayment =
+        participant?.isPendingPayment == true || isApprovedPendingPayment;
+    final label = isOrganiser
+        ? 'Manage match'
+        : switch (participant?.attendanceStatus) {
+            'Joined' => "You're in",
+            'Attended' => 'Attended',
+            'NoShow' => 'No-show',
+            'Cancelled' || 'LateCancelled' => 'Withdrawn',
+            'Rejected' => 'Rejected',
+            'PendingPayment' => 'Pay to secure',
+            'PendingApproval' when isApprovedPendingPayment => 'Pay to secure',
+            'PendingApproval' => 'Pending approval',
+            _ => match.isFull ? 'Match Full' : 'Join match',
+          };
 
-    final priceLabel = match.isOrganiserPays
+    final priceLabel = isOrganiser
+        ? 'Manage game'
+        : match.isOrganiserPays
         ? 'Free to join'
         : CurrencyHelpers.formatGBP(match.pricePerPlayer);
 
-    final subLabel = match.isOrganiserPays
-        ? 'You\'ll owe ${CurrencyHelpers.formatGBP(match.pricePerPlayer)} to the organiser'
-        : 'Payment required to secure spot';
+    final subLabel = isOrganiser
+        ? '${match.spacesLabel} secured spots'
+        : _subLabel(match, participant, isPendingPayment);
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
@@ -763,23 +853,26 @@ class _BottomJoinBar extends StatelessWidget {
                 children: [
                   PrimaryButton(
                     label: label,
-                    icon: participant?.hasConfirmedSlot == true
+                    icon: isOrganiser
+                        ? Icons.admin_panel_settings_outlined
+                        : participant?.hasConfirmedSlot == true
                         ? Icons.check
-                        : isApprovedPendingPayment
+                        : isPendingPayment
                         ? Icons.lock
                         : match.isOrganiserPays
                         ? Icons.how_to_reg
-                        : Icons.lock,
-                    onPressed:
-                        match.isFull ||
-                            match.isCompleted ||
-                            match.isCancelled ||
-                            participant?.isRejected == true ||
-                            participant?.isWithdrawn == true ||
-                            (participant?.isPendingApproval == true &&
-                                !isApprovedPendingPayment)
+                        : Icons.how_to_reg,
+                    onPressed: isOrganiser
+                        ? onManage
+                        : match.isFull ||
+                              match.isCompleted ||
+                              match.isCancelled ||
+                              participant?.isRejected == true ||
+                              participant?.isWithdrawn == true ||
+                              (participant?.isPendingApproval == true &&
+                                  !isApprovedPendingPayment)
                         ? null
-                        : isApprovedPendingPayment
+                        : isPendingPayment
                         ? onPayApproved
                         : participant?.hasConfirmedSlot == true
                         ? null
@@ -802,5 +895,27 @@ class _BottomJoinBar extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _subLabel(
+    FootballMatch match,
+    MatchParticipant? participant,
+    bool isPendingPayment,
+  ) {
+    if (match.isOrganiserPays) {
+      if (participant?.hasConfirmedSlot == true) {
+        return 'Spot confirmed. Settle with the organiser.';
+      }
+      return 'Join free, then settle your share with the organiser.';
+    }
+
+    if (participant?.hasConfirmedSlot == true) return 'Payment confirmed';
+    if (isPendingPayment) {
+      return 'You can view players now. Pay to lock in your place.';
+    }
+    if (participant?.isPendingApproval == true) {
+      return 'Organiser approval needed before payment.';
+    }
+    return 'Join first, then pay when you are ready.';
   }
 }

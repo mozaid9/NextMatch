@@ -81,13 +81,13 @@ class _JoinedMatchesList extends StatelessWidget {
               title: showPast ? 'No past matches yet' : 'No upcoming matches',
               message: showPast
                   ? 'Completed games will appear here.'
-                  : 'Join and mock-pay for a match to lock in your place.',
+                  : 'Join a match, then pay when you are ready to secure your spot.',
             ),
           );
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
           itemCount: summaries.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
@@ -170,7 +170,7 @@ class _OrganisedMatchesList extends StatelessWidget {
         }
 
         return ListView.separated(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
           itemCount: matches.length,
           separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
@@ -281,15 +281,17 @@ class _PaymentBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isPending = label == 'PendingPayment';
+    final colour = isPending ? AppColours.warning : AppColours.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: AppColours.accent.withValues(alpha: 0.12),
+        color: colour.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        'Payment $label',
-        style: AppTextStyles.small.copyWith(color: AppColours.accent),
+        isPending ? 'Payment pending' : 'Payment $label',
+        style: AppTextStyles.small.copyWith(color: colour),
       ),
     );
   }

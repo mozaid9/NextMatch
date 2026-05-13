@@ -50,6 +50,7 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.attendanceStatus in [
           'Joined',
+          'PendingPayment',
           'PendingApproval'
         ];
     }
@@ -61,7 +62,11 @@ service cloud.firestore {
           'cancelledAt',
           'withdrawalReason'
         ])
-        && resource.data.attendanceStatus == 'Joined'
+        && resource.data.attendanceStatus in [
+          'Joined',
+          'PendingPayment',
+          'PendingApproval'
+        ]
         && request.resource.data.attendanceStatus in [
           'Cancelled',
           'LateCancelled'
@@ -70,8 +75,9 @@ service cloud.firestore {
 
     function validSelfPaymentConfirmation(matchId, participantId) {
       return owns(participantId)
-        && resource.data.attendanceStatus == 'PendingApproval'
-        && resource.data.organiserApproved == true
+        && (resource.data.attendanceStatus == 'PendingPayment'
+          || (resource.data.attendanceStatus == 'PendingApproval'
+            && resource.data.organiserApproved == true))
         && request.resource.data.attendanceStatus == 'Joined'
         && request.resource.data.paymentStatus == 'Confirmed';
     }

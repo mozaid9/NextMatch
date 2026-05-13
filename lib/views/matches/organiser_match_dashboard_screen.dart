@@ -62,12 +62,20 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
               final pending = participants
                   .where((participant) => participant.isPendingApproval)
                   .toList();
+              final pendingPayment = participants
+                  .where((participant) => participant.isPendingPayment)
+                  .toList();
               final confirmed = participants
                   .where((participant) => participant.hasConfirmedSlot)
                   .toList();
+              final canComplete =
+                  match.hasStarted &&
+                  confirmed.isNotEmpty &&
+                  !match.isCompleted &&
+                  !match.isCancelled;
 
               return ListView(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
                 children: [
                   _SummaryCard(match: match),
                   const SizedBox(height: 16),
@@ -82,6 +90,25 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                             children: pending
                                 .map(
                                   (participant) => _ApprovalTile(
+                                    match: match,
+                                    participant: participant,
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                  ),
+                  const SizedBox(height: 16),
+                  _Section(
+                    title: 'Pending payment',
+                    child: pendingPayment.isEmpty
+                        ? Text(
+                            'No players waiting to pay.',
+                            style: AppTextStyles.bodyMuted,
+                          )
+                        : Column(
+                            children: pendingPayment
+                                .map(
+                                  (participant) => _PaymentPendingTile(
                                     match: match,
                                     participant: participant,
                                   ),
@@ -114,14 +141,12 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                     child: Column(
                       children: [
                         PrimaryButton(
-                          label: match.isCompleted
-                              ? 'Match completed'
-                              : 'Complete match',
+                          label: _completeButtonLabel(match, confirmed.length),
                           icon: Icons.flag_circle_outlined,
                           isLoading: matchViewModel.isLoading,
-                          onPressed: match.isCompleted || match.isCancelled
-                              ? null
-                              : () => _confirmComplete(context, match),
+                          onPressed: canComplete
+                              ? () => _confirmComplete(context, match)
+                              : null,
                         ),
                         const SizedBox(height: 10),
                         OutlinedButton.icon(
@@ -133,7 +158,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                         Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
-                            'TODO: whole-match cancellation and refund automation belongs in Cloud Functions.',
+                            'Whole-match cancellation and refund automation will be added with real payments.',
                             style: AppTextStyles.small,
                           ),
                         ),
@@ -147,6 +172,14 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
         },
       ),
     );
+  }
+
+  String _completeButtonLabel(FootballMatch match, int confirmedCount) {
+    if (match.isCompleted) return 'Match completed';
+    if (match.isCancelled) return 'Match cancelled';
+    if (!match.hasStarted) return 'Complete after kick-off';
+    if (confirmedCount == 0) return 'Add players first';
+    return 'Complete match';
   }
 
   Future<void> _confirmComplete(
@@ -295,6 +328,22 @@ class _ApprovalTile extends StatelessWidget {
   }
 }
 
+class _PaymentPendingTile extends StatelessWidget {
+  const _PaymentPendingTile({required this.match, required this.participant});
+
+  final FootballMatch match;
+  final MatchParticipant participant;
+
+  @override
+  Widget build(BuildContext context) {
+    return _PlayerPanel(
+      participant: participant,
+      threshold: match.minimumReliabilityRequired,
+      trailing: const _Badge(label: 'Not secured', colour: AppColours.warning),
+    );
+  }
+}
+
 class _ConfirmedTile extends StatelessWidget {
   const _ConfirmedTile({required this.match, required this.participant});
 
@@ -399,7 +448,7 @@ class _PlayerPanel extends StatelessWidget {
                           'Ability ${participant.abilityRatingAtJoin.toStringAsFixed(1)}',
                     ),
                     _Badge(label: participant.paymentStatus),
-                    _Badge(label: participant.attendanceStatus),
+                    _Badge(label: _statusLabel(participant.attendanceStatus)),
                   ],
                 ),
               ],
@@ -409,6 +458,16 @@ class _PlayerPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _statusLabel(String status) {
+    return switch (status) {
+      'PendingPayment' => 'Pending payment',
+      'PendingApproval' => 'Pending approval',
+      'LateCancelled' => 'Late cancelled',
+      'NoShow' => 'No-show',
+      _ => status,
+    };
   }
 }
 

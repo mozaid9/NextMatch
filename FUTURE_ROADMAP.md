@@ -6,6 +6,7 @@
 - Player profile setup
 - Match creation and joining
 - Split and Organiser Pays payment modes
+- Join-first, pay-to-secure split payment flow
 - Mock payments
 - Reliability score
 - Ability ratings

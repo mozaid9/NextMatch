@@ -144,7 +144,7 @@ class HomeScreen extends StatelessWidget {
                 final matches = (snapshot.data ?? []).take(3).toList();
                 if (matches.isEmpty) {
                   return SliverPadding(
-                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                    padding: const EdgeInsets.fromLTRB(20, 0, 20, 112),
                     sliver: SliverToBoxAdapter(
                       child: EmptyState(
                         icon: Icons.sports_soccer,
@@ -172,7 +172,7 @@ class HomeScreen extends StatelessWidget {
                 }
 
                 return SliverPadding(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 24),
+                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 112),
                   sliver: SliverList.separated(
                     itemCount: matches.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
@@ -268,12 +268,14 @@ class _UpcomingJoinedMatch extends StatelessWidget {
         if (upcoming.isEmpty) {
           return const EmptyState(
             icon: Icons.event_available,
-            title: 'No confirmed games',
+            title: 'No games yet',
             message: 'Join a match and it will appear here.',
           );
         }
 
         final summary = upcoming.first;
+        final paymentStatus = summary['paymentStatus'] as String? ?? '';
+        final isPendingPayment = paymentStatus == 'PendingPayment';
         return FutureBuilder<FootballMatch?>(
           future: matchViewModel.getMatch(summary['matchId'] as String),
           builder: (context, matchSnapshot) {
@@ -294,12 +296,21 @@ class _UpcomingJoinedMatch extends StatelessWidget {
                   vertical: 6,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColours.accent.withValues(alpha: 0.12),
+                  color:
+                      (isPendingPayment
+                              ? AppColours.warning
+                              : AppColours.accent)
+                          .withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'Payment confirmed',
-                  style: TextStyle(color: AppColours.accent, fontSize: 12),
+                child: Text(
+                  isPendingPayment ? 'Payment pending' : 'Spot secured',
+                  style: TextStyle(
+                    color: isPendingPayment
+                        ? AppColours.warning
+                        : AppColours.accent,
+                    fontSize: 12,
+                  ),
                 ),
               ),
               onTap: () {

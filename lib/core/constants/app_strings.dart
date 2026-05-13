@@ -48,6 +48,7 @@ class AppStrings {
     'LateCancelled',
     'Attended',
     'NoShow',
+    'PendingPayment',
     'PendingApproval',
     'Rejected',
   ];

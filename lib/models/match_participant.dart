@@ -44,11 +44,13 @@ class MatchParticipant {
       attendanceStatus == 'Attended' ||
       attendanceStatus == 'NoShow';
 
+  bool get isPendingPayment => attendanceStatus == 'PendingPayment';
   bool get isPendingApproval => attendanceStatus == 'PendingApproval';
   bool get isRejected => attendanceStatus == 'Rejected';
   bool get isWithdrawn =>
       attendanceStatus == 'Cancelled' || attendanceStatus == 'LateCancelled';
-  bool get canWithdraw => attendanceStatus == 'Joined';
+  bool get canWithdraw =>
+      attendanceStatus == 'Joined' || isPendingPayment || isPendingApproval;
 
   factory MatchParticipant.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,

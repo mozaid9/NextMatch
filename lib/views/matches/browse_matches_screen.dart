@@ -99,7 +99,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                   final filtered = _applyFilters(snapshot.data ?? []);
                   if (filtered.isEmpty) {
                     return SingleChildScrollView(
-                      padding: const EdgeInsets.all(20),
+                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
                       child: EmptyState(
                         icon: Icons.search_off,
                         title: 'No matches found',
@@ -125,14 +125,14 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                   }
 
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
+                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 112),
                     itemCount: filtered.length,
                     separatorBuilder: (_, _) => const SizedBox(height: 12),
                     itemBuilder: (context, index) {
                       final match = filtered[index];
                       return MatchCard(
                         match: match,
-                        actionLabel: match.isFull ? 'View' : 'Join',
+                        actionLabel: 'View',
                         onActionPressed: () => _openDetail(match),
                         onTap: () => _openDetail(match),
                       );

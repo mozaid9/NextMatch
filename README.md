@@ -8,7 +8,7 @@ NextMatch helps football players find, join and pay for local football matches w
 - Email/password login and registration
 - Player profile setup with positions, skill level, town, bio and trust stats
 - Home, browse matches, match detail, create match, my matches and profile screens
-- Split payment mode with mock payment before joining
+- Split payment mode where players join the match view first, then mock-pay to secure a slot
 - Organiser Pays mode where players join free and owe the organiser
 - Joined player tracking, owed amount tracking and payment records
 - Reliability score, low-reliability approval requests and organiser dashboard
@@ -17,9 +17,10 @@ NextMatch helps football players find, join and pay for local football matches w
 ## Payment Modes
 
 Split:
-- Player pays before joining
+- Player joins the match view first with `attendanceStatus: PendingPayment`
+- Player can review the match details and player list before paying
 - `MockPaymentScreen` simulates the future Stripe flow
-- Participant is confirmed after successful mock payment
+- Participant is confirmed and counted after successful mock payment
 
 Organiser Pays:
 - Player can join without paying in-app

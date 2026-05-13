@@ -137,7 +137,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       appBar: AppBar(title: const Text('Create')),
       body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
           child: Form(
             key: _formKey,
             child: Column(

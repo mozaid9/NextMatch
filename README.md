@@ -56,11 +56,13 @@ Organisers can open the dashboard from match detail to:
 
 ## Firebase Setup
 
-The app is connected to Firebase project `nextmatch-eb038`. To refresh generated config:
+The app is connected to Firebase project `nextmatch-eb038`, but the committed Firebase config uses placeholder API keys to avoid publishing live keys. To refresh generated config locally:
 
 ```bash
 flutterfire configure
 ```
+
+Then replace the placeholder Firebase config values locally before running against the live project.
 
 Deploy Firestore rules:
 

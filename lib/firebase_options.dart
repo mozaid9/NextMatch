@@ -18,62 +18,60 @@ class DefaultFirebaseOptions {
     };
   }
 
-  // Replace this file with the output of `flutterfire configure` when your
-
+  // Safe placeholder config for source control. Run `flutterfire configure`
+  // locally and do not commit live Google API keys without restrictions.
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBmcYuuqbxHKSPPlNhYzrTLViLkUPtPz_g',
-    appId: '1:562392184918:web:587b361e90d5d1aad3e3f7',
-    messagingSenderId: '562392184918',
+    apiKey: 'REPLACE_WITH_WEB_API_KEY',
+    appId: 'REPLACE_WITH_WEB_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
     projectId: 'nextmatch-eb038',
     authDomain: 'nextmatch-eb038.firebaseapp.com',
     storageBucket: 'nextmatch-eb038.firebasestorage.app',
-    measurementId: 'G-SW1K87HHGF',
+    measurementId: 'REPLACE_WITH_MEASUREMENT_ID',
   );
 
-  // Firebase project is ready. These placeholders keep the MVP compiling.
-
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCqi5ygR-dMOU73_1X2efTPtP3BQDNTZTM',
-    appId: '1:562392184918:android:c2365ff46ce939b7d3e3f7',
-    messagingSenderId: '562392184918',
+    apiKey: 'REPLACE_WITH_ANDROID_API_KEY',
+    appId: 'REPLACE_WITH_ANDROID_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
     projectId: 'nextmatch-eb038',
     storageBucket: 'nextmatch-eb038.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyCS69IAGAUyQ2uoC3ZL8FggiJ8HPnbXit8',
-    appId: '1:562392184918:ios:9e6c5b8291e95d74d3e3f7',
-    messagingSenderId: '562392184918',
+    apiKey: 'REPLACE_WITH_IOS_API_KEY',
+    appId: 'REPLACE_WITH_IOS_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
     projectId: 'nextmatch-eb038',
     storageBucket: 'nextmatch-eb038.firebasestorage.app',
     iosBundleId: 'com.nextmatch.nextMatch',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyCS69IAGAUyQ2uoC3ZL8FggiJ8HPnbXit8',
-    appId: '1:562392184918:ios:9e6c5b8291e95d74d3e3f7',
-    messagingSenderId: '562392184918',
+    apiKey: 'REPLACE_WITH_MACOS_API_KEY',
+    appId: 'REPLACE_WITH_MACOS_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
     projectId: 'nextmatch-eb038',
     storageBucket: 'nextmatch-eb038.firebasestorage.app',
     iosBundleId: 'com.nextmatch.nextMatch',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBmcYuuqbxHKSPPlNhYzrTLViLkUPtPz_g',
-    appId: '1:562392184918:web:53fc4cbcafef2c8dd3e3f7',
-    messagingSenderId: '562392184918',
+    apiKey: 'REPLACE_WITH_WINDOWS_API_KEY',
+    appId: 'REPLACE_WITH_WINDOWS_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
     projectId: 'nextmatch-eb038',
     authDomain: 'nextmatch-eb038.firebaseapp.com',
     storageBucket: 'nextmatch-eb038.firebasestorage.app',
-    measurementId: 'G-PHHX77N2VD',
+    measurementId: 'REPLACE_WITH_MEASUREMENT_ID',
   );
 
   static const FirebaseOptions linux = FirebaseOptions(
-    apiKey: 'replace-with-firebase-api-key',
-    appId: '1:000000000000:web:nextmatchlinux',
-    messagingSenderId: '000000000000',
-    projectId: 'nextmatch-dev',
-    authDomain: 'nextmatch-dev.firebaseapp.com',
-    storageBucket: 'nextmatch-dev.appspot.com',
+    apiKey: 'REPLACE_WITH_LINUX_API_KEY',
+    appId: 'REPLACE_WITH_LINUX_APP_ID',
+    messagingSenderId: 'REPLACE_WITH_SENDER_ID',
+    projectId: 'nextmatch-eb038',
+    authDomain: 'nextmatch-eb038.firebaseapp.com',
+    storageBucket: 'nextmatch-eb038.firebasestorage.app',
   );
 }

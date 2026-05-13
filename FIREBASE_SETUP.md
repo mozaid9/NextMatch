@@ -21,7 +21,9 @@ dart pub global activate flutterfire_cli
 flutterfire configure
 ```
 
-Replace `lib/firebase_options.dart` with the generated file. The current file contains placeholders so the code compiles before a Firebase project exists.
+Replace the placeholder values in `lib/firebase_options.dart`, `android/app/google-services.json`, and the Apple `GoogleService-Info.plist` files with the generated local Firebase config.
+
+Important: if GitHub secret scanning flags the generated Google API keys, either keep the generated files local or ensure the keys are restricted to the correct app identifiers in Google Cloud Console before committing.
 
 ## 3. Deploy Firestore rules
 

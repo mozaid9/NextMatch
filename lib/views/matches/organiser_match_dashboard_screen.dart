@@ -6,6 +6,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/selection_sheet.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
@@ -357,30 +358,37 @@ class _ConfirmedTile extends StatelessWidget {
     return _PlayerPanel(
       participant: participant,
       threshold: match.minimumReliabilityRequired,
-      trailing: PopupMenuButton<String>(
+      trailing: IconButton(
         tooltip: 'Attendance',
-        color: AppColours.card,
-        onSelected: (value) {
-          if (value == 'Attended') {
-            viewModel.markParticipantAttended(
-              matchId: match.id,
-              userId: participant.userId,
-            );
-          }
-          if (value == 'NoShow') {
-            viewModel.markParticipantNoShow(
-              matchId: match.id,
-              userId: participant.userId,
-            );
-          }
-        },
-        itemBuilder: (context) => const [
-          PopupMenuItem(value: 'Attended', child: Text('Mark attended')),
-          PopupMenuItem(value: 'NoShow', child: Text('Mark no-show')),
-        ],
-        child: const Icon(Icons.more_vert),
+        onPressed: () => _openAttendanceSheet(context, viewModel),
+        icon: const Icon(Icons.more_vert),
       ),
     );
+  }
+
+  Future<void> _openAttendanceSheet(
+    BuildContext context,
+    MatchViewModel viewModel,
+  ) async {
+    final value = await showSelectionSheet(
+      context: context,
+      title: 'Attendance',
+      selectedValue: participant.attendanceStatus,
+      options: const ['Attended', 'NoShow'],
+    );
+
+    if (value == 'Attended') {
+      await viewModel.markParticipantAttended(
+        matchId: match.id,
+        userId: participant.userId,
+      );
+    }
+    if (value == 'NoShow') {
+      await viewModel.markParticipantNoShow(
+        matchId: match.id,
+        userId: participant.userId,
+      );
+    }
   }
 }
 

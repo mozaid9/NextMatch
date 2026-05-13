@@ -7,6 +7,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/match_card.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/selection_sheet.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
@@ -225,6 +226,7 @@ class _FilterRow extends StatelessWidget {
         children: [
           _PopupFilter(
             icon: Icons.groups_2,
+            title: 'Format',
             label: format,
             options: const ['Any format', ...AppStrings.matchFormats],
             onSelected: onFormatChanged,
@@ -232,6 +234,7 @@ class _FilterRow extends StatelessWidget {
           const SizedBox(width: 8),
           _PopupFilter(
             icon: Icons.bolt,
+            title: 'Skill level',
             label: skill,
             options: const ['Any skill', ...AppStrings.skillLevels],
             onSelected: onSkillChanged,
@@ -239,6 +242,7 @@ class _FilterRow extends StatelessWidget {
           const SizedBox(width: 8),
           _PopupFilter(
             icon: Icons.near_me_outlined,
+            title: 'Distance',
             label: distance,
             options: const ['Any distance', 'Under 2 miles', 'Under 5 miles'],
             onSelected: onDistanceChanged,
@@ -246,6 +250,7 @@ class _FilterRow extends StatelessWidget {
           const SizedBox(width: 8),
           _PopupFilter(
             icon: Icons.event,
+            title: 'Date',
             label: date,
             options: const ['Any date', 'Today', 'This week'],
             onSelected: onDateChanged,
@@ -253,6 +258,7 @@ class _FilterRow extends StatelessWidget {
           const SizedBox(width: 8),
           _PopupFilter(
             icon: Icons.sports,
+            title: 'Position',
             label: position,
             options: const [
               'Any position',
@@ -272,27 +278,23 @@ class _FilterRow extends StatelessWidget {
 class _PopupFilter extends StatelessWidget {
   const _PopupFilter({
     required this.icon,
+    required this.title,
     required this.label,
     required this.options,
     required this.onSelected,
   });
 
   final IconData icon;
+  final String title;
   final String label;
   final List<String> options;
   final ValueChanged<String> onSelected;
 
   @override
   Widget build(BuildContext context) {
-    return PopupMenuButton<String>(
-      color: AppColours.card,
-      onSelected: onSelected,
-      itemBuilder: (context) => options
-          .map(
-            (option) =>
-                PopupMenuItem<String>(value: option, child: Text(option)),
-          )
-          .toList(),
+    return InkWell(
+      onTap: () => _openOptions(context),
+      borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
@@ -312,5 +314,16 @@ class _PopupFilter extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _openOptions(BuildContext context) async {
+    final selected = await showSelectionSheet(
+      context: context,
+      title: title,
+      selectedValue: label,
+      options: options,
+    );
+
+    if (selected != null) onSelected(selected);
   }
 }

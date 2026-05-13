@@ -8,6 +8,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/selection_sheet.dart';
 import '../../models/app_user.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 
@@ -226,18 +227,11 @@ class _DropdownField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DropdownButtonFormField<String>(
-      initialValue: value,
-      decoration: InputDecoration(labelText: label),
-      dropdownColor: AppColours.card,
-      items: items
-          .map(
-            (item) => DropdownMenuItem<String>(value: item, child: Text(item)),
-          )
-          .toList(),
-      onChanged: (value) {
-        if (value != null) onChanged(value);
-      },
+    return SelectionSheetField(
+      label: label,
+      value: value,
+      options: items,
+      onChanged: onChanged,
     );
   }
 }

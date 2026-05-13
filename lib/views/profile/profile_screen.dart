@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/app_user.dart';
+import '../../services/reliability_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import 'edit_profile_screen.dart';
@@ -25,106 +26,66 @@ class ProfileScreen extends StatelessWidget {
           appBar: AppBar(title: const Text('Profile')),
           body: SafeArea(
             child: ListView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.zero,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(18),
-                  decoration: BoxDecoration(
-                    color: AppColours.card,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColours.line),
-                  ),
+                _ProfileHeader(user: user),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Row(
                         children: [
-                          CircleAvatar(
-                            radius: 36,
-                            backgroundColor: AppColours.cardAlt,
-                            child: Text(
-                              user.fullName.isEmpty
-                                  ? 'N'
-                                  : user.fullName[0].toUpperCase(),
-                              style: AppTextStyles.h2.copyWith(
-                                color: AppColours.accent,
-                              ),
+                          Expanded(
+                            child: _StatTile(
+                              label: 'Reliability',
+                              value:
+                                  '${user.reliabilityScore} ${ReliabilityService.getReliabilityLabel(user.reliabilityScore)}',
                             ),
                           ),
-                          const SizedBox(width: 16),
+                          const SizedBox(width: 10),
                           Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(user.fullName, style: AppTextStyles.h2),
-                                const SizedBox(height: 4),
-                                Text(
-                                  '${user.preferredPosition} - ${user.skillLevel}',
-                                  style: AppTextStyles.bodyMuted,
-                                ),
-                                const SizedBox(height: 4),
-                                Text(user.location, style: AppTextStyles.small),
-                              ],
+                            child: _StatTile(
+                              label: 'Ability',
+                              value:
+                                  '${user.abilityRating.toStringAsFixed(1)}/5',
+                            ),
+                          ),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: _StatTile(
+                              label: 'Ratings',
+                              value: user.abilityRatingCount.toString(),
                             ),
                           ),
                         ],
                       ),
-                      const SizedBox(height: 18),
-                      Text(user.bio, style: AppTextStyles.bodyMuted),
+                      const SizedBox(height: 16),
+                      _DetailPanel(user: user),
+                      const SizedBox(height: 20),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => EditProfileScreen(user: user),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit profile'),
+                      ),
+                      const SizedBox(height: 10),
+                      OutlinedButton.icon(
+                        onPressed: () =>
+                            context.read<AuthViewModel>().signOut(),
+                        icon: const Icon(Icons.logout),
+                        label: const Text('Sign out'),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: AppColours.error,
+                          side: const BorderSide(color: AppColours.error),
+                        ),
+                      ),
+                      const SizedBox(height: 20),
                     ],
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Reliability',
-                        value: '${user.reliabilityScore}%',
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Played',
-                        value: user.matchesPlayed.toString(),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _StatTile(
-                        label: 'Rating',
-                        value: user.rating == 0
-                            ? 'New'
-                            : user.rating.toStringAsFixed(1),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                _DetailPanel(user: user),
-                const SizedBox(height: 16),
-                _FuturePanel(),
-                const SizedBox(height: 20),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => EditProfileScreen(user: user),
-                      ),
-                    );
-                  },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Edit profile'),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton.icon(
-                  onPressed: () => context.read<AuthViewModel>().signOut(),
-                  icon: const Icon(Icons.logout),
-                  label: const Text('Sign out'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: AppColours.error,
-                    side: const BorderSide(color: AppColours.error),
                   ),
                 ),
               ],
@@ -132,6 +93,105 @@ class ProfileScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _ProfileHeader extends StatelessWidget {
+  const _ProfileHeader({required this.user});
+
+  final AppUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = user.fullName.isEmpty
+        ? 'N'
+        : user.fullName[0].toUpperCase();
+    final displayName = user.fullName.isEmpty
+        ? 'Player'
+        : user.fullName
+              .split(' ')
+              .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+              .join(' ');
+
+    return Container(
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: AppColours.card,
+        border: Border(bottom: BorderSide(color: AppColours.line)),
+      ),
+      child: Column(
+        children: [
+          Container(
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AppColours.accent.withValues(alpha: 0.25),
+                  AppColours.accent.withValues(alpha: 0.05),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+          ),
+          Transform.translate(
+            offset: const Offset(0, -36),
+            child: Column(
+              children: [
+                CircleAvatar(
+                  radius: 40,
+                  backgroundColor: AppColours.surface,
+                  child: CircleAvatar(
+                    radius: 36,
+                    backgroundColor: AppColours.cardAlt,
+                    child: Text(
+                      initial,
+                      style: AppTextStyles.h1.copyWith(
+                        color: AppColours.accent,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(displayName, style: AppTextStyles.h2),
+                const SizedBox(height: 4),
+                Text(
+                  '${user.preferredPosition} · ${user.skillLevel}',
+                  style: AppTextStyles.bodyMuted,
+                ),
+                if (user.location.isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.place_outlined,
+                        size: 14,
+                        color: AppColours.mutedText,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(user.location, style: AppTextStyles.small),
+                    ],
+                  ),
+                ],
+                if (user.bio.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 24),
+                    child: Text(
+                      user.bio,
+                      style: AppTextStyles.bodyMuted,
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ],
+                const SizedBox(height: 4),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -194,6 +254,28 @@ class _DetailPanel extends StatelessWidget {
             value: user.secondaryPosition,
           ),
           _DetailRow(label: 'Favourite foot', value: user.favouriteFoot),
+          _DetailRow(
+            label: 'Completed matches',
+            value: user.completedMatches.toString(),
+          ),
+          _DetailRow(
+            label: 'Attended matches',
+            value: user.attendedMatches.toString(),
+          ),
+          _DetailRow(label: 'No-shows', value: user.noShows.toString()),
+          _DetailRow(
+            label: 'Late cancellations',
+            value: user.lateCancellations.toString(),
+          ),
+          _DetailRow(
+            label: 'Cancelled matches',
+            value: user.cancelledMatches.toString(),
+          ),
+          _DetailRow(
+            label: 'Ability rating',
+            value:
+                '${user.abilityRating.toStringAsFixed(1)}/5 from ${user.abilityRatingCount} ratings',
+          ),
         ],
       ),
     );
@@ -214,42 +296,6 @@ class _DetailRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: AppTextStyles.bodyMuted)),
           Text(value, style: AppTextStyles.body),
-        ],
-      ),
-    );
-  }
-}
-
-class _FuturePanel extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    final futureItems = ['Reviews', 'Stats', 'Goals', 'Assists', 'MOTM awards'];
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColours.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColours.line),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Coming next', style: AppTextStyles.h3),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: futureItems
-                .map(
-                  (item) => Chip(
-                    label: Text(item),
-                    backgroundColor: AppColours.cardAlt,
-                    side: const BorderSide(color: AppColours.line),
-                  ),
-                )
-                .toList(),
-          ),
         ],
       ),
     );

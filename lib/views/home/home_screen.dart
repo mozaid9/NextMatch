@@ -46,7 +46,7 @@ class HomeScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hi, ${currentUser.fullName.split(' ').first}',
+                                'Hi, ${_capitalise(currentUser.fullName.split(' ').first)}',
                                 style: AppTextStyles.h1,
                               ),
                               const SizedBox(height: 6),
@@ -102,7 +102,7 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 26),
-                    Text('Upcoming joined match', style: AppTextStyles.h2),
+                    Text('Your next match', style: AppTextStyles.h2),
                     const SizedBox(height: 12),
                     _UpcomingJoinedMatch(currentUser: currentUser),
                     const SizedBox(height: 26),
@@ -203,6 +203,9 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  static String _capitalise(String s) =>
+      s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 }
 
 class _SearchCard extends StatelessWidget {

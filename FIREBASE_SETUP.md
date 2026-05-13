@@ -1,6 +1,6 @@
 # Firebase Setup
 
-NextMatch is wired for Firebase Auth, Cloud Firestore and Firebase Storage placeholders.
+NextMatch is wired for Firebase Auth, Cloud Firestore and Firebase Storage placeholders. The current Firebase project is `nextmatch-eb038`.
 
 ## 1. Create the Firebase project
 
@@ -29,7 +29,9 @@ Replace `lib/firebase_options.dart` with the generated file. The current file co
 firebase deploy --only firestore:rules
 ```
 
-The starter rules allow the MVP client transaction to increment match counts after mock payment. Move this fulfilment to Cloud Functions when Stripe goes live.
+The starter rules cover profiles, public match reads, organiser approvals, withdrawals, attendance marking, completed-match ratings and relevant payment reads.
+
+TODO: move trust score writes, Stripe fulfilment, refunds and no-show enforcement into Cloud Functions before production.
 
 ## 4. Run the app
 

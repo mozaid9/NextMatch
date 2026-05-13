@@ -18,6 +18,18 @@ class PaymentService {
     );
   }
 
+  Future<void> freeJoin({
+    required FootballMatch match,
+    required AppUser user,
+    required String position,
+  }) async {
+    await _matchService.freeJoinMatch(
+      match: match,
+      user: user,
+      position: position,
+    );
+  }
+
   Future<void> mockPayAndJoin({
     required FootballMatch match,
     required AppUser user,

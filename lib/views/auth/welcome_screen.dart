@@ -17,41 +17,25 @@ class WelcomeScreen extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               const Spacer(),
-              Container(
-                height: 76,
-                width: 76,
-                decoration: BoxDecoration(
-                  color: AppColours.accent.withValues(alpha: 0.12),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(
-                    color: AppColours.accent.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: const Icon(
-                  Icons.sports_soccer,
-                  color: AppColours.accent,
-                  size: 42,
-                ),
+              Image.asset(
+                'assets/images/nextmatchlogo.png',
+                height: 200,
+                width: 200,
               ),
-              const SizedBox(height: 24),
-              Text(AppStrings.appName, style: AppTextStyles.display),
-              const SizedBox(height: 10),
-              Text(
-                AppStrings.tagline,
-                style: AppTextStyles.h3.copyWith(color: AppColours.accent),
-              ),
-              const SizedBox(height: 14),
+              const SizedBox(height: 20),
               Text(
                 AppStrings.productOneLiner,
                 style: AppTextStyles.bodyMuted.copyWith(fontSize: 16),
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 28),
               Wrap(
                 spacing: 10,
                 runSpacing: 10,
+                alignment: WrapAlignment.center,
                 children: const [
                   _ValueChip(icon: Icons.check_circle, label: 'No chasing'),
                   _ValueChip(icon: Icons.lock, label: 'Paid slots'),

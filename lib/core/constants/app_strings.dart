@@ -36,4 +36,19 @@ class AppStrings {
   static const pitchTypes = ['Indoor', 'Outdoor', 'Astro', 'Grass', '3G/4G'];
 
   static const visibilityOptions = ['Public', 'Private invite-only'];
+
+  static const paymentModeSplit = 'Split';
+  static const paymentModeOrganiserPays = 'OrganiserPays';
+
+  static const matchStatuses = ['Open', 'Full', 'Cancelled', 'Completed'];
+
+  static const attendanceStatuses = [
+    'Joined',
+    'Cancelled',
+    'LateCancelled',
+    'Attended',
+    'NoShow',
+    'PendingApproval',
+    'Rejected',
+  ];
 }

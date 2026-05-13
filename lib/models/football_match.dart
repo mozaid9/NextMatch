@@ -11,6 +11,7 @@ class FootballMatch {
     required this.date,
     required this.startTime,
     required this.startDateTime,
+    this.endDateTime,
     required this.durationMinutes,
     required this.format,
     required this.totalPlayersNeeded,
@@ -23,6 +24,12 @@ class FootballMatch {
     required this.visibility,
     required this.status,
     required this.cancellationPolicy,
+    required this.paymentMode,
+    this.isRated = false,
+    this.organiserCanApproveLowReliability = true,
+    this.minimumReliabilityRequired = 60,
+    this.requiresApprovalForLowReliability = true,
+    this.completedAt,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -36,6 +43,7 @@ class FootballMatch {
   final DateTime date;
   final String startTime;
   final DateTime startDateTime;
+  final DateTime? endDateTime;
   final int durationMinutes;
   final String format;
   final int totalPlayersNeeded;
@@ -48,15 +56,29 @@ class FootballMatch {
   final String visibility;
   final String status;
   final String cancellationPolicy;
+  final String paymentMode;
+  final bool isRated;
+  final bool organiserCanApproveLowReliability;
+  final int minimumReliabilityRequired;
+  final bool requiresApprovalForLowReliability;
+  final DateTime? completedAt;
   final DateTime createdAt;
   final DateTime updatedAt;
 
+  bool get isOrganiserPays => paymentMode == 'OrganiserPays';
+  bool get isSplitPayment => paymentMode == 'Split';
+  bool get isCompleted => status == 'Completed';
+  bool get isCancelled => status == 'Cancelled';
+  bool get hasStarted => DateTime.now().isAfter(startDateTime);
   bool get isFull => joinedPlayerCount >= totalPlayersNeeded;
   bool get isNearlyFull =>
       !isFull && totalPlayersNeeded - joinedPlayerCount <= 2;
   String get spacesLabel => '$joinedPlayerCount/$totalPlayersNeeded';
-  String get displayStatus =>
-      isFull ? 'Full' : (isNearlyFull ? 'Nearly Full' : status);
+  String get displayStatus {
+    if (isCompleted || isCancelled) return status;
+    if (isFull || status == 'Full') return 'Full';
+    return isNearlyFull ? 'Nearly Full' : status;
+  }
 
   factory FootballMatch.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -76,6 +98,7 @@ class FootballMatch {
       date: _readDate(data['date']),
       startTime: data['startTime'] as String? ?? '',
       startDateTime: _readDate(data['startDateTime']),
+      endDateTime: _readNullableDate(data['endDateTime']),
       durationMinutes: (data['durationMinutes'] as num?)?.toInt() ?? 60,
       format: data['format'] as String? ?? '5-a-side',
       totalPlayersNeeded: (data['totalPlayersNeeded'] as num?)?.toInt() ?? 10,
@@ -88,6 +111,15 @@ class FootballMatch {
       visibility: data['visibility'] as String? ?? 'Public',
       status: data['status'] as String? ?? 'Open',
       cancellationPolicy: data['cancellationPolicy'] as String? ?? '',
+      paymentMode: data['paymentMode'] as String? ?? 'Split',
+      isRated: data['isRated'] as bool? ?? false,
+      organiserCanApproveLowReliability:
+          data['organiserCanApproveLowReliability'] as bool? ?? true,
+      minimumReliabilityRequired:
+          (data['minimumReliabilityRequired'] as num?)?.toInt() ?? 60,
+      requiresApprovalForLowReliability:
+          data['requiresApprovalForLowReliability'] as bool? ?? true,
+      completedAt: _readNullableDate(data['completedAt']),
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
@@ -104,6 +136,9 @@ class FootballMatch {
       'date': Timestamp.fromDate(date),
       'startTime': startTime,
       'startDateTime': Timestamp.fromDate(startDateTime),
+      'endDateTime': Timestamp.fromDate(
+        endDateTime ?? startDateTime.add(Duration(minutes: durationMinutes)),
+      ),
       'durationMinutes': durationMinutes,
       'format': format,
       'totalPlayersNeeded': totalPlayersNeeded,
@@ -116,6 +151,14 @@ class FootballMatch {
       'visibility': visibility,
       'status': status,
       'cancellationPolicy': cancellationPolicy,
+      'paymentMode': paymentMode,
+      'isRated': isRated,
+      'organiserCanApproveLowReliability': organiserCanApproveLowReliability,
+      'minimumReliabilityRequired': minimumReliabilityRequired,
+      'requiresApprovalForLowReliability': requiresApprovalForLowReliability,
+      'completedAt': completedAt == null
+          ? null
+          : Timestamp.fromDate(completedAt!),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -131,6 +174,7 @@ class FootballMatch {
     DateTime? date,
     String? startTime,
     DateTime? startDateTime,
+    DateTime? endDateTime,
     int? durationMinutes,
     String? format,
     int? totalPlayersNeeded,
@@ -143,6 +187,12 @@ class FootballMatch {
     String? visibility,
     String? status,
     String? cancellationPolicy,
+    String? paymentMode,
+    bool? isRated,
+    bool? organiserCanApproveLowReliability,
+    int? minimumReliabilityRequired,
+    bool? requiresApprovalForLowReliability,
+    DateTime? completedAt,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -156,6 +206,7 @@ class FootballMatch {
       date: date ?? this.date,
       startTime: startTime ?? this.startTime,
       startDateTime: startDateTime ?? this.startDateTime,
+      endDateTime: endDateTime ?? this.endDateTime,
       durationMinutes: durationMinutes ?? this.durationMinutes,
       format: format ?? this.format,
       totalPlayersNeeded: totalPlayersNeeded ?? this.totalPlayersNeeded,
@@ -168,6 +219,17 @@ class FootballMatch {
       visibility: visibility ?? this.visibility,
       status: status ?? this.status,
       cancellationPolicy: cancellationPolicy ?? this.cancellationPolicy,
+      paymentMode: paymentMode ?? this.paymentMode,
+      isRated: isRated ?? this.isRated,
+      organiserCanApproveLowReliability:
+          organiserCanApproveLowReliability ??
+          this.organiserCanApproveLowReliability,
+      minimumReliabilityRequired:
+          minimumReliabilityRequired ?? this.minimumReliabilityRequired,
+      requiresApprovalForLowReliability:
+          requiresApprovalForLowReliability ??
+          this.requiresApprovalForLowReliability,
+      completedAt: completedAt ?? this.completedAt,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -175,7 +237,6 @@ class FootballMatch {
 
   static String statusForCount(int joinedPlayerCount, int totalPlayersNeeded) {
     if (joinedPlayerCount >= totalPlayersNeeded) return 'Full';
-    if (totalPlayersNeeded - joinedPlayerCount <= 2) return 'Nearly Full';
     return 'Open';
   }
 
@@ -183,6 +244,12 @@ class FootballMatch {
     if (value is Timestamp) return value.toDate();
     if (value is DateTime) return value;
     return DateTime.now();
+  }
+
+  static DateTime? _readNullableDate(dynamic value) {
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    return null;
   }
 
   static Map<String, int> _readNeededPositions(dynamic value) {

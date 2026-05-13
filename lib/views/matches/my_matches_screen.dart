@@ -233,7 +233,7 @@ class _OrganisedMatchCard extends StatelessWidget {
                 builder: (context, snapshot) {
                   final participants = snapshot.data ?? [];
                   if (participants.isEmpty) {
-                    return const Text(
+                    return Text(
                       'No confirmed players yet.',
                       style: AppTextStyles.bodyMuted,
                     );

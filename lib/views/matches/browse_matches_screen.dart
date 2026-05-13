@@ -67,7 +67,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                     style: AppTextStyles.bodyMuted,
                   ),
                   const SizedBox(height: 16),
-                  _FilterWrap(
+                  _FilterRow(
                     format: _format,
                     skill: _skill,
                     distance: _distance,
@@ -104,7 +104,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                         icon: Icons.search_off,
                         title: 'No matches found',
                         message:
-                            'Try loosening the filters or add sample games for the MVP demo.',
+                            'Try adjusting the filters, or be the first to post a game in your area.',
                         action: PrimaryButton(
                           label: 'Add demo matches',
                           icon: Icons.auto_awesome,
@@ -191,8 +191,8 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
   }
 }
 
-class _FilterWrap extends StatelessWidget {
-  const _FilterWrap({
+class _FilterRow extends StatelessWidget {
+  const _FilterRow({
     required this.format,
     required this.skill,
     required this.distance,
@@ -218,47 +218,53 @@ class _FilterWrap extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        _PopupFilter(
-          icon: Icons.groups_2,
-          label: format,
-          options: const ['Any format', ...AppStrings.matchFormats],
-          onSelected: onFormatChanged,
-        ),
-        _PopupFilter(
-          icon: Icons.bolt,
-          label: skill,
-          options: const ['Any skill', ...AppStrings.skillLevels],
-          onSelected: onSkillChanged,
-        ),
-        _PopupFilter(
-          icon: Icons.near_me_outlined,
-          label: distance,
-          options: const ['Any distance', 'Under 2 miles', 'Under 5 miles'],
-          onSelected: onDistanceChanged,
-        ),
-        _PopupFilter(
-          icon: Icons.event,
-          label: date,
-          options: const ['Any date', 'Today', 'This week'],
-          onSelected: onDateChanged,
-        ),
-        _PopupFilter(
-          icon: Icons.sports,
-          label: position,
-          options: const [
-            'Any position',
-            'Goalkeeper',
-            'Defender',
-            'Midfielder',
-            'Forward',
-          ],
-          onSelected: onPositionChanged,
-        ),
-      ],
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      clipBehavior: Clip.none,
+      child: Row(
+        children: [
+          _PopupFilter(
+            icon: Icons.groups_2,
+            label: format,
+            options: const ['Any format', ...AppStrings.matchFormats],
+            onSelected: onFormatChanged,
+          ),
+          const SizedBox(width: 8),
+          _PopupFilter(
+            icon: Icons.bolt,
+            label: skill,
+            options: const ['Any skill', ...AppStrings.skillLevels],
+            onSelected: onSkillChanged,
+          ),
+          const SizedBox(width: 8),
+          _PopupFilter(
+            icon: Icons.near_me_outlined,
+            label: distance,
+            options: const ['Any distance', 'Under 2 miles', 'Under 5 miles'],
+            onSelected: onDistanceChanged,
+          ),
+          const SizedBox(width: 8),
+          _PopupFilter(
+            icon: Icons.event,
+            label: date,
+            options: const ['Any date', 'Today', 'This week'],
+            onSelected: onDateChanged,
+          ),
+          const SizedBox(width: 8),
+          _PopupFilter(
+            icon: Icons.sports,
+            label: position,
+            options: const [
+              'Any position',
+              'Goalkeeper',
+              'Defender',
+              'Midfielder',
+              'Forward',
+            ],
+            onSelected: onPositionChanged,
+          ),
+        ],
+      ),
     );
   }
 }

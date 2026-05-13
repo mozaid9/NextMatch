@@ -10,9 +10,16 @@ service cloud.firestore {
       return signedIn() && request.auth.uid == userId;
     }
 
+    function matchDoc(matchId) {
+      return get(/databases/$(database)/documents/matches/$(matchId));
+    }
+
+    function participantDoc(matchId, userId) {
+      return get(/databases/$(database)/documents/matches/$(matchId)/participants/$(userId));
+    }
+
     function isMatchOrganiser(matchId) {
-      return signedIn()
-        && get(/databases/$(database)/documents/matches/$(matchId)).data.organiserId == request.auth.uid;
+      return signedIn() && matchDoc(matchId).data.organiserId == request.auth.uid;
     }
 
     function validJoinCounterUpdate() {
@@ -24,37 +31,150 @@ service cloud.firestore {
         ])
         && resource.data.joinedPlayerCount < resource.data.totalPlayersNeeded
         && request.resource.data.joinedPlayerCount == resource.data.joinedPlayerCount + 1
-        && request.resource.data.status in ['Open', 'Nearly Full', 'Full'];
+        && request.resource.data.status in ['Open', 'Full'];
+    }
+
+    function validWithdrawCounterUpdate() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'joinedPlayerCount',
+          'status',
+          'updatedAt'
+        ])
+        && request.resource.data.joinedPlayerCount == resource.data.joinedPlayerCount - 1
+        && request.resource.data.status in ['Open', 'Full'];
+    }
+
+    function validSelfParticipantCreate(matchId, participantId) {
+      return owns(participantId)
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.attendanceStatus in [
+          'Joined',
+          'PendingApproval'
+        ];
+    }
+
+    function validSelfWithdraw(matchId, participantId) {
+      return owns(participantId)
+        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+          'attendanceStatus',
+          'cancelledAt',
+          'withdrawalReason'
+        ])
+        && resource.data.attendanceStatus == 'Joined'
+        && request.resource.data.attendanceStatus in [
+          'Cancelled',
+          'LateCancelled'
+        ];
+    }
+
+    function validSelfPaymentConfirmation(matchId, participantId) {
+      return owns(participantId)
+        && resource.data.attendanceStatus == 'PendingApproval'
+        && resource.data.organiserApproved == true
+        && request.resource.data.attendanceStatus == 'Joined'
+        && request.resource.data.paymentStatus == 'Confirmed';
+    }
+
+    function completedMatch(matchId) {
+      return matchDoc(matchId).data.status == 'Completed';
+    }
+
+    function attended(matchId, userId) {
+      return participantDoc(matchId, userId).data.attendanceStatus == 'Attended';
+    }
+
+    function validReputationUpdate() {
+      return signedIn()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'reliabilityScore',
+          'abilityRating',
+          'rating',
+          'abilityRatingCount',
+          'completedMatches',
+          'cancelledMatches',
+          'lateCancellations',
+          'noShows',
+          'attendedMatches',
+          'matchesPlayed',
+          'lastReliabilityUpdateAt',
+          'lastAbilityRatingAt',
+          'updatedAt'
+        ]);
+    }
+
+    function validRatedFlagUpdate(matchId) {
+      return signedIn()
+        && completedMatch(matchId)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'isRated'
+        ])
+        && request.resource.data.isRated == true;
     }
 
     match /users/{userId} {
       allow read: if true;
-      allow create, update: if owns(userId);
+      allow create: if owns(userId);
+      allow update: if owns(userId) || validReputationUpdate();
       allow delete: if false;
 
       match /joinedMatches/{matchId} {
         allow read: if owns(userId);
-        allow create, update: if owns(userId);
+        allow create, update: if owns(userId) || isMatchOrganiser(matchId);
         allow delete: if false;
+      }
+
+      match /reliabilityEvents/{eventId} {
+        allow read: if owns(userId);
+        // TODO(Cloud Functions): reliability events should be written by trusted backend code.
+        allow create: if signedIn();
+        allow update, delete: if false;
+      }
+
+      match /abilityRatings/{ratingId} {
+        allow read: if owns(userId);
+        allow create: if signedIn()
+          && request.resource.data.ratedByUserId == request.auth.uid;
+        allow update, delete: if false;
       }
     }
 
     match /matches/{matchId} {
       allow read: if signedIn()
-        && (resource.data.visibility == 'Public' || resource.data.organiserId == request.auth.uid);
+        && (resource.data.visibility == 'Public'
+          || resource.data.organiserId == request.auth.uid);
+
       allow create: if signedIn()
         && request.resource.data.organiserId == request.auth.uid
         && request.resource.data.joinedPlayerCount == 0;
 
-      allow update: if isMatchOrganiser(matchId) || validJoinCounterUpdate();
+      allow update: if isMatchOrganiser(matchId)
+        || validJoinCounterUpdate()
+        || validWithdrawCounterUpdate()
+        || validRatedFlagUpdate(matchId);
+
       allow delete: if isMatchOrganiser(matchId);
 
       match /participants/{participantId} {
         allow read: if signedIn();
-        allow create: if owns(participantId)
-          && request.resource.data.userId == request.auth.uid
-          && request.resource.data.paymentStatus == 'Confirmed';
-        allow update, delete: if isMatchOrganiser(matchId);
+        allow create: if validSelfParticipantCreate(matchId, participantId);
+        allow update: if isMatchOrganiser(matchId)
+          || validSelfWithdraw(matchId, participantId)
+          || validSelfPaymentConfirmation(matchId, participantId);
+        allow delete: if false;
+      }
+
+      match /ratings/{ratingId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && completedMatch(matchId)
+          && request.resource.data.ratedByUserId == request.auth.uid
+          && request.resource.data.ratedUserId != request.auth.uid
+          && attended(matchId, request.auth.uid)
+          && attended(matchId, request.resource.data.ratedUserId)
+          && request.resource.data.abilityRating >= 1
+          && request.resource.data.abilityRating <= 5;
+        allow update, delete: if false;
       }
     }
 

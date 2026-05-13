@@ -34,6 +34,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _defendersController = TextEditingController(text: '2');
   final _midfieldersController = TextEditingController(text: '4');
   final _forwardsController = TextEditingController(text: '2');
+  final _minimumReliabilityController = TextEditingController(text: '60');
   final _cancellationPolicyController = TextEditingController(
     text: 'Refunds are handled manually in the MVP. Please give notice early.',
   );
@@ -44,6 +45,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   String _skillLevel = 'Casual';
   String _pitchType = 'Astro';
   String _visibility = 'Public';
+  String _paymentMode = AppStrings.paymentModeSplit;
+  bool _requiresApprovalForLowReliability = true;
 
   @override
   void dispose() {
@@ -58,6 +61,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     _defendersController.dispose();
     _midfieldersController.dispose();
     _forwardsController.dispose();
+    _minimumReliabilityController.dispose();
     _cancellationPolicyController.dispose();
     super.dispose();
   }
@@ -102,6 +106,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       visibility: _visibility,
       status: 'Open',
       cancellationPolicy: _cancellationPolicyController.text.trim(),
+      paymentMode: _paymentMode,
+      minimumReliabilityRequired: int.parse(_minimumReliabilityController.text),
+      requiresApprovalForLowReliability: _requiresApprovalForLowReliability,
+      organiserCanApproveLowReliability: true,
       createdAt: now,
       updatedAt: now,
     );
@@ -141,7 +149,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   'Set the terms, collect payments and fill the game.',
                   style: AppTextStyles.bodyMuted,
                 ),
-                const SizedBox(height: 22),
+
+                _SectionHeader(title: 'Basic info'),
                 CustomTextField(
                   controller: _titleController,
                   label: 'Match title',
@@ -165,7 +174,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   validator: (value) =>
                       Validators.required(value, label: 'Address'),
                 ),
-                const SizedBox(height: 14),
+
+                _SectionHeader(title: 'Date & time'),
                 Row(
                   children: [
                     Expanded(
@@ -193,7 +203,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     Expanded(
                       child: CustomTextField(
                         controller: _durationController,
-                        label: 'Duration',
+                        label: 'Duration (mins)',
                         icon: Icons.timer_outlined,
                         keyboardType: TextInputType.number,
                         validator: (value) =>
@@ -215,20 +225,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
-                CustomTextField(
-                  controller: _priceController,
-                  label: 'Price per player',
-                  icon: Icons.payments_outlined,
-                  keyboardType: const TextInputType.numberWithOptions(
-                    decimal: true,
-                  ),
-                  validator: (value) => Validators.positiveMoney(
-                    value,
-                    label: 'Price per player',
-                  ),
-                ),
-                const SizedBox(height: 14),
+
+                _SectionHeader(title: 'Match settings'),
                 _DropdownField(
                   label: 'Format',
                   value: _format,
@@ -256,9 +254,57 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   items: AppStrings.visibilityOptions,
                   onChanged: (value) => setState(() => _visibility = value),
                 ),
-                const SizedBox(height: 18),
-                Text('Needed positions', style: AppTextStyles.h3),
+                const SizedBox(height: 14),
+                CustomTextField(
+                  controller: _minimumReliabilityController,
+                  label: 'Minimum reliability',
+                  icon: Icons.verified_user_outlined,
+                  keyboardType: TextInputType.number,
+                  validator: (value) => Validators.positiveInt(
+                    value,
+                    label: 'Minimum reliability',
+                  ),
+                ),
                 const SizedBox(height: 10),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: Text(
+                    'Approve low reliability players',
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  subtitle: Text(
+                    'Players below the minimum score request approval before joining.',
+                    style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  ),
+                  value: _requiresApprovalForLowReliability,
+                  activeThumbColor: AppColours.accent,
+                  onChanged: (value) => setState(
+                    () => _requiresApprovalForLowReliability = value,
+                  ),
+                ),
+
+                _SectionHeader(title: 'Payment'),
+                CustomTextField(
+                  controller: _priceController,
+                  label: 'Price per player (£)',
+                  icon: Icons.payments_outlined,
+                  keyboardType: const TextInputType.numberWithOptions(
+                    decimal: true,
+                  ),
+                  validator: (value) => Validators.positiveMoney(
+                    value,
+                    label: 'Price per player',
+                  ),
+                ),
+                const SizedBox(height: 14),
+                _PaymentModePicker(
+                  selected: _paymentMode,
+                  onChanged: (value) => setState(() => _paymentMode = value),
+                ),
+
+                _SectionHeader(title: 'Positions needed'),
                 Row(
                   children: [
                     Expanded(
@@ -312,7 +358,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+
+                _SectionHeader(title: 'Details'),
                 CustomTextField(
                   controller: _descriptionController,
                   label: 'Description',
@@ -379,6 +426,122 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     final hour = time.hour.toString().padLeft(2, '0');
     final minute = time.minute.toString().padLeft(2, '0');
     return '$hour:$minute';
+  }
+}
+
+class _PaymentModePicker extends StatelessWidget {
+  const _PaymentModePicker({required this.selected, required this.onChanged});
+
+  final String selected;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        _PaymentModeOption(
+          mode: AppStrings.paymentModeSplit,
+          title: 'Split the cost',
+          subtitle: 'Each player pays their share when they join.',
+          icon: Icons.group,
+          selected: selected == AppStrings.paymentModeSplit,
+          onTap: () => onChanged(AppStrings.paymentModeSplit),
+        ),
+        const SizedBox(height: 10),
+        _PaymentModeOption(
+          mode: AppStrings.paymentModeOrganiserPays,
+          title: 'Organiser pays',
+          subtitle:
+              "You cover the pitch cost. Players owe you their share through the app.",
+          icon: Icons.payments_outlined,
+          selected: selected == AppStrings.paymentModeOrganiserPays,
+          onTap: () => onChanged(AppStrings.paymentModeOrganiserPays),
+        ),
+      ],
+    );
+  }
+}
+
+class _PaymentModeOption extends StatelessWidget {
+  const _PaymentModeOption({
+    required this.mode,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String mode;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: selected
+              ? AppColours.accent.withValues(alpha: 0.08)
+              : AppColours.card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: selected ? AppColours.accent : AppColours.line,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              height: 40,
+              width: 40,
+              decoration: BoxDecoration(
+                color: selected
+                    ? AppColours.accent.withValues(alpha: 0.15)
+                    : AppColours.cardAlt,
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(
+                icon,
+                size: 20,
+                color: selected ? AppColours.accent : AppColours.mutedText,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitle,
+                    style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              selected ? Icons.check_circle : Icons.circle_outlined,
+              color: selected ? AppColours.accent : AppColours.mutedText,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -454,6 +617,20 @@ class _DropdownField extends StatelessWidget {
       onChanged: (value) {
         if (value != null) onChanged(value);
       },
+    );
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  const _SectionHeader({required this.title});
+
+  final String title;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 28, bottom: 12),
+      child: Text(title, style: AppTextStyles.h3),
     );
   }
 }

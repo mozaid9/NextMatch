@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "562392184918",
+    "project_id": "nextmatch-eb038",
+    "storage_bucket": "nextmatch-eb038.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:562392184918:android:c2365ff46ce939b7d3e3f7",
+        "android_client_info": {
+          "package_name": "com.nextmatch.next_match"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCqi5ygR-dMOU73_1X2efTPtP3BQDNTZTM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

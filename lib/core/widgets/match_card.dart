@@ -27,6 +27,8 @@ class MatchCard extends StatelessWidget {
     final statusColour = switch (match.displayStatus) {
       'Full' => AppColours.error,
       'Nearly Full' => AppColours.warning,
+      'Completed' => AppColours.mutedText,
+      'Cancelled' => AppColours.error,
       _ => AppColours.accent,
     };
 
@@ -73,22 +75,36 @@ class MatchCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 14),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _InfoChip(icon: Icons.place, label: match.locationName),
-                  _InfoChip(icon: Icons.groups_2, label: match.format),
-                  _InfoChip(icon: Icons.bolt, label: match.skillLevel),
-                  _InfoChip(icon: Icons.grass, label: match.pitchType),
-                ],
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                clipBehavior: Clip.none,
+                child: Row(
+                  children: [
+                    _InfoChip(icon: Icons.place, label: match.locationName),
+                    const SizedBox(width: 8),
+                    _InfoChip(icon: Icons.groups_2, label: match.format),
+                    const SizedBox(width: 8),
+                    _InfoChip(icon: Icons.bolt, label: match.skillLevel),
+                    const SizedBox(width: 8),
+                    _InfoChip(icon: Icons.grass, label: match.pitchType),
+                    if (match.requiresApprovalForLowReliability) ...[
+                      const SizedBox(width: 8),
+                      _InfoChip(
+                        icon: Icons.verified_user_outlined,
+                        label: 'Min ${match.minimumReliabilityRequired} rel.',
+                      ),
+                    ],
+                  ],
+                ),
               ),
               const SizedBox(height: 14),
               Row(
                 children: [
                   Expanded(
                     child: Text(
-                      '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} per player',
+                      match.isOrganiserPays
+                          ? 'Free to join · ${CurrencyHelpers.formatGBP(match.pricePerPlayer)} owed'
+                          : '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} per player',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -116,7 +132,7 @@ class MatchCard extends StatelessWidget {
                 children: [
                   Expanded(
                     child: Text(
-                      'Organised by ${match.organiserName}',
+                      'Organised by ${_capitaliseName(match.organiserName)}',
                       style: AppTextStyles.small,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -137,6 +153,11 @@ class MatchCard extends StatelessWidget {
     );
   }
 }
+
+String _capitaliseName(String name) => name
+    .split(' ')
+    .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+    .join(' ');
 
 class _InfoChip extends StatelessWidget {
   const _InfoChip({required this.icon, required this.label});

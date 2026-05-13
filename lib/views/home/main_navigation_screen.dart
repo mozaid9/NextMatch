@@ -38,28 +38,29 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         decoration: const BoxDecoration(
           border: Border(top: BorderSide(color: AppColours.line)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (index) => setState(() => _currentIndex = index),
-          items: const [
-            BottomNavigationBarItem(
+        child: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) =>
+              setState(() => _currentIndex = index),
+          destinations: const [
+            NavigationDestination(
               icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+              selectedIcon: Icon(Icons.home),
               label: 'Home',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.sports_soccer_outlined),
-              activeIcon: Icon(Icons.sports_soccer),
+              selectedIcon: Icon(Icons.sports_soccer),
               label: 'Matches',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.add_circle_outline),
-              activeIcon: Icon(Icons.add_circle),
+              selectedIcon: Icon(Icons.add_circle),
               label: 'Create',
             ),
-            BottomNavigationBarItem(
+            NavigationDestination(
               icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+              selectedIcon: Icon(Icons.person),
               label: 'Profile',
             ),
           ],

@@ -17,6 +17,31 @@ class PaymentViewModel extends ChangeNotifier {
 
   double totalFor(FootballMatch match) => _paymentService.totalFor(match);
 
+  Future<bool> freeJoin({
+    required FootballMatch match,
+    required AppUser user,
+    required String position,
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      await _paymentService.freeJoin(
+        match: match,
+        user: user,
+        position: position,
+      );
+      return true;
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> payAndJoin({
     required FootballMatch match,
     required AppUser user,

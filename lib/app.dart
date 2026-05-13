@@ -8,11 +8,13 @@ import 'models/app_user.dart';
 import 'services/auth_service.dart';
 import 'services/match_service.dart';
 import 'services/payment_service.dart';
+import 'services/rating_service.dart';
 import 'services/user_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/match_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
+import 'viewmodels/rating_viewmodel.dart';
 import 'views/auth/profile_setup_screen.dart';
 import 'views/auth/welcome_screen.dart';
 import 'views/home/main_navigation_screen.dart';
@@ -27,6 +29,7 @@ class NextMatchApp extends StatelessWidget {
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
         Provider<MatchService>(create: (_) => MatchService()),
+        Provider<RatingService>(create: (_) => RatingService()),
         Provider<PaymentService>(
           create: (context) => PaymentService(context.read<MatchService>()),
         ),
@@ -41,6 +44,9 @@ class NextMatchApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<PaymentViewModel>(
           create: (context) => PaymentViewModel(context.read<PaymentService>()),
+        ),
+        ChangeNotifierProvider<RatingViewModel>(
+          create: (context) => RatingViewModel(context.read<RatingService>()),
         ),
       ],
       child: MaterialApp(

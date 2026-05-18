@@ -8,7 +8,7 @@ import '../../viewmodels/match_viewmodel.dart';
 import '../matches/browse_matches_screen.dart';
 import '../matches/create_match_screen.dart';
 import '../profile/profile_screen.dart';
-import '../social/friends_screen.dart';
+import '../social/community_screen.dart';
 import 'home_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -38,7 +38,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         onBrowseMatches: () => setState(() => _currentIndex = 1),
       ),
       BrowseMatchesScreen(currentUser: widget.currentUser),
-      FriendsScreen(currentUser: widget.currentUser),
+      CommunityScreen(currentUser: widget.currentUser),
       ProfileScreen(currentUser: widget.currentUser),
     ];
 
@@ -87,9 +87,9 @@ class _NextMatchTabBar extends StatelessWidget {
       selectedIcon: Icons.sports_soccer,
     ),
     _TabItemData(
-      label: 'Friends',
-      icon: Icons.group_outlined,
-      selectedIcon: Icons.group,
+      label: 'Community',
+      icon: Icons.people_outline,
+      selectedIcon: Icons.people,
     ),
     _TabItemData(
       label: 'Profile',

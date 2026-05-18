@@ -16,16 +16,34 @@ import '../../services/friends_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
 
-class FriendsScreen extends StatefulWidget {
+/// Standalone screen wrapper used when Friends is pushed as a route
+/// (e.g. from the Profile screen's old "Friends" button).
+class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key, required this.currentUser});
 
   final AppUser currentUser;
 
   @override
-  State<FriendsScreen> createState() => _FriendsScreenState();
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Friends')),
+      body: FriendsTab(currentUser: currentUser),
+    );
+  }
 }
 
-class _FriendsScreenState extends State<FriendsScreen> {
+/// The reusable body of the Friends area — search, suggestions, list.
+/// Designed to live inside a TabBarView (no Scaffold / AppBar of its own).
+class FriendsTab extends StatefulWidget {
+  const FriendsTab({super.key, required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  State<FriendsTab> createState() => _FriendsTabState();
+}
+
+class _FriendsTabState extends State<FriendsTab> {
   final _searchController = TextEditingController();
   Timer? _debounce;
   String _query = '';
@@ -92,43 +110,36 @@ class _FriendsScreenState extends State<FriendsScreen> {
   Widget build(BuildContext context) {
     final friendsViewModel = context.watch<FriendsViewModel>();
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Friends'),
-        actions: [
-          IconButton(
-            tooltip: 'Add by email',
-            onPressed: () => _openAddByEmailSheet(context),
-            icon: const Icon(Icons.alternate_email),
-          ),
-        ],
-      ),
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
-          children: [
-            _SearchField(
-              controller: _searchController,
-              onChanged: _onSearchChanged,
-            ),
-            const SizedBox(height: 18),
-            if (_query.isEmpty) ...[
-              _SuggestionsSection(
-                currentUser: widget.currentUser,
-                onAdd: _addUser,
-              ),
-              const SizedBox(height: 18),
-              _FriendsListSection(currentUser: widget.currentUser),
-            ] else
-              _SearchResultsSection(
-                results: _searchResults,
-                loading: _searching,
-                onAdd: _addUser,
-                friendsViewModel: friendsViewModel,
-              ),
-          ],
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
+      children: [
+        _SearchField(
+          controller: _searchController,
+          onChanged: _onSearchChanged,
         ),
-      ),
+        const SizedBox(height: 18),
+        if (_query.isEmpty) ...[
+          _SuggestionsSection(
+            currentUser: widget.currentUser,
+            onAdd: _addUser,
+          ),
+          const SizedBox(height: 18),
+          _FriendsListSection(currentUser: widget.currentUser),
+        ] else
+          _SearchResultsSection(
+            results: _searchResults,
+            loading: _searching,
+            onAdd: _addUser,
+            friendsViewModel: friendsViewModel,
+          ),
+        const SizedBox(height: 18),
+        // Invite by email available inline since there's no AppBar here.
+        OutlinedButton.icon(
+          onPressed: () => _openAddByEmailSheet(context),
+          icon: const Icon(Icons.alternate_email, size: 16),
+          label: const Text('Invite by email'),
+        ),
+      ],
     );
   }
 

@@ -10,17 +10,22 @@ import 'services/match_service.dart';
 import 'services/payment_service.dart';
 import 'services/rating_service.dart';
 import 'services/user_service.dart';
+import 'services/venue_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
 import 'viewmodels/match_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/rating_viewmodel.dart';
+import 'viewmodels/venue_viewmodel.dart';
 import 'views/auth/profile_setup_screen.dart';
 import 'views/auth/welcome_screen.dart';
 import 'views/home/main_navigation_screen.dart';
+import 'views/splash/animated_splash_screen.dart';
 
 class NextMatchApp extends StatelessWidget {
-  const NextMatchApp({super.key});
+  const NextMatchApp({super.key, this.startupFuture});
+
+  final Future<void>? startupFuture;
 
   @override
   Widget build(BuildContext context) {
@@ -30,6 +35,7 @@ class NextMatchApp extends StatelessWidget {
         Provider<UserService>(create: (_) => UserService()),
         Provider<MatchService>(create: (_) => MatchService()),
         Provider<RatingService>(create: (_) => RatingService()),
+        Provider<VenueService>(create: (_) => VenueService()),
         Provider<PaymentService>(
           create: (context) => PaymentService(context.read<MatchService>()),
         ),
@@ -48,12 +54,18 @@ class NextMatchApp extends StatelessWidget {
         ChangeNotifierProvider<RatingViewModel>(
           create: (context) => RatingViewModel(context.read<RatingService>()),
         ),
+        ChangeNotifierProvider<VenueViewModel>(
+          create: (context) => VenueViewModel(context.read<VenueService>()),
+        ),
       ],
       child: MaterialApp(
         title: 'NextMatch',
         debugShowCheckedModeBanner: false,
         theme: AppTextStyles.theme(),
-        home: const AuthGate(),
+        home: AnimatedSplashScreen(
+          startupFuture: startupFuture ?? Future<void>.value(),
+          child: const AuthGate(),
+        ),
       ),
     );
   }

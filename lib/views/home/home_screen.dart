@@ -13,6 +13,7 @@ import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../matches/match_detail_screen.dart';
 import '../matches/my_matches_screen.dart';
+import '../venues/browse_venues_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -96,6 +97,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                       ),
                     ),
+                    const SizedBox(height: 12),
+                    _BookPitchCard(currentUser: widget.currentUser),
                     _CoPlayersStrip(uid: widget.currentUser.uid),
                     Text('Your next match', style: AppTextStyles.h2),
                     const SizedBox(height: 12),
@@ -289,6 +292,95 @@ class _ActionTile extends StatelessWidget {
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _BookPitchCard extends StatelessWidget {
+  const _BookPitchCard({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => BrowseVenuesScreen(currentUser: currentUser),
+        ),
+      ),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColours.accent.withValues(alpha: 0.4)),
+          gradient: LinearGradient(
+            colors: [
+              AppColours.accent.withValues(alpha: 0.16),
+              AppColours.accent.withValues(alpha: 0.04),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: AppColours.accent.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: const Icon(
+                Icons.stadium,
+                color: AppColours.accent,
+                size: 22,
+              ),
+            ),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Row(
+                    children: [
+                      Text('Book a pitch', style: AppTextStyles.h3),
+                      const SizedBox(width: 8),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColours.accent,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Text(
+                          'NEW',
+                          style: TextStyle(
+                            fontSize: 9,
+                            color: Color(0xFF071014),
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    'Browse partner venues and book a slot in seconds.',
+                    style: AppTextStyles.small,
+                  ),
+                ],
+              ),
+            ),
+            const Icon(Icons.chevron_right,
+                size: 20, color: AppColours.accent),
           ],
         ),
       ),

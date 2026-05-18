@@ -19,11 +19,16 @@ class CreateMatchScreen extends StatefulWidget {
     super.key,
     required this.currentUser,
     this.venueDraft,
+    this.template,
   });
 
   final AppUser currentUser;
   /// When provided, the form is pre-filled from this venue + slot booking.
   final VenueBookingDraft? venueDraft;
+  /// When provided, the form is pre-filled from a past match the user is
+  /// "running it back" from. Date defaults to one week from the template's
+  /// start time, same hour.
+  final FootballMatch? template;
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
@@ -58,28 +63,56 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   void initState() {
     super.initState();
     final draft = widget.venueDraft;
+    final template = widget.template;
 
-    _titleController = TextEditingController();
-    _locationNameController = TextEditingController(text: draft?.venue.name ?? '');
-    _addressController = TextEditingController(text: draft?.venue.address ?? '');
+    _titleController = TextEditingController(text: template?.title ?? '');
+    _locationNameController = TextEditingController(
+      text: draft?.venue.name ?? template?.locationName ?? '',
+    );
+    _addressController = TextEditingController(
+      text: draft?.venue.address ?? template?.address ?? '',
+    );
     _durationController = TextEditingController(
-      text: '${draft?.durationMinutes ?? 60}',
+      text: '${draft?.durationMinutes ?? template?.durationMinutes ?? 60}',
     );
     _totalPlayersController = TextEditingController(
-      text: '${draft?.slot.pitch.capacity ?? 10}',
+      text:
+          '${draft?.slot.pitch.capacity ?? template?.totalPlayersNeeded ?? 10}',
     );
     _priceController = TextEditingController(
-      text: (draft?.suggestedPricePerPlayer ?? 5.00).toStringAsFixed(2),
+      text: (draft?.suggestedPricePerPlayer ??
+              template?.pricePerPlayer ??
+              5.00)
+          .toStringAsFixed(2),
     );
-    _descriptionController = TextEditingController();
-    _goalkeepersController = TextEditingController(text: '2');
-    _defendersController = TextEditingController(text: '2');
-    _midfieldersController = TextEditingController(text: '4');
-    _forwardsController = TextEditingController(text: '2');
-    _minimumReliabilityController = TextEditingController(text: '60');
+    _descriptionController = TextEditingController(
+      text: template?.description ?? '',
+    );
+    _goalkeepersController = TextEditingController(
+      text: '${template?.neededPositions['Goalkeepers'] ?? 2}',
+    );
+    _defendersController = TextEditingController(
+      text: '${template?.neededPositions['Defenders'] ?? 2}',
+    );
+    _midfieldersController = TextEditingController(
+      text: '${template?.neededPositions['Midfielders'] ?? 4}',
+    );
+    _forwardsController = TextEditingController(
+      text: '${template?.neededPositions['Forwards'] ?? 2}',
+    );
+    _minimumReliabilityController = TextEditingController(
+      text: '${template?.minimumReliabilityRequired ?? 60}',
+    );
     _cancellationPolicyController = TextEditingController(
-      text: 'Refunds are handled manually in the MVP. Please give notice early.',
+      text: template?.cancellationPolicy.isNotEmpty == true
+          ? template!.cancellationPolicy
+          : 'Refunds are handled manually in the MVP. Please give notice early.',
     );
+    _skillLevel = template?.skillLevel ?? 'Casual';
+    _visibility = template?.visibility ?? 'Public';
+    _paymentMode = template?.paymentMode ?? AppStrings.paymentModeSplit;
+    _requiresApprovalForLowReliability =
+        template?.requiresApprovalForLowReliability ?? true;
 
     if (draft != null) {
       final slotStart = draft.slot.startTime;
@@ -89,6 +122,20 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           ? draft.slot.pitch.format
           : '5-a-side';
       _pitchType = draft.matchPitchType;
+    } else if (template != null) {
+      // Default to next week, same kick-off time.
+      final nextWeek = template.startDateTime.add(const Duration(days: 7));
+      _selectedDate = DateTime(nextWeek.year, nextWeek.month, nextWeek.day);
+      _selectedTime = TimeOfDay(
+        hour: template.startDateTime.hour,
+        minute: template.startDateTime.minute,
+      );
+      _format = AppStrings.matchFormats.contains(template.format)
+          ? template.format
+          : '5-a-side';
+      _pitchType = AppStrings.pitchTypes.contains(template.pitchType)
+          ? template.pitchType
+          : 'Astro';
     } else {
       _selectedDate = DateTime.now().add(const Duration(days: 1));
       _selectedTime = const TimeOfDay(hour: 19, minute: 0);
@@ -196,8 +243,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 const SizedBox(height: 8),
                 Text(
                   widget.venueDraft != null
-                      ? 'We\'ve pre-filled the location, date and format from your booking.'
-                      : 'Set the terms, collect payments and fill the game.',
+                      ? "We've pre-filled the location, date and format from your booking."
+                      : widget.template != null
+                          ? "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
+                          : 'Set the terms, collect payments and fill the game.',
                   style: AppTextStyles.bodyMuted,
                 ),
                 if (widget.venueDraft != null) ...[

@@ -16,6 +16,7 @@ import '../../services/reliability_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
+import 'create_match_screen.dart';
 
 class OrganiserMatchDashboardScreen extends StatelessWidget {
   const OrganiserMatchDashboardScreen({
@@ -153,6 +154,21 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                                 _openInviteFriendsSheet(context, match),
                             icon: const Icon(Icons.group_add_outlined),
                             label: const Text('Invite friends'),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
+                        if (match.isCompleted) ...[
+                          OutlinedButton.icon(
+                            onPressed: () => Navigator.of(context).push(
+                              MaterialPageRoute<void>(
+                                builder: (_) => CreateMatchScreen(
+                                  currentUser: currentUser,
+                                  template: match,
+                                ),
+                              ),
+                            ),
+                            icon: const Icon(Icons.replay_outlined),
+                            label: const Text('Run it back'),
                           ),
                           const SizedBox(height: 10),
                         ],

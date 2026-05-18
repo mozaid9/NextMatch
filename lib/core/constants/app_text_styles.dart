@@ -237,6 +237,32 @@ class AppTextStyles {
           return AppColours.mutedText;
         }),
       ),
+      cardTheme: CardThemeData(
+        color: AppColours.card,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        margin: EdgeInsets.zero,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColours.line),
+        ),
+      ),
+      listTileTheme: const ListTileThemeData(
+        iconColor: AppColours.mutedText,
+        textColor: AppColours.text,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: AppColours.cardAlt,
+        side: const BorderSide(color: AppColours.line),
+        labelStyle: GoogleFonts.inter(
+          color: AppColours.text,
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+        ),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 }

@@ -145,3 +145,31 @@ class VenueSlot {
 
   DateTime get endTime => startTime.add(const Duration(hours: 1));
 }
+
+/// A pre-booked venue slot used to seed Create Match with location,
+/// date/time, format and an estimated price per player.
+class VenueBookingDraft {
+  const VenueBookingDraft({required this.venue, required this.slot});
+
+  final Venue venue;
+  final VenueSlot slot;
+
+  /// Maps the pitch's surface ("Astroturf", "3G", …) to the AppStrings
+  /// pitchTypes list used by Create Match.
+  String get matchPitchType {
+    final surface = slot.pitch.surface.toLowerCase();
+    if (surface.contains('indoor')) return 'Indoor';
+    if (surface.contains('3g') || surface.contains('4g')) return '3G/4G';
+    if (surface.contains('astro')) return 'Astro';
+    if (surface.contains('grass')) return 'Grass';
+    return 'Outdoor';
+  }
+
+  /// Even split of the pitch hire across the pitch's capacity.
+  double get suggestedPricePerPlayer {
+    if (slot.pitch.capacity <= 0) return slot.pitch.pricePerHour;
+    return double.parse(
+      (slot.pitch.pricePerHour / slot.pitch.capacity).toStringAsFixed(2),
+    );
+  }
+}

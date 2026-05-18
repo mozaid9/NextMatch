@@ -11,12 +11,19 @@ import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
+import '../../models/venue.dart';
 import '../../viewmodels/match_viewmodel.dart';
 
 class CreateMatchScreen extends StatefulWidget {
-  const CreateMatchScreen({super.key, required this.currentUser});
+  const CreateMatchScreen({
+    super.key,
+    required this.currentUser,
+    this.venueDraft,
+  });
 
   final AppUser currentUser;
+  /// When provided, the form is pre-filled from this venue + slot booking.
+  final VenueBookingDraft? venueDraft;
 
   @override
   State<CreateMatchScreen> createState() => _CreateMatchScreenState();
@@ -24,30 +31,69 @@ class CreateMatchScreen extends StatefulWidget {
 
 class _CreateMatchScreenState extends State<CreateMatchScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _titleController = TextEditingController();
-  final _locationNameController = TextEditingController();
-  final _addressController = TextEditingController();
-  final _durationController = TextEditingController(text: '60');
-  final _totalPlayersController = TextEditingController(text: '10');
-  final _priceController = TextEditingController(text: '5.00');
-  final _descriptionController = TextEditingController();
-  final _goalkeepersController = TextEditingController(text: '2');
-  final _defendersController = TextEditingController(text: '2');
-  final _midfieldersController = TextEditingController(text: '4');
-  final _forwardsController = TextEditingController(text: '2');
-  final _minimumReliabilityController = TextEditingController(text: '60');
-  final _cancellationPolicyController = TextEditingController(
-    text: 'Refunds are handled manually in the MVP. Please give notice early.',
-  );
+  late final TextEditingController _titleController;
+  late final TextEditingController _locationNameController;
+  late final TextEditingController _addressController;
+  late final TextEditingController _durationController;
+  late final TextEditingController _totalPlayersController;
+  late final TextEditingController _priceController;
+  late final TextEditingController _descriptionController;
+  late final TextEditingController _goalkeepersController;
+  late final TextEditingController _defendersController;
+  late final TextEditingController _midfieldersController;
+  late final TextEditingController _forwardsController;
+  late final TextEditingController _minimumReliabilityController;
+  late final TextEditingController _cancellationPolicyController;
 
-  DateTime _selectedDate = DateTime.now().add(const Duration(days: 1));
-  TimeOfDay _selectedTime = const TimeOfDay(hour: 19, minute: 0);
-  String _format = '5-a-side';
+  late DateTime _selectedDate;
+  late TimeOfDay _selectedTime;
+  late String _format;
   String _skillLevel = 'Casual';
-  String _pitchType = 'Astro';
+  late String _pitchType;
   String _visibility = 'Public';
   String _paymentMode = AppStrings.paymentModeSplit;
   bool _requiresApprovalForLowReliability = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = widget.venueDraft;
+
+    _titleController = TextEditingController();
+    _locationNameController = TextEditingController(text: draft?.venue.name ?? '');
+    _addressController = TextEditingController(text: draft?.venue.address ?? '');
+    _durationController = TextEditingController(text: '60');
+    _totalPlayersController = TextEditingController(
+      text: '${draft?.slot.pitch.capacity ?? 10}',
+    );
+    _priceController = TextEditingController(
+      text: (draft?.suggestedPricePerPlayer ?? 5.00).toStringAsFixed(2),
+    );
+    _descriptionController = TextEditingController();
+    _goalkeepersController = TextEditingController(text: '2');
+    _defendersController = TextEditingController(text: '2');
+    _midfieldersController = TextEditingController(text: '4');
+    _forwardsController = TextEditingController(text: '2');
+    _minimumReliabilityController = TextEditingController(text: '60');
+    _cancellationPolicyController = TextEditingController(
+      text: 'Refunds are handled manually in the MVP. Please give notice early.',
+    );
+
+    if (draft != null) {
+      final slotStart = draft.slot.startTime;
+      _selectedDate = DateTime(slotStart.year, slotStart.month, slotStart.day);
+      _selectedTime = TimeOfDay(hour: slotStart.hour, minute: slotStart.minute);
+      _format = AppStrings.matchFormats.contains(draft.slot.pitch.format)
+          ? draft.slot.pitch.format
+          : '5-a-side';
+      _pitchType = draft.matchPitchType;
+    } else {
+      _selectedDate = DateTime.now().add(const Duration(days: 1));
+      _selectedTime = const TimeOfDay(hour: 19, minute: 0);
+      _format = '5-a-side';
+      _pitchType = 'Astro';
+    }
+  }
 
   @override
   void dispose() {
@@ -147,9 +193,15 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 Text('Create a match', style: AppTextStyles.h1),
                 const SizedBox(height: 8),
                 Text(
-                  'Set the terms, collect payments and fill the game.',
+                  widget.venueDraft != null
+                      ? 'We\'ve pre-filled the location, date and format from your booking.'
+                      : 'Set the terms, collect payments and fill the game.',
                   style: AppTextStyles.bodyMuted,
                 ),
+                if (widget.venueDraft != null) ...[
+                  const SizedBox(height: 14),
+                  _VenueDraftBanner(draft: widget.venueDraft!),
+                ],
 
                 _SectionHeader(title: 'Basic info'),
                 CustomTextField(
@@ -1006,5 +1058,80 @@ class _SectionHeader extends StatelessWidget {
       padding: const EdgeInsets.only(top: 28, bottom: 12),
       child: Text(title, style: AppTextStyles.h3),
     );
+  }
+}
+
+class _VenueDraftBanner extends StatelessWidget {
+  const _VenueDraftBanner({required this.draft});
+
+  final VenueBookingDraft draft;
+
+  @override
+  Widget build(BuildContext context) {
+    final start = draft.slot.startTime;
+    final end = draft.slot.endTime;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.accent.withValues(alpha: 0.4)),
+        gradient: LinearGradient(
+          colors: [
+            AppColours.accent.withValues(alpha: 0.14),
+            AppColours.accent.withValues(alpha: 0.04),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 38,
+            height: 38,
+            decoration: BoxDecoration(
+              color: AppColours.accent.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: const Icon(Icons.stadium, color: AppColours.accent, size: 20),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  draft.venue.name,
+                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  '${draft.slot.pitch.format} · ${_dayLabel(start)} · '
+                  '${_hourLabel(start)}–${_hourLabel(end)}',
+                  style: AppTextStyles.small,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static String _dayLabel(DateTime time) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    return '${time.day} ${months[time.month - 1]}';
+  }
+
+  static String _hourLabel(DateTime time) {
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '$h:$m';
   }
 }

@@ -4,12 +4,12 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/currency_helpers.dart';
-import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../models/app_user.dart';
 import '../../models/venue.dart';
 import '../../viewmodels/venue_viewmodel.dart';
+import '../matches/create_match_screen.dart';
 
 class VenueDetailScreen extends StatefulWidget {
   const VenueDetailScreen({
@@ -117,14 +117,12 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
   }
 
   void _continueToCreateMatch(Venue venue, VenueSlot slot) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Booking ${slot.pitch.format} on ${DateTimeHelpers.formatMatchDateTime(slot.startTime)} '
-          '(${CurrencyHelpers.formatGBP(slot.pitch.pricePerHour)}). '
-          'Match creation hook-up coming next.',
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => CreateMatchScreen(
+          currentUser: widget.currentUser,
+          venueDraft: VenueBookingDraft(venue: venue, slot: slot),
         ),
-        duration: const Duration(seconds: 4),
       ),
     );
   }

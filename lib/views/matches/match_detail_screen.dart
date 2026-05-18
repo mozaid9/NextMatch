@@ -11,6 +11,7 @@ import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
+import '../../viewmodels/chat_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
 
 import '../../models/app_user.dart';
@@ -72,14 +73,7 @@ class MatchDetailScreen extends StatelessWidget {
             onPressed: () async {
               final match = await matchViewModel.getMatch(matchId);
               if (match == null || !context.mounted) return;
-              final text = _shareTextFor(match);
-              await Clipboard.setData(ClipboardData(text: text));
-              if (!context.mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Match details copied to clipboard.'),
-                ),
-              );
+              await _openShareSheet(context, match);
             },
           ),
         ],
@@ -443,6 +437,24 @@ class MatchDetailScreen extends StatelessWidget {
       if (participant.userId == currentUser.uid) return participant;
     }
     return null;
+  }
+
+  Future<void> _openShareSheet(
+    BuildContext context,
+    FootballMatch match,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColours.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) => _MatchShareSheet(
+        match: match,
+        currentUser: currentUser,
+      ),
+    );
   }
 
   Future<void> _confirmWithdraw(
@@ -1354,6 +1366,179 @@ class _CancelledBanner extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MatchShareSheet extends StatelessWidget {
+  const _MatchShareSheet({required this.match, required this.currentUser});
+
+  final FootballMatch match;
+  final AppUser currentUser;
+
+  String get _shareText => _shareTextFor(match);
+
+  @override
+  Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.8),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColours.line,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Text('Share this match', style: AppTextStyles.h2),
+              const SizedBox(height: 6),
+              Text(
+                'Send to a friend in a chat, or copy the details to paste anywhere.',
+                style: AppTextStyles.bodyMuted,
+              ),
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: _shareText),
+                  );
+                  if (!context.mounted) return;
+                  Navigator.of(context).pop();
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Match details copied to clipboard.'),
+                    ),
+                  );
+                },
+                icon: const Icon(Icons.copy_outlined, size: 16),
+                label: const Text('Copy details'),
+              ),
+              const SizedBox(height: 14),
+              Text(
+                'Send to a friend',
+                style: AppTextStyles.small.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: AppColours.mutedText,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: StreamBuilder<List<Friend>>(
+                  stream: context
+                      .read<FriendsViewModel>()
+                      .friendsStream(currentUser.uid),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState ==
+                        ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(20),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColours.accent,
+                          ),
+                        ),
+                      );
+                    }
+                    final friends = snapshot.data ?? [];
+                    if (friends.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 10),
+                        child: Text(
+                          'Add friends to share matches with them in a chat.',
+                          style: AppTextStyles.bodyMuted,
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: friends.length,
+                      separatorBuilder: (_, _) =>
+                          const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final friend = friends[index];
+                        return InkWell(
+                          onTap: () async {
+                            await _sendToFriend(context, friend);
+                          },
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: AppColours.card,
+                              borderRadius: BorderRadius.circular(10),
+                              border:
+                                  Border.all(color: AppColours.line),
+                            ),
+                            child: Row(
+                              children: [
+                                UserAvatar(
+                                  fullName: friend.fullName,
+                                  photoUrl: friend.photoUrl,
+                                  radius: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Text(
+                                    friend.fullName,
+                                    style: AppTextStyles.body.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.send_outlined,
+                                  color: AppColours.accent,
+                                  size: 18,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _sendToFriend(BuildContext context, Friend friend) async {
+    final chatViewModel = context.read<ChatViewModel>();
+    final friendsViewModel = context.read<FriendsViewModel>();
+
+    final friendUser = await friendsViewModel.getUserById(friend.uid);
+    if (friendUser == null || !context.mounted) return;
+    final chatId = await chatViewModel.openChatWith(
+      me: currentUser,
+      other: friendUser,
+    );
+    if (chatId == null || !context.mounted) return;
+    await chatViewModel.sendMessage(
+      chatId: chatId,
+      sender: currentUser,
+      body: _shareText,
+    );
+    if (!context.mounted) return;
+    Navigator.of(context).pop();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Sent to ${friend.fullName}.')),
     );
   }
 }

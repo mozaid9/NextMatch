@@ -425,31 +425,44 @@ class _AvatarUploaderState extends State<_AvatarUploader> {
     if (file == null || !mounted) return;
 
     setState(() => _uploading = true);
-    final bytes = await file.readAsBytes();
-    if (!mounted) return;
+    try {
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
 
-    final profileViewModel = context.read<ProfileViewModel>();
-    final url = await profileViewModel.uploadProfilePhoto(
-      uid: widget.user.uid,
-      bytes: bytes,
-      contentType: file.mimeType ?? 'image/jpeg',
-    );
+      final profileViewModel = context.read<ProfileViewModel>();
+      final url = await profileViewModel
+          .uploadProfilePhoto(
+            uid: widget.user.uid,
+            bytes: bytes,
+            contentType: file.mimeType ?? 'image/jpeg',
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => null,
+          );
 
-    if (!mounted) return;
-    setState(() => _uploading = false);
-
-    if (url == null) {
+      if (!mounted) return;
+      if (url == null) {
+        final reason = profileViewModel.errorMessage ??
+            'Upload timed out. Check Firebase Storage CORS and rules.';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(reason), duration: const Duration(seconds: 6)),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile photo updated.')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(
-            profileViewModel.errorMessage ?? 'Could not upload photo.',
-          ),
+          content: Text('Upload failed: $error'),
+          duration: const Duration(seconds: 6),
         ),
       );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Profile photo updated.')),
-      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
     }
   }
 

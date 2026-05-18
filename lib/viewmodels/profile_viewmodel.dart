@@ -49,7 +49,7 @@ class ProfileViewModel extends ChangeNotifier {
         contentType: contentType,
       );
     } catch (error) {
-      errorMessage = 'Could not upload your photo. Please try again.';
+      errorMessage = 'Upload failed: $error';
       return null;
     } finally {
       isLoading = false;

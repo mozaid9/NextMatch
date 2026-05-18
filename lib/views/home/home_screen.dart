@@ -12,11 +12,14 @@ import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../../models/team.dart';
 import '../../models/venue.dart';
+import '../../viewmodels/team_viewmodel.dart';
 import '../../viewmodels/venue_viewmodel.dart';
 import '../matches/match_detail_screen.dart';
 import '../matches/my_matches_screen.dart';
 import '../profile/other_user_profile_screen.dart';
+import '../social/team_detail_screen.dart';
 import '../venues/browse_venues_screen.dart';
 import '../venues/venue_detail_screen.dart';
 
@@ -97,6 +100,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     _BookPitchCard(currentUser: widget.currentUser),
+                    _MyTeamsStrip(currentUser: widget.currentUser),
                     _SavedVenuesStrip(currentUser: widget.currentUser),
                     _CoPlayersStrip(currentUser: widget.currentUser),
                     _MatchInvitesSection(currentUser: widget.currentUser),
@@ -291,6 +295,123 @@ class _ActionTile extends StatelessWidget {
               textAlign: TextAlign.center,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _MyTeamsStrip extends StatelessWidget {
+  const _MyTeamsStrip({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<Team>>(
+      stream: context.read<TeamViewModel>().myTeamsStream(currentUser.uid),
+      builder: (context, snapshot) {
+        final teams = snapshot.data ?? [];
+        if (teams.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 26),
+            Row(
+              children: [
+                const Icon(Icons.shield_outlined,
+                    color: AppColours.accent, size: 18),
+                const SizedBox(width: 8),
+                Text('Your teams', style: AppTextStyles.h2),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 110,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: teams.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final team = teams[index];
+                  return _MyTeamCard(
+                    team: team,
+                    currentUser: currentUser,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MyTeamCard extends StatelessWidget {
+  const _MyTeamCard({required this.team, required this.currentUser});
+
+  final Team team;
+  final AppUser currentUser;
+
+  Color _colour() {
+    final hex = team.colour.replaceFirst('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = _colour();
+    return InkWell(
+      borderRadius: BorderRadius.circular(10),
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => TeamDetailScreen(
+            teamId: team.id,
+            currentUser: currentUser,
+          ),
+        ),
+      ),
+      child: Container(
+        width: 150,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColours.line),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 36,
+              height: 36,
+              decoration: BoxDecoration(
+                color: colour.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: colour.withValues(alpha: 0.6)),
+              ),
+              child: Icon(Icons.shield, color: colour, size: 18),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              team.name,
+              style: AppTextStyles.body.copyWith(
+                fontWeight: FontWeight.w700,
+                fontSize: 13,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              '${team.members.length} member${team.members.length == 1 ? "" : "s"}',
+              style: AppTextStyles.small,
+              maxLines: 1,
             ),
           ],
         ),

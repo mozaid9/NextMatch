@@ -6,12 +6,14 @@ import 'core/constants/app_text_styles.dart';
 import 'core/widgets/loading_view.dart';
 import 'models/app_user.dart';
 import 'services/auth_service.dart';
+import 'services/friends_service.dart';
 import 'services/match_service.dart';
 import 'services/payment_service.dart';
 import 'services/rating_service.dart';
 import 'services/user_service.dart';
 import 'services/venue_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
+import 'viewmodels/friends_viewmodel.dart';
 import 'viewmodels/match_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
@@ -36,6 +38,7 @@ class NextMatchApp extends StatelessWidget {
         Provider<MatchService>(create: (_) => MatchService()),
         Provider<RatingService>(create: (_) => RatingService()),
         Provider<VenueService>(create: (_) => VenueService()),
+        Provider<FriendsService>(create: (_) => FriendsService()),
         Provider<PaymentService>(
           create: (context) => PaymentService(context.read<MatchService>()),
         ),
@@ -56,6 +59,10 @@ class NextMatchApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<VenueViewModel>(
           create: (context) => VenueViewModel(context.read<VenueService>()),
+        ),
+        ChangeNotifierProvider<FriendsViewModel>(
+          create: (context) =>
+              FriendsViewModel(context.read<FriendsService>()),
         ),
       ],
       child: MaterialApp(

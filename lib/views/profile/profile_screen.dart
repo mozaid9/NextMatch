@@ -10,6 +10,7 @@ import '../../models/app_user.dart';
 import '../../services/reliability_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
+import '../social/friends_screen.dart';
 import 'edit_profile_screen.dart';
 
 Color _reliabilityColor(int score) {
@@ -46,6 +47,18 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       _DetailPanel(user: user),
                       const SizedBox(height: 20),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => FriendsScreen(currentUser: user),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.group_outlined),
+                        label: const Text('Friends'),
+                      ),
+                      const SizedBox(height: 10),
                       OutlinedButton.icon(
                         onPressed: () {
                           Navigator.of(context).push(

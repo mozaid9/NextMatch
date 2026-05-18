@@ -147,6 +147,66 @@ class AppTextStyles {
       progressIndicatorTheme: const ProgressIndicatorThemeData(
         color: AppColours.accent,
       ),
+      bottomSheetTheme: const BottomSheetThemeData(
+        backgroundColor: AppColours.surface,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+        ),
+        showDragHandle: false,
+      ),
+      dialogTheme: const DialogThemeData(
+        backgroundColor: AppColours.surface,
+        surfaceTintColor: Colors.transparent,
+      ),
+      popupMenuTheme: const PopupMenuThemeData(
+        color: AppColours.card,
+        surfaceTintColor: Colors.transparent,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(8)),
+          side: BorderSide(color: AppColours.line),
+        ),
+      ),
+      dividerTheme: const DividerThemeData(
+        color: AppColours.line,
+        space: 1,
+        thickness: 1,
+      ),
+      iconTheme: const IconThemeData(color: AppColours.text),
+      textSelectionTheme: TextSelectionThemeData(
+        cursorColor: AppColours.accent,
+        selectionColor: AppColours.accent.withValues(alpha: 0.3),
+        selectionHandleColor: AppColours.accent,
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          foregroundColor: AppColours.text,
+          minimumSize: const Size.fromHeight(48),
+          padding: const EdgeInsets.symmetric(horizontal: 18),
+          side: const BorderSide(color: AppColours.line),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      textButtonTheme: TextButtonThemeData(
+        style: TextButton.styleFrom(
+          foregroundColor: AppColours.accent,
+          textStyle: GoogleFonts.inter(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+      iconButtonTheme: IconButtonThemeData(
+        style: IconButton.styleFrom(
+          foregroundColor: AppColours.text,
+        ),
+      ),
     );
   }
 }

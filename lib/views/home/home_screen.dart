@@ -94,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 12),
                     _BookPitchCard(currentUser: widget.currentUser),
                     _CoPlayersStrip(uid: widget.currentUser.uid),
+                    _MatchInvitesSection(currentUser: widget.currentUser),
                     Text('Your next match', style: AppTextStyles.h2),
                     const SizedBox(height: 12),
                     _UpcomingJoinedMatch(currentUser: widget.currentUser),
@@ -290,6 +291,177 @@ class _ActionTile extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _MatchInvitesSection extends StatelessWidget {
+  const _MatchInvitesSection({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final matchViewModel = context.read<MatchViewModel>();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: matchViewModel.matchInvitesStream(currentUser.uid),
+      builder: (context, snapshot) {
+        final invites = snapshot.data ?? [];
+        if (invites.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Text('Match invites', style: AppTextStyles.h2),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 7, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: AppColours.accent,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Text(
+                    '${invites.length}',
+                    style: const TextStyle(
+                      color: Color(0xFF071014),
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            ...invites.map(
+              (invite) => Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _MatchInviteCard(
+                  invite: invite,
+                  currentUser: currentUser,
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _MatchInviteCard extends StatelessWidget {
+  const _MatchInviteCard({required this.invite, required this.currentUser});
+
+  final Map<String, dynamic> invite;
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final matchId = invite['matchId'] as String? ?? '';
+    final title = invite['matchTitle'] as String? ?? 'Match';
+    final inviter = invite['inviterName'] as String? ?? 'A friend';
+    final location = invite['locationName'] as String? ?? '';
+    final format = invite['format'] as String? ?? '';
+    final whenValue = invite['matchDateTime'];
+    final when = whenValue is Timestamp
+        ? whenValue.toDate()
+        : DateTime.now();
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.accent.withValues(alpha: 0.4)),
+        gradient: LinearGradient(
+          colors: [
+            AppColours.accent.withValues(alpha: 0.12),
+            AppColours.accent.withValues(alpha: 0.02),
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.mark_email_unread_outlined,
+                  color: AppColours.accent, size: 18),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  '$inviter invited you',
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColours.accent,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          Text(title, style: AppTextStyles.h3),
+          const SizedBox(height: 4),
+          Text(
+            '$location · $format · ${_formatWhen(when)}',
+            style: AppTextStyles.small,
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: OutlinedButton(
+                  onPressed: () async {
+                    final viewModel = context.read<MatchViewModel>();
+                    await viewModel.dismissMatchInvite(
+                      uid: currentUser.uid,
+                      matchId: matchId,
+                    );
+                  },
+                  child: const Text('Dismiss'),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: PrimaryButton(
+                  label: 'View',
+                  icon: Icons.arrow_forward,
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => MatchDetailScreen(
+                          matchId: matchId,
+                          currentUser: currentUser,
+                        ),
+                      ),
+                    );
+                    // Dismiss after opening so the invite doesn't linger.
+                    context.read<MatchViewModel>().dismissMatchInvite(
+                          uid: currentUser.uid,
+                          matchId: matchId,
+                        );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatWhen(DateTime time) {
+    const months = [
+      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    ];
+    final h = time.hour.toString().padLeft(2, '0');
+    final m = time.minute.toString().padLeft(2, '0');
+    return '${time.day} ${months[time.month - 1]} · $h:$m';
   }
 }
 

@@ -11,7 +11,9 @@ import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
+import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 
 class OrganiserMatchDashboardScreen extends StatelessWidget {
@@ -144,6 +146,15 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                     title: 'Match controls',
                     child: Column(
                       children: [
+                        if (!match.isCompleted && !match.isCancelled) ...[
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _openInviteFriendsSheet(context, match),
+                            icon: const Icon(Icons.group_add_outlined),
+                            label: const Text('Invite friends'),
+                          ),
+                          const SizedBox(height: 10),
+                        ],
                         PrimaryButton(
                           label: _completeButtonLabel(match, confirmed.length),
                           icon: Icons.flag_circle_outlined,
@@ -244,6 +255,24 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
               ? 'Match completed. Attended players can now rate each other.'
               : viewModel.errorMessage ?? 'Could not complete match.',
         ),
+      ),
+    );
+  }
+
+  Future<void> _openInviteFriendsSheet(
+    BuildContext context,
+    FootballMatch match,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColours.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+      ),
+      builder: (_) => _InviteFriendsSheet(
+        match: match,
+        currentUser: currentUser,
       ),
     );
   }
@@ -708,4 +737,188 @@ BoxDecoration _panelDecoration() {
     borderRadius: BorderRadius.circular(8),
     border: Border.all(color: AppColours.line),
   );
+}
+
+class _InviteFriendsSheet extends StatefulWidget {
+  const _InviteFriendsSheet({required this.match, required this.currentUser});
+
+  final FootballMatch match;
+  final AppUser currentUser;
+
+  @override
+  State<_InviteFriendsSheet> createState() => _InviteFriendsSheetState();
+}
+
+class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
+  final Set<String> _selected = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsViewModel = context.watch<FriendsViewModel>();
+    final matchViewModel = context.watch<MatchViewModel>();
+    final screenHeight = MediaQuery.of(context).size.height;
+
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.8),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Center(
+                child: Container(
+                  width: 38,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 16),
+                  decoration: BoxDecoration(
+                    color: AppColours.line,
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                ),
+              ),
+              Text('Invite friends', style: AppTextStyles.h2),
+              const SizedBox(height: 6),
+              Text(
+                'Pick which friends should get an invite for this match.',
+                style: AppTextStyles.bodyMuted,
+              ),
+              const SizedBox(height: 14),
+              Flexible(
+                child: StreamBuilder<List<Friend>>(
+                  stream:
+                      friendsViewModel.friendsStream(widget.currentUser.uid),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: AppColours.accent,
+                          ),
+                        ),
+                      );
+                    }
+                    final friends = snapshot.data ?? [];
+                    if (friends.isEmpty) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 20),
+                        child: Text(
+                          "You haven't added any friends yet. Add some on the Profile screen.",
+                          style: AppTextStyles.bodyMuted,
+                        ),
+                      );
+                    }
+                    return ListView.separated(
+                      shrinkWrap: true,
+                      itemCount: friends.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final friend = friends[index];
+                        final isSelected = _selected.contains(friend.uid);
+                        return InkWell(
+                          onTap: () => setState(() {
+                            if (isSelected) {
+                              _selected.remove(friend.uid);
+                            } else {
+                              _selected.add(friend.uid);
+                            }
+                          }),
+                          borderRadius: BorderRadius.circular(10),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: isSelected
+                                  ? AppColours.accent.withValues(alpha: 0.08)
+                                  : AppColours.card,
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(
+                                color: isSelected
+                                    ? AppColours.accent
+                                    : AppColours.line,
+                                width: isSelected ? 1.5 : 1,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                UserAvatar(
+                                  fullName: friend.fullName,
+                                  photoUrl: friend.photoUrl,
+                                  radius: 20,
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        friend.fullName,
+                                        style: AppTextStyles.body.copyWith(
+                                          fontWeight: FontWeight.w700,
+                                        ),
+                                      ),
+                                      Text(
+                                        '${friend.position} · ${friend.skillLevel}',
+                                        style: AppTextStyles.small,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                Icon(
+                                  isSelected
+                                      ? Icons.check_circle
+                                      : Icons.circle_outlined,
+                                  color: isSelected
+                                      ? AppColours.accent
+                                      : AppColours.mutedText,
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+              const SizedBox(height: 14),
+              PrimaryButton(
+                label: _selected.isEmpty
+                    ? 'Pick someone'
+                    : 'Send ${_selected.length} invite${_selected.length == 1 ? "" : "s"}',
+                icon: Icons.send_outlined,
+                isLoading: matchViewModel.isLoading,
+                onPressed: _selected.isEmpty
+                    ? null
+                    : () async {
+                        final viewModel = context.read<MatchViewModel>();
+                        final ok = await viewModel.inviteFriendsToMatch(
+                          match: widget.match,
+                          inviterUid: widget.currentUser.uid,
+                          inviterName: widget.currentUser.fullName,
+                          friendUids: _selected.toList(),
+                        );
+                        if (!context.mounted) return;
+                        Navigator.of(context).pop();
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                              ok
+                                  ? 'Invites sent.'
+                                  : viewModel.errorMessage ??
+                                      'Could not send invites.',
+                            ),
+                          ),
+                        );
+                      },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }

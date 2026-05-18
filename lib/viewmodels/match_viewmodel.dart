@@ -158,6 +158,36 @@ class MatchViewModel extends ChangeNotifier {
     );
   }
 
+  Stream<List<Map<String, dynamic>>> matchInvitesStream(String uid) =>
+      _matchService.matchInvitesStream(uid);
+
+  Future<bool> inviteFriendsToMatch({
+    required FootballMatch match,
+    required String inviterUid,
+    required String inviterName,
+    required List<String> friendUids,
+  }) async {
+    return _runAction(
+      () => _matchService.inviteFriendsToMatch(
+        match: match,
+        inviterUid: inviterUid,
+        inviterName: inviterName,
+        friendUids: friendUids,
+      ),
+      failureMessage: 'Could not send invites.',
+    );
+  }
+
+  Future<bool> dismissMatchInvite({
+    required String uid,
+    required String matchId,
+  }) async {
+    return _runAction(
+      () => _matchService.dismissMatchInvite(uid: uid, matchId: matchId),
+      failureMessage: 'Could not dismiss invite.',
+    );
+  }
+
   Future<bool> _runAction(
     Future<void> Function() action, {
     required String failureMessage,

@@ -841,6 +841,58 @@ class MatchService {
     await batch.commit();
   }
 
+  /// Returns the current user's pending match invites, ordered most-recent
+  /// first. Each invite carries a denormalised match snapshot so the home
+  /// screen can render the card without a follow-up match fetch.
+  Stream<List<Map<String, dynamic>>> matchInvitesStream(String uid) {
+    return _users
+        .doc(uid)
+        .collection('matchInvites')
+        .orderBy('invitedAt', descending: true)
+        .snapshots()
+        .map((snapshot) =>
+            snapshot.docs.map((doc) => doc.data()).toList(growable: false));
+  }
+
+  Future<void> inviteFriendsToMatch({
+    required FootballMatch match,
+    required String inviterUid,
+    required String inviterName,
+    required List<String> friendUids,
+  }) async {
+    if (friendUids.isEmpty) return;
+    final now = DateTime.now();
+    final batch = _firestore.batch();
+    for (final friendUid in friendUids) {
+      if (friendUid == inviterUid) continue;
+      final ref =
+          _users.doc(friendUid).collection('matchInvites').doc(match.id);
+      batch.set(ref, {
+        'matchId': match.id,
+        'matchTitle': match.title,
+        'matchDateTime': Timestamp.fromDate(match.startDateTime),
+        'locationName': match.locationName,
+        'format': match.format,
+        'pricePerPlayer': match.pricePerPlayer,
+        'inviterUid': inviterUid,
+        'inviterName': inviterName,
+        'invitedAt': Timestamp.fromDate(now),
+      });
+    }
+    await batch.commit();
+  }
+
+  Future<void> dismissMatchInvite({
+    required String uid,
+    required String matchId,
+  }) async {
+    await _users
+        .doc(uid)
+        .collection('matchInvites')
+        .doc(matchId)
+        .delete();
+  }
+
   /// Cancels a match. Updates the match status + records the reason and
   /// timestamp, and propagates the cancelled state to every joined user's
   /// `joinedMatches` summary so their Home / My matches screens reflect it.

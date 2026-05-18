@@ -8,6 +8,7 @@ import '../../core/utils/currency_helpers.dart';
 import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
@@ -696,14 +697,12 @@ class _PlayerTile extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundColor: AppColours.cardAlt,
-            child: Text(
-              participant.fullName.isEmpty
-                  ? '?'
-                  : participant.fullName[0].toUpperCase(),
-              style: const TextStyle(color: AppColours.accent),
-            ),
+          UserAvatar(
+            fullName: participant.fullName,
+            // Participant photos will be added when we capture
+            // photoUrl on join; falls back to initial for now.
+            photoUrl: null,
+            radius: 20,
           ),
           const SizedBox(width: 12),
           Expanded(

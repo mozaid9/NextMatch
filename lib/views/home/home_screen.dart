@@ -8,6 +8,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/match_card.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/skeleton_loader.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
@@ -73,17 +74,10 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        CircleAvatar(
+                        UserAvatar(
+                          fullName: widget.currentUser.fullName,
+                          photoUrl: widget.currentUser.photoUrl,
                           radius: 24,
-                          backgroundColor: AppColours.cardAlt,
-                          child: Text(
-                            widget.currentUser.fullName.isEmpty
-                                ? 'N'
-                                : widget.currentUser.fullName[0].toUpperCase(),
-                            style: AppTextStyles.h3.copyWith(
-                              color: AppColours.accent,
-                            ),
-                          ),
                         ),
                       ],
                     ),
@@ -451,16 +445,11 @@ class _CoPlayerCard extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          CircleAvatar(
+          UserAvatar(
+            fullName: firstName,
+            photoUrl: player['photoUrl'] as String?,
             radius: 20,
             backgroundColor: AppColours.accent.withValues(alpha: 0.14),
-            child: Text(
-              initial,
-              style: AppTextStyles.body.copyWith(
-                color: AppColours.accent,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
           ),
           const SizedBox(height: 6),
           Text(

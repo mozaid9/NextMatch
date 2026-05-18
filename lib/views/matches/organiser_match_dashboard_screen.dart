@@ -7,6 +7,7 @@ import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
@@ -525,14 +526,11 @@ class _PlayerPanel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          CircleAvatar(
+          UserAvatar(
+            fullName: participant.fullName,
+            photoUrl: null,
+            radius: 20,
             backgroundColor: AppColours.surface,
-            child: Text(
-              participant.fullName.isEmpty
-                  ? '?'
-                  : participant.fullName[0].toUpperCase(),
-              style: const TextStyle(color: AppColours.accent),
-            ),
           ),
           const SizedBox(width: 12),
           Expanded(

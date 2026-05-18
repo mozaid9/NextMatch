@@ -1,12 +1,19 @@
+import 'dart:typed_data';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 
 import '../models/app_user.dart';
 
 class UserService {
-  UserService({FirebaseFirestore? firestore})
-    : _firestore = firestore ?? FirebaseFirestore.instance;
+  UserService({
+    FirebaseFirestore? firestore,
+    FirebaseStorage? storage,
+  })  : _firestore = firestore ?? FirebaseFirestore.instance,
+        _storage = storage ?? FirebaseStorage.instance;
 
   final FirebaseFirestore _firestore;
+  final FirebaseStorage _storage;
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection('users');
@@ -36,4 +43,27 @@ class UserService {
   }
 
   Future<void> updateProfile(AppUser user) => saveProfile(user);
+
+  /// Uploads a profile photo to Firebase Storage and updates the user's
+  /// `photoUrl` field on Firestore. Returns the new public download URL.
+  Future<String> uploadProfilePhoto({
+    required String uid,
+    required Uint8List bytes,
+    String contentType = 'image/jpeg',
+  }) async {
+    final ref = _storage.ref('users/$uid/profile.jpg');
+    await ref.putData(
+      bytes,
+      SettableMetadata(contentType: contentType),
+    );
+    final url = await ref.getDownloadURL();
+    await _users.doc(uid).set(
+      {
+        'photoUrl': url,
+        'updatedAt': Timestamp.fromDate(DateTime.now()),
+      },
+      SetOptions(merge: true),
+    );
+    return url;
+  }
 }

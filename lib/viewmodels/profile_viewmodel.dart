@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
@@ -26,6 +28,29 @@ class ProfileViewModel extends ChangeNotifier {
     } catch (error) {
       errorMessage = 'Could not save your profile. Please try again.';
       return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<String?> uploadProfilePhoto({
+    required String uid,
+    required Uint8List bytes,
+    String contentType = 'image/jpeg',
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      return await _userService.uploadProfilePhoto(
+        uid: uid,
+        bytes: bytes,
+        contentType: contentType,
+      );
+    } catch (error) {
+      errorMessage = 'Could not upload your photo. Please try again.';
+      return null;
     } finally {
       isLoading = false;
       notifyListeners();

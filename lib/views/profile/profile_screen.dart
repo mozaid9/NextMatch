@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'package:image_picker/image_picker.dart';
+
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../services/reliability_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -85,9 +88,6 @@ class _ProfileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final initial = user.fullName.isEmpty
-        ? 'N'
-        : user.fullName[0].toUpperCase();
     final displayName = user.fullName.isEmpty
         ? 'Player'
         : user.fullName
@@ -130,20 +130,7 @@ class _ProfileHeader extends StatelessWidget {
                 ),
                 Positioned(
                   top: 40, // banner_height - avatar_radius = 80 - 40
-                  child: CircleAvatar(
-                    radius: 40,
-                    backgroundColor: AppColours.surface,
-                    child: CircleAvatar(
-                      radius: 36,
-                      backgroundColor: AppColours.cardAlt,
-                      child: Text(
-                        initial,
-                        style: AppTextStyles.h1.copyWith(
-                          color: AppColours.accent,
-                        ),
-                      ),
-                    ),
-                  ),
+                  child: _AvatarUploader(user: user),
                 ),
               ],
             ),
@@ -397,6 +384,105 @@ class _DetailRow extends StatelessWidget {
         children: [
           Expanded(child: Text(label, style: AppTextStyles.bodyMuted)),
           Text(value, style: AppTextStyles.body),
+        ],
+      ),
+    );
+  }
+}
+
+/// Profile header avatar with a tap-to-upload affordance.
+class _AvatarUploader extends StatefulWidget {
+  const _AvatarUploader({required this.user});
+
+  final AppUser user;
+
+  @override
+  State<_AvatarUploader> createState() => _AvatarUploaderState();
+}
+
+class _AvatarUploaderState extends State<_AvatarUploader> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    if (_uploading) return;
+    final picker = ImagePicker();
+    final file = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 1024,
+      maxHeight: 1024,
+      imageQuality: 88,
+    );
+    if (file == null || !mounted) return;
+
+    setState(() => _uploading = true);
+    final bytes = await file.readAsBytes();
+    if (!mounted) return;
+
+    final profileViewModel = context.read<ProfileViewModel>();
+    final url = await profileViewModel.uploadProfilePhoto(
+      uid: widget.user.uid,
+      bytes: bytes,
+      contentType: file.mimeType ?? 'image/jpeg',
+    );
+
+    if (!mounted) return;
+    setState(() => _uploading = false);
+
+    if (url == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            profileViewModel.errorMessage ?? 'Could not upload photo.',
+          ),
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Profile photo updated.')),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: _pickAndUpload,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          UserAvatar(
+            fullName: widget.user.fullName,
+            photoUrl: widget.user.photoUrl,
+            radius: 40,
+            borderColor: AppColours.surface,
+          ),
+          if (_uploading)
+            const Positioned.fill(
+              child: CircleAvatar(
+                backgroundColor: Colors.black54,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2.5,
+                  color: AppColours.accent,
+                ),
+              ),
+            ),
+          Positioned(
+            right: -2,
+            bottom: -2,
+            child: Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: AppColours.accent,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColours.surface, width: 2),
+              ),
+              child: const Icon(
+                Icons.camera_alt,
+                size: 14,
+                color: Color(0xFF071014),
+              ),
+            ),
+          ),
         ],
       ),
     );

@@ -20,6 +20,7 @@ class MatchParticipant {
     this.requiresApproval = false,
     this.withdrawalReason,
     this.paymentDeadline,
+    this.photoUrl,
   });
 
   final String userId;
@@ -40,6 +41,9 @@ class MatchParticipant {
   final bool requiresApproval;
   final String? withdrawalReason;
   final DateTime? paymentDeadline;
+  /// Snapshot of the player's profile photo at join time. Lets organiser
+  /// dashboards / match detail / co-players strip render real avatars.
+  final String? photoUrl;
 
   bool get hasConfirmedSlot =>
       attendanceStatus == 'Joined' ||
@@ -90,6 +94,7 @@ class MatchParticipant {
       requiresApproval: data['requiresApproval'] as bool? ?? false,
       withdrawalReason: data['withdrawalReason'] as String?,
       paymentDeadline: _readNullableDate(data['paymentDeadline']),
+      photoUrl: data['photoUrl'] as String?,
     );
   }
 
@@ -115,6 +120,7 @@ class MatchParticipant {
       'requiresApproval': requiresApproval,
       'withdrawalReason': withdrawalReason,
       'paymentDeadline': paymentDeadline == null ? null : Timestamp.fromDate(paymentDeadline!),
+      'photoUrl': photoUrl,
     };
   }
 

@@ -528,7 +528,7 @@ class _PlayerPanel extends StatelessWidget {
         children: [
           UserAvatar(
             fullName: participant.fullName,
-            photoUrl: null,
+            photoUrl: participant.photoUrl,
             radius: 20,
             backgroundColor: AppColours.surface,
           ),

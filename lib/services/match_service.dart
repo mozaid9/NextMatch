@@ -129,10 +129,20 @@ class MatchService {
         if (playerId == uid) continue;
         final name = data['fullName'] as String? ?? '';
         if (name.isEmpty) continue;
+        final photoUrl = data['photoUrl'] as String?;
         if (coMap.containsKey(playerId)) {
           coMap[playerId]!['count'] = (coMap[playerId]!['count'] as int) + 1;
+          // Keep the latest non-null photoUrl
+          if (photoUrl != null && photoUrl.isNotEmpty) {
+            coMap[playerId]!['photoUrl'] = photoUrl;
+          }
         } else {
-          coMap[playerId] = {'userId': playerId, 'fullName': name, 'count': 1};
+          coMap[playerId] = {
+            'userId': playerId,
+            'fullName': name,
+            'photoUrl': photoUrl,
+            'count': 1,
+          };
         }
       }
     }
@@ -242,6 +252,7 @@ class MatchService {
           organiserApproved: true,
           requiresApproval: false,
           paymentDeadline: now.add(const Duration(hours: 24)),
+          photoUrl: user.photoUrl,
         );
 
         transaction.set(participantRef, participant.toMap());
@@ -288,6 +299,7 @@ class MatchService {
         attendanceStatus: 'PendingApproval',
         organiserApproved: false,
         requiresApproval: true,
+        photoUrl: user.photoUrl,
       );
 
       transaction.set(participantRef, participant.toMap());
@@ -397,6 +409,7 @@ class MatchService {
         attendanceStatus: 'Joined',
         organiserApproved: true,
         requiresApproval: false,
+        photoUrl: user.photoUrl,
       );
 
       final newCount = latestMatch.joinedPlayerCount + 1;
@@ -492,6 +505,7 @@ class MatchService {
         attendanceStatus: 'Joined',
         organiserApproved: true,
         requiresApproval: false,
+        photoUrl: user.photoUrl,
       );
 
       transaction.set(

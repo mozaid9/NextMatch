@@ -699,9 +699,7 @@ class _PlayerTile extends StatelessWidget {
         children: [
           UserAvatar(
             fullName: participant.fullName,
-            // Participant photos will be added when we capture
-            // photoUrl on join; falls back to initial for now.
-            photoUrl: null,
+            photoUrl: participant.photoUrl,
             radius: 20,
           ),
           const SizedBox(width: 12),

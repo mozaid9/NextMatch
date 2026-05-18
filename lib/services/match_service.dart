@@ -92,11 +92,54 @@ class MatchService {
   Stream<List<FootballMatch>> organisedMatchesStream(String uid) {
     return _matches
         .where('organiserId', isEqualTo: uid)
-        .orderBy('startDateTime')
         .snapshots()
-        .map(
-          (snapshot) => snapshot.docs.map(FootballMatch.fromFirestore).toList(),
-        );
+        .map((snapshot) {
+          final matches =
+              snapshot.docs.map(FootballMatch.fromFirestore).toList();
+          matches.sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
+          return matches;
+        });
+  }
+
+  /// Returns up to 6 players the user has most frequently played with,
+  /// sorted by number of shared matches descending.
+  Future<List<Map<String, dynamic>>> getFrequentCoPlayers(String uid) async {
+    final joinedDocs = await _users
+        .doc(uid)
+        .collection('joinedMatches')
+        .limit(30)
+        .get();
+
+    final matchIds = joinedDocs.docs
+        .map((d) => d.data()['matchId'] as String?)
+        .whereType<String>()
+        .toList();
+
+    if (matchIds.isEmpty) return [];
+
+    final Map<String, Map<String, dynamic>> coMap = {};
+    for (final matchId in matchIds) {
+      final snap = await _matches
+          .doc(matchId)
+          .collection('participants')
+          .get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final playerId = data['userId'] as String? ?? doc.id;
+        if (playerId == uid) continue;
+        final name = data['fullName'] as String? ?? '';
+        if (name.isEmpty) continue;
+        if (coMap.containsKey(playerId)) {
+          coMap[playerId]!['count'] = (coMap[playerId]!['count'] as int) + 1;
+        } else {
+          coMap[playerId] = {'userId': playerId, 'fullName': name, 'count': 1};
+        }
+      }
+    }
+
+    final sorted = coMap.values.toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return sorted.take(6).toList();
   }
 
   Future<String> createMatch(FootballMatch match) async {
@@ -198,6 +241,7 @@ class MatchService {
           attendanceStatus: 'PendingPayment',
           organiserApproved: true,
           requiresApproval: false,
+          paymentDeadline: now.add(const Duration(hours: 24)),
         );
 
         transaction.set(participantRef, participant.toMap());
@@ -211,6 +255,7 @@ class MatchService {
           'amountOwed': 0,
           'requiresApproval': false,
           'organiserApproved': true,
+          'paymentDeadline': Timestamp.fromDate(now.add(const Duration(hours: 24))),
         });
 
         return const JoinRequestResult(
@@ -508,6 +553,7 @@ class MatchService {
       if (match.isSplitPayment) {
         update['paymentStatus'] = 'ApprovedPendingPayment';
         update['attendanceStatus'] = 'PendingPayment';
+        update['paymentDeadline'] = Timestamp.fromDate(now.add(const Duration(hours: 24)));
         transaction.update(participantRef, update);
         transaction.set(userJoinedRef, {
           'paymentStatus': 'ApprovedPendingPayment',
@@ -515,6 +561,7 @@ class MatchService {
           'organiserApproved': true,
           'requiresApproval': false,
           'approvedAt': Timestamp.fromDate(now),
+          'paymentDeadline': Timestamp.fromDate(now.add(const Duration(hours: 24))),
         }, SetOptions(merge: true));
         return;
       }

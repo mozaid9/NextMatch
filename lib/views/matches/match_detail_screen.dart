@@ -153,6 +153,7 @@ class MatchDetailScreen extends StatelessWidget {
                                             participant: participant,
                                             lowReliabilityThreshold: match
                                                 .minimumReliabilityRequired,
+                                            isSplitPayment: match.isSplitPayment,
                                           ),
                                         )
                                         .toList(),
@@ -678,13 +679,19 @@ class _PlayerTile extends StatelessWidget {
   const _PlayerTile({
     required this.participant,
     required this.lowReliabilityThreshold,
+    required this.isSplitPayment,
   });
 
   final MatchParticipant participant;
   final int lowReliabilityThreshold;
+  final bool isSplitPayment;
 
   @override
   Widget build(BuildContext context) {
+    final isPaid = participant.hasConfirmedSlot &&
+        (participant.amountPaid > 0 || isSplitPayment);
+    final isPending = participant.isPendingPayment && isSplitPayment;
+
     return Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
@@ -705,19 +712,39 @@ class _PlayerTile extends StatelessWidget {
               children: [
                 Text(participant.fullName, style: AppTextStyles.body),
                 Text(
-                  '${participant.position} - ${participant.skillLevel} · Rel ${participant.reliabilityScoreAtJoin} · Ability ${participant.abilityRatingAtJoin.toStringAsFixed(1)}',
+                  '${participant.position} · ${participant.skillLevel}',
                   style: AppTextStyles.small,
                 ),
-                const SizedBox(height: 4),
+                const SizedBox(height: 5),
                 Wrap(
                   spacing: 6,
-                  runSpacing: 6,
+                  runSpacing: 4,
                   children: [
-                    _MiniBadge(label: _statusLabel(participant)),
+                    if (isSplitPayment && participant.hasConfirmedSlot)
+                      _MiniBadge(
+                        label: participant.amountPaid > 0 ? 'Paid' : 'Paid',
+                        colour: AppColours.accent,
+                      ),
+                    if (isPending)
+                      _MiniBadge(
+                        label: participant.isPaymentOverdue
+                            ? 'Overdue'
+                            : 'Not paid',
+                        colour: participant.isPaymentOverdue
+                            ? AppColours.error
+                            : AppColours.warning,
+                      ),
+                    if (participant.isPendingApproval)
+                      const _MiniBadge(
+                        label: 'Pending approval',
+                        colour: AppColours.mutedText,
+                      ),
+                    if (!isSplitPayment && participant.hasConfirmedSlot)
+                      const _MiniBadge(label: 'Confirmed'),
                     if (participant.reliabilityScoreAtJoin <
                         lowReliabilityThreshold)
                       const _MiniBadge(
-                        label: 'Low reliability',
+                        label: 'Low rel.',
                         colour: AppColours.warning,
                       ),
                   ],
@@ -725,30 +752,23 @@ class _PlayerTile extends StatelessWidget {
               ],
             ),
           ),
+          const SizedBox(width: 8),
           Icon(
-            participant.hasConfirmedSlot
-                ? Icons.verified
-                : participant.isPendingPayment
-                ? Icons.lock_clock
-                : Icons.hourglass_top,
-            color: participant.hasConfirmedSlot
+            isPaid
+                ? Icons.check_circle
+                : isPending
+                ? Icons.radio_button_unchecked
+                : Icons.hourglass_top_rounded,
+            color: isPaid
                 ? AppColours.accent
-                : AppColours.warning,
+                : isPending
+                ? AppColours.warning
+                : AppColours.mutedText,
             size: 18,
           ),
         ],
       ),
     );
-  }
-
-  String _statusLabel(MatchParticipant participant) {
-    return switch (participant.attendanceStatus) {
-      'PendingPayment' => 'Pending payment',
-      'PendingApproval' => 'Pending approval',
-      'LateCancelled' => 'Late cancelled',
-      'NoShow' => 'No-show',
-      _ => participant.attendanceStatus,
-    };
   }
 }
 
@@ -833,7 +853,34 @@ class _BottomJoinBar extends StatelessWidget {
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isPendingPayment && (participant?.isPaymentOverdue ?? false))
+              Container(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: AppColours.error.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColours.error.withValues(alpha: 0.4)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded, color: AppColours.error, size: 16),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Your payment deadline has passed. The organiser has been charged.',
+                          style: AppTextStyles.small.copyWith(color: AppColours.error),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            Row(
           children: [
             Expanded(
               child: Column(
@@ -893,6 +940,8 @@ class _BottomJoinBar extends StatelessWidget {
             ),
           ],
         ),
+          ],
+        ),
       ),
     );
   }
@@ -911,11 +960,22 @@ class _BottomJoinBar extends StatelessWidget {
 
     if (participant?.hasConfirmedSlot == true) return 'Payment confirmed';
     if (isPendingPayment) {
-      return 'You can view players now. Pay to lock in your place.';
+      final deadline = participant?.paymentDeadline;
+      final isOverdue = participant?.isPaymentOverdue ?? false;
+      if (isOverdue) {
+        return 'Deadline passed — organiser covering your share.';
+      }
+      if (deadline != null) {
+        final timeLeft = deadline.difference(DateTime.now());
+        final hours = timeLeft.inHours;
+        final mins = timeLeft.inMinutes.remainder(60);
+        return 'Pay within ${hours}h ${mins}m to secure your spot.';
+      }
+      return 'Pay within 24h to lock in your spot.';
     }
     if (participant?.isPendingApproval == true) {
       return 'Organiser approval needed before payment.';
     }
-    return 'Join first, then pay when you are ready.';
+    return 'Join first, then pay within 24h to lock in your spot.';
   }
 }

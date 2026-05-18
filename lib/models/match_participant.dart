@@ -19,6 +19,7 @@ class MatchParticipant {
     this.organiserApproved = true,
     this.requiresApproval = false,
     this.withdrawalReason,
+    this.paymentDeadline,
   });
 
   final String userId;
@@ -38,6 +39,7 @@ class MatchParticipant {
   final bool organiserApproved;
   final bool requiresApproval;
   final String? withdrawalReason;
+  final DateTime? paymentDeadline;
 
   bool get hasConfirmedSlot =>
       attendanceStatus == 'Joined' ||
@@ -46,6 +48,15 @@ class MatchParticipant {
 
   bool get isPendingPayment => attendanceStatus == 'PendingPayment';
   bool get isPendingApproval => attendanceStatus == 'PendingApproval';
+
+  bool get isPaymentOverdue =>
+      paymentDeadline != null &&
+      DateTime.now().isAfter(paymentDeadline!) &&
+      isPendingPayment;
+
+  Duration? get timeUntilDeadline =>
+      paymentDeadline == null ? null : paymentDeadline!.difference(DateTime.now());
+
   bool get isRejected => attendanceStatus == 'Rejected';
   bool get isWithdrawn =>
       attendanceStatus == 'Cancelled' || attendanceStatus == 'LateCancelled';
@@ -78,6 +89,7 @@ class MatchParticipant {
       organiserApproved: data['organiserApproved'] as bool? ?? true,
       requiresApproval: data['requiresApproval'] as bool? ?? false,
       withdrawalReason: data['withdrawalReason'] as String?,
+      paymentDeadline: _readNullableDate(data['paymentDeadline']),
     );
   }
 
@@ -102,6 +114,7 @@ class MatchParticipant {
       'organiserApproved': organiserApproved,
       'requiresApproval': requiresApproval,
       'withdrawalReason': withdrawalReason,
+      'paymentDeadline': paymentDeadline == null ? null : Timestamp.fromDate(paymentDeadline!),
     };
   }
 

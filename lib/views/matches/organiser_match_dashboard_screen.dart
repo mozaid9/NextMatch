@@ -80,6 +80,8 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                 children: [
                   _SummaryCard(match: match),
                   const SizedBox(height: 16),
+                  _GuaranteeBanner(match: match, pendingPayment: pendingPayment),
+                  const SizedBox(height: 16),
                   _Section(
                     title: 'Pending approvals',
                     child: pending.isEmpty
@@ -337,10 +339,114 @@ class _PaymentPendingTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final deadline = participant.paymentDeadline;
+    final isOverdue = participant.isPaymentOverdue;
+    final timeLeft = participant.timeUntilDeadline;
+
+    String deadlineLabel;
+    Color deadlineColor;
+    if (deadline == null) {
+      deadlineLabel = 'Pay by: —';
+      deadlineColor = AppColours.mutedText;
+    } else if (isOverdue) {
+      deadlineLabel = 'Overdue — organiser liable';
+      deadlineColor = AppColours.error;
+    } else if (timeLeft != null && timeLeft.inHours < 6) {
+      deadlineLabel = 'Pay in ${timeLeft.inHours}h ${timeLeft.inMinutes.remainder(60)}m';
+      deadlineColor = AppColours.warning;
+    } else {
+      final h = timeLeft?.inHours ?? 24;
+      deadlineLabel = 'Pay within ${h}h';
+      deadlineColor = AppColours.mutedText;
+    }
+
     return _PlayerPanel(
       participant: participant,
       threshold: match.minimumReliabilityRequired,
-      trailing: const _Badge(label: 'Not secured', colour: AppColours.warning),
+      trailing: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          _Badge(
+            label: isOverdue ? 'Overdue' : 'Not secured',
+            colour: isOverdue ? AppColours.error : AppColours.warning,
+          ),
+          const SizedBox(height: 4),
+          Text(
+            deadlineLabel,
+            style: TextStyle(fontSize: 10, color: deadlineColor),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GuaranteeBanner extends StatelessWidget {
+  const _GuaranteeBanner({
+    required this.match,
+    required this.pendingPayment,
+  });
+
+  final FootballMatch match;
+  final List<MatchParticipant> pendingPayment;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!match.isSplitPayment || pendingPayment.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final overdueCount = pendingPayment.where((p) => p.isPaymentOverdue).length;
+    final pendingCount = pendingPayment.length - overdueCount;
+    final liabilityAmount = match.pricePerPlayer * pendingPayment.length;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: overdueCount > 0
+            ? AppColours.error.withValues(alpha: 0.08)
+            : AppColours.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: overdueCount > 0
+              ? AppColours.error.withValues(alpha: 0.4)
+              : AppColours.warning.withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            overdueCount > 0 ? Icons.warning_amber_rounded : Icons.shield_outlined,
+            color: overdueCount > 0 ? AppColours.error : AppColours.warning,
+            size: 20,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  overdueCount > 0
+                      ? 'You are liable for £${liabilityAmount.toStringAsFixed(2)}'
+                      : 'Payment guarantee active',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: overdueCount > 0 ? AppColours.error : AppColours.warning,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  overdueCount > 0
+                      ? '$overdueCount player${overdueCount > 1 ? "s" : ""} overdue — their share is on you.'
+                      : '$pendingCount player${pendingCount > 1 ? "s" : ""} have 24h to pay. If they don\'t, you cover their share.',
+                  style: AppTextStyles.small,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -455,8 +561,10 @@ class _PlayerPanel extends StatelessWidget {
                       label:
                           'Ability ${participant.abilityRatingAtJoin.toStringAsFixed(1)}',
                     ),
-                    _Badge(label: participant.paymentStatus),
-                    _Badge(label: _statusLabel(participant.attendanceStatus)),
+                    _Badge(
+                      label: _paymentLabel(participant),
+                      colour: _paymentColour(participant),
+                    ),
                   ],
                 ),
               ],
@@ -468,14 +576,19 @@ class _PlayerPanel extends StatelessWidget {
     );
   }
 
-  String _statusLabel(String status) {
-    return switch (status) {
-      'PendingPayment' => 'Pending payment',
-      'PendingApproval' => 'Pending approval',
-      'LateCancelled' => 'Late cancelled',
-      'NoShow' => 'No-show',
-      _ => status,
-    };
+  String _paymentLabel(MatchParticipant p) {
+    if (p.hasConfirmedSlot) return 'Paid';
+    if (p.isPaymentOverdue) return 'Overdue';
+    if (p.isPendingPayment) return 'Not paid';
+    if (p.isPendingApproval) return 'Pending approval';
+    return p.attendanceStatus;
+  }
+
+  Color _paymentColour(MatchParticipant p) {
+    if (p.hasConfirmedSlot) return AppColours.accent;
+    if (p.isPaymentOverdue) return AppColours.error;
+    if (p.isPendingPayment) return AppColours.warning;
+    return AppColours.mutedText;
   }
 }
 

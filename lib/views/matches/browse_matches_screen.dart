@@ -8,6 +8,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/match_card.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
+import '../../core/widgets/skeleton_loader.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
@@ -29,6 +30,26 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
   String _distance = 'Any distance';
   String _date = 'Any date';
   String _position = 'Any position';
+
+  Future<void> _onRefresh() async {
+    // Stream is live — brief delay gives visual feedback
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+
+  bool get _hasActiveFilters =>
+      _format != 'Any format' ||
+      _skill != 'Any skill' ||
+      _distance != 'Any distance' ||
+      _date != 'Any date' ||
+      _position != 'Any position';
+
+  void _clearFilters() => setState(() {
+        _format = 'Any format';
+        _skill = 'Any skill';
+        _distance = 'Any distance';
+        _date = 'Any date';
+        _position = 'Any position';
+      });
 
   @override
   Widget build(BuildContext context) {
@@ -90,54 +111,72 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                 stream: matchViewModel.openMatchesStream(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(
-                      child: CircularProgressIndicator(
-                        color: AppColours.accent,
-                      ),
-                    );
+                    return const SkeletonMatchList();
                   }
 
                   final filtered = _applyFilters(snapshot.data ?? []);
                   if (filtered.isEmpty) {
-                    return SingleChildScrollView(
-                      padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
-                      child: EmptyState(
-                        icon: Icons.search_off,
-                        title: 'No matches found',
-                        message:
-                            'Try adjusting the filters, or be the first to post a game in your area.',
-                        action: PrimaryButton(
-                          label: 'Add demo matches',
-                          icon: Icons.auto_awesome,
-                          isLoading: matchViewModel.isLoading,
-                          onPressed: () async {
-                            final success = await matchViewModel
-                                .seedDemoMatches(widget.currentUser);
-                            if (!context.mounted || !success) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Demo matches added.'),
-                              ),
-                            );
-                          },
+                    return RefreshIndicator(
+                      color: AppColours.accent,
+                      backgroundColor: AppColours.card,
+                      onRefresh: _onRefresh,
+                      child: SingleChildScrollView(
+                        physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
+                        child: EmptyState(
+                          icon: _hasActiveFilters
+                              ? Icons.filter_alt_off
+                              : Icons.search_off,
+                          title: _hasActiveFilters
+                              ? 'No matches for these filters'
+                              : 'No matches found',
+                          message: _hasActiveFilters
+                              ? 'Try broadening your search, or clear all filters to see everything.'
+                              : 'Be the first to post a game in your area.',
+                          action: _hasActiveFilters
+                              ? PrimaryButton(
+                                  label: 'Clear all filters',
+                                  icon: Icons.filter_alt_off,
+                                  isSecondary: true,
+                                  onPressed: _clearFilters,
+                                )
+                              : PrimaryButton(
+                                  label: 'Add demo matches',
+                                  icon: Icons.auto_awesome,
+                                  isLoading: matchViewModel.isLoading,
+                                  onPressed: () async {
+                                    final success = await matchViewModel
+                                        .seedDemoMatches(widget.currentUser);
+                                    if (!context.mounted || !success) return;
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Demo matches added.'),
+                                      ),
+                                    );
+                                  },
+                                ),
                         ),
                       ),
                     );
                   }
 
-                  return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 112),
-                    itemCount: filtered.length,
-                    separatorBuilder: (_, _) => const SizedBox(height: 12),
-                    itemBuilder: (context, index) {
-                      final match = filtered[index];
-                      return MatchCard(
-                        match: match,
-                        actionLabel: 'View',
-                        onActionPressed: () => _openDetail(match),
-                        onTap: () => _openDetail(match),
-                      );
-                    },
+                  return RefreshIndicator(
+                    color: AppColours.accent,
+                    backgroundColor: AppColours.card,
+                    onRefresh: _onRefresh,
+                    child: ListView.separated(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.fromLTRB(20, 4, 20, 112),
+                      itemCount: filtered.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 12),
+                      itemBuilder: (context, index) {
+                        final match = filtered[index];
+                        return MatchCard(
+                          match: match,
+                          onTap: () => _openDetail(match),
+                        );
+                      },
+                    ),
                   );
                 },
               ),
@@ -292,24 +331,42 @@ class _PopupFilter extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isActive = !label.startsWith('Any');
+
     return InkWell(
       onTap: () => _openOptions(context),
       borderRadius: BorderRadius.circular(8),
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
         decoration: BoxDecoration(
-          color: AppColours.card,
+          color: isActive
+              ? AppColours.accent.withValues(alpha: 0.08)
+              : AppColours.card,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColours.line),
+          border: Border.all(
+            color: isActive
+                ? AppColours.accent.withValues(alpha: 0.6)
+                : AppColours.line,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 16, color: AppColours.accent),
             const SizedBox(width: 7),
-            Text(label, style: AppTextStyles.small),
+            Text(
+              label,
+              style: AppTextStyles.small.copyWith(
+                color: isActive ? AppColours.accent : null,
+              ),
+            ),
             const SizedBox(width: 4),
-            const Icon(Icons.expand_more, size: 16),
+            Icon(
+              Icons.expand_more,
+              size: 16,
+              color: isActive ? AppColours.accent : AppColours.mutedText,
+            ),
           ],
         ),
       ),

@@ -31,6 +31,9 @@ class MatchViewModel extends ChangeNotifier {
   Future<FootballMatch?> getMatch(String matchId) =>
       _matchService.getMatch(matchId);
 
+  Future<List<Map<String, dynamic>>> getFrequentCoPlayers(String uid) =>
+      _matchService.getFrequentCoPlayers(uid);
+
   Future<JoinRequestResult?> requestToJoinMatch({
     required FootballMatch match,
     required AppUser user,

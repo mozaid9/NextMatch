@@ -77,7 +77,6 @@ class MatchCard extends StatelessWidget {
               const SizedBox(height: 14),
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
-                clipBehavior: Clip.none,
                 child: Row(
                   children: [
                     _InfoChip(icon: Icons.place, label: match.locationName),
@@ -143,6 +142,12 @@ class MatchCard extends StatelessWidget {
                       onPressed: onActionPressed,
                       icon: const Icon(Icons.arrow_forward, size: 16),
                       label: Text(actionLabel!),
+                    )
+                  else if (trailing == null)
+                    const Icon(
+                      Icons.chevron_right,
+                      size: 18,
+                      color: AppColours.mutedText,
                     ),
                 ],
               ),

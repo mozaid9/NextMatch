@@ -145,6 +145,7 @@ Future<String?> showSelectionSheet({
 }) {
   return showModalBottomSheet<String>(
     context: context,
+    isScrollControlled: true,
     backgroundColor: AppColours.surface,
     shape: const RoundedRectangleBorder(
       borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
@@ -170,28 +171,41 @@ class _SelectionSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SafeArea(
-      top: false,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SelectionSheetHandle(),
-            Text(title, style: AppTextStyles.h2),
-            const SizedBox(height: 14),
-            ...options.map(
-              (option) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _SelectionOptionRow(
-                  label: option,
-                  selected: option == selectedValue,
-                  onTap: () => Navigator.of(context).pop(option),
+    final screenHeight = MediaQuery.of(context).size.height;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: screenHeight * 0.75),
+      child: SafeArea(
+        top: false,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const SelectionSheetHandle(),
+              Text(title, style: AppTextStyles.h2),
+              const SizedBox(height: 14),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: options
+                        .map(
+                          (option) => Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: _SelectionOptionRow(
+                              label: option,
+                              selected: option == selectedValue,
+                              onTap: () => Navigator.of(context).pop(option),
+                            ),
+                          ),
+                        )
+                        .toList(),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

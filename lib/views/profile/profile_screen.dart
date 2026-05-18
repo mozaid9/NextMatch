@@ -9,6 +9,12 @@ import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import 'edit_profile_screen.dart';
 
+Color _reliabilityColor(int score) {
+  if (score >= 75) return AppColours.accent;
+  if (score >= 60) return AppColours.warning;
+  return AppColours.error;
+}
+
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key, required this.currentUser});
 
@@ -33,32 +39,7 @@ class ProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: _StatTile(
-                              label: 'Reliability',
-                              value:
-                                  '${user.reliabilityScore} ${ReliabilityService.getReliabilityLabel(user.reliabilityScore)}',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _StatTile(
-                              label: 'Ability',
-                              value:
-                                  '${user.abilityRating.toStringAsFixed(1)}/5',
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: _StatTile(
-                              label: 'Ratings',
-                              value: user.abilityRatingCount.toString(),
-                            ),
-                          ),
-                        ],
-                      ),
+                      _StatsCard(user: user),
                       const SizedBox(height: 16),
                       _DetailPanel(user: user),
                       const SizedBox(height: 20),
@@ -122,71 +103,185 @@ class _ProfileHeader extends StatelessWidget {
       ),
       child: Column(
         children: [
-          Container(
-            height: 80,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: [
-                  AppColours.accent.withValues(alpha: 0.25),
-                  AppColours.accent.withValues(alpha: 0.05),
-                ],
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              ),
+          // Banner with avatar overlapping its bottom edge
+          SizedBox(
+            height: 120, // 80px banner + 40px (lower half of avatar)
+            child: Stack(
+              alignment: Alignment.topCenter,
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 80,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [
+                          AppColours.accent.withValues(alpha: 0.25),
+                          AppColours.accent.withValues(alpha: 0.05),
+                        ],
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                      ),
+                    ),
+                  ),
+                ),
+                Positioned(
+                  top: 40, // banner_height - avatar_radius = 80 - 40
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: AppColours.surface,
+                    child: CircleAvatar(
+                      radius: 36,
+                      backgroundColor: AppColours.cardAlt,
+                      child: Text(
+                        initial,
+                        style: AppTextStyles.h1.copyWith(
+                          color: AppColours.accent,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          Transform.translate(
-            offset: const Offset(0, -36),
-            child: Column(
+          const SizedBox(height: 12),
+          Text(displayName, style: AppTextStyles.h2),
+          const SizedBox(height: 4),
+          Text(
+            '${user.preferredPosition} · ${user.skillLevel}',
+            style: AppTextStyles.bodyMuted,
+          ),
+          if (user.location.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                CircleAvatar(
-                  radius: 40,
-                  backgroundColor: AppColours.surface,
-                  child: CircleAvatar(
-                    radius: 36,
-                    backgroundColor: AppColours.cardAlt,
-                    child: Text(
-                      initial,
-                      style: AppTextStyles.h1.copyWith(
-                        color: AppColours.accent,
-                      ),
-                    ),
+                const Icon(
+                  Icons.place_outlined,
+                  size: 14,
+                  color: AppColours.mutedText,
+                ),
+                const SizedBox(width: 4),
+                Text(user.location, style: AppTextStyles.small),
+              ],
+            ),
+          ],
+          if (user.bio.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Text(
+                user.bio,
+                style: AppTextStyles.bodyMuted,
+                textAlign: TextAlign.center,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
+        ],
+      ),
+    );
+  }
+}
+
+class _StatsCard extends StatelessWidget {
+  const _StatsCard({required this.user});
+  final AppUser user;
+
+  @override
+  Widget build(BuildContext context) {
+    final relColor = _reliabilityColor(user.reliabilityScore);
+    final relLabel =
+        ReliabilityService.getReliabilityLabel(user.reliabilityScore);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Column(
+        children: [
+          // Thin coloured accent bar at top
+          Container(
+            height: 3,
+            decoration: BoxDecoration(
+              color: relColor,
+              borderRadius:
+                  const BorderRadius.vertical(top: Radius.circular(12)),
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: Row(
+              children: [
+                // Matches played
+                Expanded(
+                  child: _StatBlock(
+                    value: user.completedMatches.toString(),
+                    label: 'Matches',
                   ),
                 ),
-                const SizedBox(height: 10),
-                Text(displayName, style: AppTextStyles.h2),
-                const SizedBox(height: 4),
-                Text(
-                  '${user.preferredPosition} · ${user.skillLevel}',
-                  style: AppTextStyles.bodyMuted,
+                _vDivider,
+                // Ability rating
+                Expanded(
+                  child: _StatBlock(
+                    value: user.abilityRatingCount > 0
+                        ? user.abilityRating.toStringAsFixed(1)
+                        : '—',
+                    label: 'Ability',
+                    subLabel: user.abilityRatingCount > 0
+                        ? '${user.abilityRatingCount} ${user.abilityRatingCount == 1 ? "rating" : "ratings"}'
+                        : 'Not rated',
+                  ),
                 ),
-                if (user.location.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Row(
-                    mainAxisSize: MainAxisSize.min,
+                _vDivider,
+                // Reliability arc
+                Expanded(
+                  child: Column(
                     children: [
-                      const Icon(
-                        Icons.place_outlined,
-                        size: 14,
-                        color: AppColours.mutedText,
+                      SizedBox(
+                        width: 56,
+                        height: 56,
+                        child: Stack(
+                          alignment: Alignment.center,
+                          children: [
+                            CircularProgressIndicator(
+                              value: user.reliabilityScore / 100,
+                              strokeWidth: 5,
+                              strokeCap: StrokeCap.round,
+                              backgroundColor: AppColours.line,
+                              valueColor:
+                                  AlwaysStoppedAnimation<Color>(relColor),
+                            ),
+                            Text(
+                              '${user.reliabilityScore}',
+                              style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w700,
+                                color: relColor,
+                                height: 1,
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
-                      const SizedBox(width: 4),
-                      Text(user.location, style: AppTextStyles.small),
+                      const SizedBox(height: 6),
+                      Text(
+                        relLabel,
+                        style: AppTextStyles.small.copyWith(
+                          color: relColor,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      Text('Reliability', style: AppTextStyles.small),
                     ],
                   ),
-                ],
-                if (user.bio.isNotEmpty) ...[
-                  const SizedBox(height: 10),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: Text(
-                      user.bio,
-                      style: AppTextStyles.bodyMuted,
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 4),
+                ),
               ],
             ),
           ),
@@ -194,33 +289,34 @@ class _ProfileHeader extends StatelessWidget {
       ),
     );
   }
+
+  Widget get _vDivider => Container(width: 1, height: 56, color: AppColours.line);
 }
 
-class _StatTile extends StatelessWidget {
-  const _StatTile({required this.label, required this.value});
-
-  final String label;
+class _StatBlock extends StatelessWidget {
+  const _StatBlock({
+    required this.value,
+    required this.label,
+    this.subLabel,
+  });
   final String value;
+  final String label;
+  final String? subLabel;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColours.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColours.line),
-      ),
-      child: Column(
-        children: [
+    return Column(
+      children: [
+        Text(value, style: AppTextStyles.h2),
+        const SizedBox(height: 4),
+        Text(label, style: AppTextStyles.small, textAlign: TextAlign.center),
+        if (subLabel != null)
           Text(
-            value,
-            style: AppTextStyles.h3.copyWith(color: AppColours.accent),
+            subLabel!,
+            style: AppTextStyles.small.copyWith(color: AppColours.mutedText),
+            textAlign: TextAlign.center,
           ),
-          const SizedBox(height: 4),
-          Text(label, style: AppTextStyles.small),
-        ],
-      ),
+      ],
     );
   }
 }
@@ -249,33 +345,38 @@ class _DetailPanel extends StatelessWidget {
             label: 'Preferred position',
             value: user.preferredPosition,
           ),
-          _DetailRow(
-            label: 'Secondary position',
-            value: user.secondaryPosition,
-          ),
+          if (user.secondaryPosition.isNotEmpty &&
+              user.secondaryPosition != 'Any')
+            _DetailRow(
+              label: 'Secondary position',
+              value: user.secondaryPosition,
+            ),
           _DetailRow(label: 'Favourite foot', value: user.favouriteFoot),
           _DetailRow(
-            label: 'Completed matches',
+            label: 'Matches played',
             value: user.completedMatches.toString(),
           ),
-          _DetailRow(
-            label: 'Attended matches',
-            value: user.attendedMatches.toString(),
-          ),
-          _DetailRow(label: 'No-shows', value: user.noShows.toString()),
-          _DetailRow(
-            label: 'Late cancellations',
-            value: user.lateCancellations.toString(),
-          ),
-          _DetailRow(
-            label: 'Cancelled matches',
-            value: user.cancelledMatches.toString(),
-          ),
-          _DetailRow(
-            label: 'Ability rating',
-            value:
-                '${user.abilityRating.toStringAsFixed(1)}/5 from ${user.abilityRatingCount} ratings',
-          ),
+          if (user.noShows > 0)
+            _DetailRow(
+              label: 'No-shows',
+              value: user.noShows.toString(),
+            ),
+          if (user.lateCancellations > 0)
+            _DetailRow(
+              label: 'Late cancellations',
+              value: user.lateCancellations.toString(),
+            ),
+          if (user.cancelledMatches > 0)
+            _DetailRow(
+              label: 'Cancelled matches',
+              value: user.cancelledMatches.toString(),
+            ),
+          if (user.abilityRatingCount > 0)
+            _DetailRow(
+              label: 'Ability rating',
+              value:
+                  '${user.abilityRating.toStringAsFixed(1)}/5 (${user.abilityRatingCount} ratings)',
+            ),
         ],
       ),
     );

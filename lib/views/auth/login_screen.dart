@@ -6,6 +6,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/social_sign_in_button.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import 'register_screen.dart';
 
@@ -61,7 +62,48 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Log in to find your next game.',
                   style: AppTextStyles.bodyMuted,
                 ),
-                const SizedBox(height: 28),
+                const SizedBox(height: 24),
+
+                // Social sign-in
+                SocialSignInButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          await context.read<AuthViewModel>().signInWithApple();
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                  icon: Icons.apple,
+                  label: 'Continue with Apple',
+                  dark: true,
+                ),
+                const SizedBox(height: 10),
+                SocialSignInButton(
+                  onPressed: auth.isLoading
+                      ? null
+                      : () async {
+                          await context.read<AuthViewModel>().signInWithGoogle();
+                          if (context.mounted) Navigator.of(context).pop();
+                        },
+                  icon: null,
+                  label: 'Continue with Google',
+                  dark: false,
+                ),
+
+                // Divider
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 20),
+                  child: Row(
+                    children: [
+                      const Expanded(child: Divider(color: AppColours.line)),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        child: Text('or sign in with email', style: AppTextStyles.small),
+                      ),
+                      const Expanded(child: Divider(color: AppColours.line)),
+                    ],
+                  ),
+                ),
+
                 CustomTextField(
                   controller: _emailController,
                   label: 'Email',

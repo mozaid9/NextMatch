@@ -34,6 +34,14 @@ class AuthViewModel extends ChangeNotifier {
     await _authService.signOut();
   }
 
+  Future<bool> signInWithGoogle() async {
+    return _runAuthAction(() => _authService.signInWithGoogle());
+  }
+
+  Future<bool> signInWithApple() async {
+    return _runAuthAction(() => _authService.signInWithApple());
+  }
+
   Future<bool> _runAuthAction(Future<void> Function() action) async {
     isLoading = true;
     errorMessage = null;

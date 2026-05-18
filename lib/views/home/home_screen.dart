@@ -7,13 +7,14 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/match_card.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/skeleton_loader.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../matches/match_detail_screen.dart';
 import '../matches/my_matches_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({
     super.key,
     required this.currentUser,
@@ -26,12 +27,26 @@ class HomeScreen extends StatelessWidget {
   final VoidCallback onBrowseMatches;
 
   @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  Future<void> _onRefresh() async {
+    await Future<void>.delayed(const Duration(milliseconds: 600));
+  }
+
+  @override
   Widget build(BuildContext context) {
     final matchViewModel = context.watch<MatchViewModel>();
 
     return Scaffold(
       body: SafeArea(
-        child: CustomScrollView(
+        child: RefreshIndicator(
+          color: AppColours.accent,
+          backgroundColor: AppColours.card,
+          onRefresh: _onRefresh,
+          child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
@@ -46,7 +61,7 @@ class HomeScreen extends StatelessWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Hi, ${_capitalise(currentUser.fullName.split(' ').first)}',
+                                'Hi, ${_capitalise(widget.currentUser.fullName.split(' ').first)}',
                                 style: AppTextStyles.h1,
                               ),
                               const SizedBox(height: 6),
@@ -61,9 +76,9 @@ class HomeScreen extends StatelessWidget {
                           radius: 24,
                           backgroundColor: AppColours.cardAlt,
                           child: Text(
-                            currentUser.fullName.isEmpty
+                            widget.currentUser.fullName.isEmpty
                                 ? 'N'
-                                : currentUser.fullName[0].toUpperCase(),
+                                : widget.currentUser.fullName[0].toUpperCase(),
                             style: AppTextStyles.h3.copyWith(
                               color: AppColours.accent,
                             ),
@@ -72,39 +87,19 @@ class HomeScreen extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 20),
-                    _SearchCard(onBrowseMatches: onBrowseMatches),
-                    const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: PrimaryButton(
-                            label: 'Create Match',
-                            icon: Icons.add,
-                            onPressed: onCreateMatch,
-                          ),
+                    _QuickActions(
+                      onCreateMatch: widget.onCreateMatch,
+                      onBrowseMatches: widget.onBrowseMatches,
+                      onMyMatches: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => MyMatchesScreen(currentUser: widget.currentUser),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: PrimaryButton(
-                            label: 'My matches',
-                            icon: Icons.calendar_month,
-                            isSecondary: true,
-                            onPressed: () {
-                              Navigator.of(context).push(
-                                MaterialPageRoute<void>(
-                                  builder: (_) =>
-                                      MyMatchesScreen(currentUser: currentUser),
-                                ),
-                              );
-                            },
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                    const SizedBox(height: 26),
+                    _CoPlayersStrip(uid: widget.currentUser.uid),
                     Text('Your next match', style: AppTextStyles.h2),
                     const SizedBox(height: 12),
-                    _UpcomingJoinedMatch(currentUser: currentUser),
+                    _UpcomingJoinedMatch(currentUser: widget.currentUser),
                     const SizedBox(height: 26),
                     Row(
                       children: [
@@ -115,7 +110,7 @@ class HomeScreen extends StatelessWidget {
                           ),
                         ),
                         TextButton(
-                          onPressed: onBrowseMatches,
+                          onPressed: widget.onBrowseMatches,
                           child: const Text('View all'),
                         ),
                       ],
@@ -130,13 +125,9 @@ class HomeScreen extends StatelessWidget {
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const SliverToBoxAdapter(
-                    child: Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(28),
-                        child: CircularProgressIndicator(
-                          color: AppColours.accent,
-                        ),
-                      ),
+                    child: SkeletonMatchList(
+                      count: 3,
+                      padding: EdgeInsets.fromLTRB(20, 0, 20, 112),
                     ),
                   );
                 }
@@ -157,7 +148,7 @@ class HomeScreen extends StatelessWidget {
                           isLoading: matchViewModel.isLoading,
                           onPressed: () async {
                             final success = await matchViewModel
-                                .seedDemoMatches(currentUser);
+                                .seedDemoMatches(widget.currentUser);
                             if (!context.mounted || !success) return;
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
@@ -180,8 +171,6 @@ class HomeScreen extends StatelessWidget {
                       final match = matches[index];
                       return MatchCard(
                         match: match,
-                        actionLabel: 'View',
-                        onActionPressed: () => _openMatch(context, match),
                         onTap: () => _openMatch(context, match),
                       );
                     },
@@ -190,8 +179,9 @@ class HomeScreen extends StatelessWidget {
               },
             ),
           ],
-        ),
-      ),
+          ),   // CustomScrollView
+        ),     // RefreshIndicator
+      ),       // SafeArea
     );
   }
 
@@ -199,7 +189,7 @@ class HomeScreen extends StatelessWidget {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) =>
-            MatchDetailScreen(matchId: match.id, currentUser: currentUser),
+            MatchDetailScreen(matchId: match.id, currentUser: widget.currentUser),
       ),
     );
   }
@@ -208,35 +198,190 @@ class HomeScreen extends StatelessWidget {
       s.isEmpty ? s : s[0].toUpperCase() + s.substring(1).toLowerCase();
 }
 
-class _SearchCard extends StatelessWidget {
-  const _SearchCard({required this.onBrowseMatches});
+class _QuickActions extends StatelessWidget {
+  const _QuickActions({
+    required this.onCreateMatch,
+    required this.onBrowseMatches,
+    required this.onMyMatches,
+  });
 
+  final VoidCallback onCreateMatch;
   final VoidCallback onBrowseMatches;
+  final VoidCallback onMyMatches;
 
   @override
   Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.add_circle_outline,
+            label: 'Create',
+            onTap: onCreateMatch,
+            isPrimary: true,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.search,
+            label: 'Find a game',
+            onTap: onBrowseMatches,
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _ActionTile(
+            icon: Icons.calendar_month_outlined,
+            label: 'My matches',
+            onTap: onMyMatches,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.isPrimary = false,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool isPrimary;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14),
+        decoration: BoxDecoration(
+          color: isPrimary
+              ? AppColours.accent.withValues(alpha: 0.12)
+              : AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isPrimary ? AppColours.accent.withValues(alpha: 0.4) : AppColours.line,
+          ),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 22,
+              color: isPrimary ? AppColours.accent : AppColours.mutedText,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              label,
+              style: AppTextStyles.small.copyWith(
+                color: isPrimary ? AppColours.accent : AppColours.text,
+              ),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CoPlayersStrip extends StatelessWidget {
+  const _CoPlayersStrip({required this.uid});
+
+  final String uid;
+
+  @override
+  Widget build(BuildContext context) {
+    final matchViewModel = context.read<MatchViewModel>();
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: matchViewModel.getFrequentCoPlayers(uid),
+      builder: (context, snapshot) {
+        final players = snapshot.data ?? [];
+        if (players.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 26),
+            Text('Players you run with', style: AppTextStyles.h2),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 90,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: players.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) =>
+                    _CoPlayerCard(player: players[index]),
+              ),
+            ),
+            const SizedBox(height: 26),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _CoPlayerCard extends StatelessWidget {
+  const _CoPlayerCard({required this.player});
+
+  final Map<String, dynamic> player;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = player['fullName'] as String? ?? '';
+    final count = player['count'] as int? ?? 0;
+    final firstName = name.split(' ').first;
+    final initial =
+        firstName.isEmpty ? '?' : firstName[0].toUpperCase();
+
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      width: 72,
+      padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
         color: AppColours.card,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColours.line),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text('Find a game nearby', style: AppTextStyles.h3),
-          const SizedBox(height: 8),
-          Text(
-            'Filter by format, skill level, date and needed position.',
-            style: AppTextStyles.bodyMuted,
+          CircleAvatar(
+            radius: 20,
+            backgroundColor: AppColours.accent.withValues(alpha: 0.14),
+            child: Text(
+              initial,
+              style: AppTextStyles.body.copyWith(
+                color: AppColours.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-          const SizedBox(height: 14),
-          OutlinedButton.icon(
-            onPressed: onBrowseMatches,
-            icon: const Icon(Icons.tune),
-            label: const Text('Search matches'),
+          const SizedBox(height: 6),
+          Text(
+            firstName,
+            style: AppTextStyles.small.copyWith(fontWeight: FontWeight.w600),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
+          ),
+          Text(
+            '$count ${count == 1 ? "game" : "games"}',
+            style: AppTextStyles.small.copyWith(color: AppColours.mutedText),
+            maxLines: 1,
           ),
         ],
       ),

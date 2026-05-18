@@ -1,9 +1,15 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter/foundation.dart';
 
 class AuthService {
   AuthService({FirebaseAuth? firebaseAuth})
-    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance;
+    : _firebaseAuth = firebaseAuth ?? FirebaseAuth.instance {
+    // Explicitly persist auth state in local storage (web default, but be explicit).
+    if (kIsWeb) {
+      _firebaseAuth.setPersistence(Persistence.LOCAL);
+    }
+  }
 
   final FirebaseAuth _firebaseAuth;
 
@@ -35,6 +41,25 @@ class AuthService {
 
   Future<void> signOut() => _firebaseAuth.signOut();
 
+  /// Google Sign-In via popup (web). Requires Google provider enabled in
+  /// Firebase Console → Authentication → Sign-in methods.
+  Future<UserCredential> signInWithGoogle() async {
+    final provider = GoogleAuthProvider()
+      ..addScope('email')
+      ..addScope('profile');
+    return _firebaseAuth.signInWithPopup(provider);
+  }
+
+  /// Apple Sign-In via popup (web). Requires Apple provider enabled in
+  /// Firebase Console → Authentication → Sign-in methods, plus a registered
+  /// Apple Service ID and private key.
+  Future<UserCredential> signInWithApple() async {
+    final provider = OAuthProvider('apple.com')
+      ..addScope('email')
+      ..addScope('name');
+    return _firebaseAuth.signInWithPopup(provider);
+  }
+
   String friendlyAuthError(Object error) {
     if (_isPlaceholderFirebaseConfig()) {
       return 'Firebase is still using placeholder API keys. Run flutterfire configure locally, then restart the app.';
@@ -56,12 +81,17 @@ class AuthService {
       'invalid-api-key' =>
         'Firebase rejected the API key. Refresh your local Firebase config with flutterfire configure.',
       'operation-not-allowed' =>
-        'Email/password login is not enabled for this Firebase project.',
+        'This sign-in method is not enabled. Enable it in Firebase Console → Authentication.',
       'user-disabled' => 'This account has been disabled.',
       'user-not-found' => 'No account found for that email.',
       'wrong-password' => 'Incorrect password.',
       'invalid-credential' => 'Email or password is incorrect.',
       'weak-password' => 'Use a stronger password.',
+      'popup-closed-by-user' || 'cancelled-popup-request' => '',
+      'account-exists-with-different-credential' =>
+        'An account already exists with this email. Try signing in with email/password.',
+      'popup-blocked' =>
+        'Popup was blocked by the browser. Allow popups for this site and try again.',
       _ => error.message ?? 'Authentication failed.',
     };
   }

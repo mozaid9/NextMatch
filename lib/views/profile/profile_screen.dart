@@ -8,7 +8,9 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../services/reliability_service.dart';
+import '../../services/friends_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../social/friends_screen.dart';
 import 'edit_profile_screen.dart';
@@ -47,16 +49,27 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 16),
                       _DetailPanel(user: user),
                       const SizedBox(height: 20),
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          Navigator.of(context).push(
-                            MaterialPageRoute<void>(
-                              builder: (_) => FriendsScreen(currentUser: user),
+                      StreamBuilder<List<Friend>>(
+                        stream: context
+                            .read<FriendsViewModel>()
+                            .friendsStream(user.uid),
+                        builder: (context, snapshot) {
+                          final count = snapshot.data?.length ?? 0;
+                          return OutlinedButton.icon(
+                            onPressed: () {
+                              Navigator.of(context).push(
+                                MaterialPageRoute<void>(
+                                  builder: (_) =>
+                                      FriendsScreen(currentUser: user),
+                                ),
+                              );
+                            },
+                            icon: const Icon(Icons.group_outlined),
+                            label: Text(
+                              count == 0 ? 'Friends' : 'Friends · $count',
                             ),
                           );
                         },
-                        icon: const Icon(Icons.group_outlined),
-                        label: const Text('Friends'),
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(

@@ -405,13 +405,23 @@ class _AvatarUploaderState extends State<_AvatarUploader> {
 
   Future<void> _pickAndUpload() async {
     if (_uploading) return;
-    final picker = ImagePicker();
-    final file = await picker.pickImage(
-      source: ImageSource.gallery,
-      maxWidth: 1024,
-      maxHeight: 1024,
-      imageQuality: 88,
-    );
+
+    XFile? file;
+    try {
+      final picker = ImagePicker();
+      file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 88,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open photo picker: $error')),
+      );
+      return;
+    }
     if (file == null || !mounted) return;
 
     setState(() => _uploading = true);
@@ -445,45 +455,56 @@ class _AvatarUploaderState extends State<_AvatarUploader> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: _pickAndUpload,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          UserAvatar(
-            fullName: widget.user.fullName,
-            photoUrl: widget.user.photoUrl,
-            radius: 40,
-            borderColor: AppColours.surface,
-          ),
-          if (_uploading)
-            const Positioned.fill(
-              child: CircleAvatar(
-                backgroundColor: Colors.black54,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2.5,
-                  color: AppColours.accent,
+    return MouseRegion(
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _pickAndUpload,
+        child: SizedBox(
+          width: 92,
+          height: 92,
+          child: Stack(
+            alignment: Alignment.center,
+            clipBehavior: Clip.none,
+            children: [
+              UserAvatar(
+                fullName: widget.user.fullName,
+                photoUrl: widget.user.photoUrl,
+                radius: 40,
+                borderColor: AppColours.surface,
+              ),
+              if (_uploading)
+                const SizedBox(
+                  width: 80,
+                  height: 80,
+                  child: CircleAvatar(
+                    backgroundColor: Colors.black54,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: AppColours.accent,
+                    ),
+                  ),
+                ),
+              Positioned(
+                right: 2,
+                bottom: 2,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppColours.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColours.surface, width: 2),
+                  ),
+                  child: const Icon(
+                    Icons.camera_alt,
+                    size: 14,
+                    color: Color(0xFF071014),
+                  ),
                 ),
               ),
-            ),
-          Positioned(
-            right: -2,
-            bottom: -2,
-            child: Container(
-              padding: const EdgeInsets.all(6),
-              decoration: BoxDecoration(
-                color: AppColours.accent,
-                shape: BoxShape.circle,
-                border: Border.all(color: AppColours.surface, width: 2),
-              ),
-              child: const Icon(
-                Icons.camera_alt,
-                size: 14,
-                color: Color(0xFF071014),
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

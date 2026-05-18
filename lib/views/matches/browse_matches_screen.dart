@@ -30,6 +30,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
   String _distance = 'Any distance';
   String _date = 'Any date';
   String _position = 'Any position';
+  String _sort = 'Soonest';
 
   Future<void> _onRefresh() async {
     // Stream is live — brief delay gives visual feedback
@@ -95,6 +96,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                     distance: _distance,
                     date: _date,
                     position: _position,
+                    sort: _sort,
                     onFormatChanged: (value) => setState(() => _format = value),
                     onSkillChanged: (value) => setState(() => _skill = value),
                     onDistanceChanged: (value) =>
@@ -102,6 +104,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                     onDateChanged: (value) => setState(() => _date = value),
                     onPositionChanged: (value) =>
                         setState(() => _position = value),
+                    onSortChanged: (value) => setState(() => _sort = value),
                   ),
                 ],
               ),
@@ -188,7 +191,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
   }
 
   List<FootballMatch> _applyFilters(List<FootballMatch> matches) {
-    return matches.where((match) {
+    final filtered = matches.where((match) {
       if (_format != 'Any format' && match.format != _format) return false;
       if (_skill != 'Any skill' && match.skillLevel != _skill) return false;
       if (_position != 'Any position') {
@@ -213,6 +216,22 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
       }
       return true;
     }).toList();
+
+    switch (_sort) {
+      case 'Soonest':
+        filtered.sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
+      case 'Latest':
+        filtered.sort((a, b) => b.startDateTime.compareTo(a.startDateTime));
+      case 'Cheapest':
+        filtered.sort((a, b) => a.pricePerPlayer.compareTo(b.pricePerPlayer));
+      case 'Most filled':
+        filtered.sort((a, b) {
+          final aRatio = a.joinedPlayerCount / a.totalPlayersNeeded;
+          final bRatio = b.joinedPlayerCount / b.totalPlayersNeeded;
+          return bRatio.compareTo(aRatio);
+        });
+    }
+    return filtered;
   }
 
   bool _isSameDay(DateTime a, DateTime b) {
@@ -238,11 +257,13 @@ class _FilterRow extends StatelessWidget {
     required this.distance,
     required this.date,
     required this.position,
+    required this.sort,
     required this.onFormatChanged,
     required this.onSkillChanged,
     required this.onDistanceChanged,
     required this.onDateChanged,
     required this.onPositionChanged,
+    required this.onSortChanged,
   });
 
   final String format;
@@ -250,11 +271,13 @@ class _FilterRow extends StatelessWidget {
   final String distance;
   final String date;
   final String position;
+  final String sort;
   final ValueChanged<String> onFormatChanged;
   final ValueChanged<String> onSkillChanged;
   final ValueChanged<String> onDistanceChanged;
   final ValueChanged<String> onDateChanged;
   final ValueChanged<String> onPositionChanged;
+  final ValueChanged<String> onSortChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -263,6 +286,15 @@ class _FilterRow extends StatelessWidget {
       clipBehavior: Clip.none,
       child: Row(
         children: [
+          _PopupFilter(
+            icon: Icons.sort,
+            title: 'Sort by',
+            label: sort,
+            options: const ['Soonest', 'Latest', 'Cheapest', 'Most filled'],
+            onSelected: onSortChanged,
+            alwaysActive: true,
+          ),
+          const SizedBox(width: 8),
           _PopupFilter(
             icon: Icons.groups_2,
             title: 'Format',
@@ -321,6 +353,7 @@ class _PopupFilter extends StatelessWidget {
     required this.label,
     required this.options,
     required this.onSelected,
+    this.alwaysActive = false,
   });
 
   final IconData icon;
@@ -328,10 +361,13 @@ class _PopupFilter extends StatelessWidget {
   final String label;
   final List<String> options;
   final ValueChanged<String> onSelected;
+  /// Render the chip in the active style even when on the default value
+  /// — useful for "Sort" where the user always picks something.
+  final bool alwaysActive;
 
   @override
   Widget build(BuildContext context) {
-    final isActive = !label.startsWith('Any');
+    final isActive = alwaysActive || !label.startsWith('Any');
 
     return InkWell(
       onTap: () => _openOptions(context),

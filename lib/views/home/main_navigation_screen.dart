@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/app_user.dart';
+import '../../viewmodels/match_viewmodel.dart';
 import '../matches/browse_matches_screen.dart';
 import '../matches/create_match_screen.dart';
 import '../profile/profile_screen.dart';
@@ -35,9 +37,19 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return Scaffold(
       body: IndexedStack(index: _currentIndex, children: screens),
-      bottomNavigationBar: _NextMatchTabBar(
-        currentIndex: _currentIndex,
-        onSelected: (index) => setState(() => _currentIndex = index),
+      bottomNavigationBar: StreamBuilder<List<Map<String, dynamic>>>(
+        stream: context
+            .read<MatchViewModel>()
+            .matchInvitesStream(widget.currentUser.uid),
+        builder: (context, snapshot) {
+          final inviteCount = snapshot.data?.length ?? 0;
+          return _NextMatchTabBar(
+            currentIndex: _currentIndex,
+            // Show the invite badge on Home (index 0).
+            badgeCounts: {0: inviteCount},
+            onSelected: (index) => setState(() => _currentIndex = index),
+          );
+        },
       ),
     );
   }
@@ -47,10 +59,14 @@ class _NextMatchTabBar extends StatelessWidget {
   const _NextMatchTabBar({
     required this.currentIndex,
     required this.onSelected,
+    this.badgeCounts = const <int, int>{},
   });
 
   final int currentIndex;
   final ValueChanged<int> onSelected;
+  /// Map of tab index → badge count. A count > 0 renders a small red
+  /// notification dot with the number on top-right of the tab icon.
+  final Map<int, int> badgeCounts;
 
   static const _items = [
     _TabItemData(
@@ -93,6 +109,7 @@ class _NextMatchTabBar extends StatelessWidget {
                   child: _TabButton(
                     item: _items[index],
                     selected: currentIndex == index,
+                    badgeCount: badgeCounts[index] ?? 0,
                     onTap: () => onSelected(index),
                   ),
                 ),
@@ -109,11 +126,13 @@ class _TabButton extends StatelessWidget {
     required this.item,
     required this.selected,
     required this.onTap,
+    this.badgeCount = 0,
   });
 
   final _TabItemData item;
   final bool selected;
   final VoidCallback onTap;
+  final int badgeCount;
 
   @override
   Widget build(BuildContext context) {
@@ -122,7 +141,9 @@ class _TabButton extends StatelessWidget {
     return Semantics(
       selected: selected,
       button: true,
-      label: item.label,
+      label: badgeCount > 0
+          ? '${item.label}, $badgeCount new'
+          : item.label,
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(8),
@@ -131,21 +152,54 @@ class _TabButton extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              AnimatedContainer(
-                duration: const Duration(milliseconds: 160),
-                height: 34,
-                width: 58,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? AppColours.accent.withValues(alpha: 0.13)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  selected ? item.selectedIcon : item.icon,
-                  color: colour,
-                  size: 23,
-                ),
+              Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 160),
+                    height: 34,
+                    width: 58,
+                    decoration: BoxDecoration(
+                      color: selected
+                          ? AppColours.accent.withValues(alpha: 0.13)
+                          : Colors.transparent,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Icon(
+                      selected ? item.selectedIcon : item.icon,
+                      color: colour,
+                      size: 23,
+                    ),
+                  ),
+                  if (badgeCount > 0)
+                    Positioned(
+                      right: 8,
+                      top: -2,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 5, vertical: 1),
+                        constraints: const BoxConstraints(minWidth: 16),
+                        decoration: BoxDecoration(
+                          color: AppColours.error,
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(
+                            color: AppColours.surface,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          badgeCount > 9 ? '9+' : '$badgeCount',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            height: 1.1,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
               ),
               const SizedBox(height: 4),
               Text(

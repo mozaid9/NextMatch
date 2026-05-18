@@ -207,6 +207,36 @@ class AppTextStyles {
           foregroundColor: AppColours.text,
         ),
       ),
+      tabBarTheme: TabBarThemeData(
+        labelColor: AppColours.accent,
+        unselectedLabelColor: AppColours.mutedText,
+        indicatorColor: AppColours.accent,
+        dividerColor: AppColours.line,
+        indicatorSize: TabBarIndicatorSize.label,
+        labelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w700,
+        ),
+        unselectedLabelStyle: GoogleFonts.inter(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+      checkboxTheme: CheckboxThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColours.accent;
+          return Colors.transparent;
+        }),
+        checkColor: WidgetStateProperty.all(AppColours.background),
+        side: const BorderSide(color: AppColours.line, width: 1.5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+      ),
+      radioTheme: RadioThemeData(
+        fillColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColours.accent;
+          return AppColours.mutedText;
+        }),
+      ),
     );
   }
 }

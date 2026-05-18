@@ -154,18 +154,40 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                         ),
                         const SizedBox(height: 10),
                         OutlinedButton.icon(
-                          onPressed: null,
+                          onPressed: (match.isCompleted || match.isCancelled)
+                              ? null
+                              : () => _confirmCancel(context, match),
                           icon: const Icon(Icons.cancel_outlined),
-                          label: const Text('Cancel match'),
-                        ),
-                        const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: Text(
-                            'Whole-match cancellation and refund automation will be added with real payments.',
-                            style: AppTextStyles.small,
+                          label: Text(
+                            match.isCancelled
+                                ? 'Match cancelled'
+                                : 'Cancel match',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppColours.error,
+                            side: const BorderSide(color: AppColours.error),
                           ),
                         ),
+                        if (match.isCancelled &&
+                            (match.cancelReason ?? '').isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Reason: ${match.cancelReason}',
+                              style: AppTextStyles.small,
+                            ),
+                          ),
+                        ] else ...[
+                          const SizedBox(height: 6),
+                          Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Cancelling notifies joined players. Refund handling is manual until real payments are wired up.',
+                              style: AppTextStyles.small,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -221,6 +243,74 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
           success
               ? 'Match completed. Attended players can now rate each other.'
               : viewModel.errorMessage ?? 'Could not complete match.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _confirmCancel(
+    BuildContext context,
+    FootballMatch match,
+  ) async {
+    final reasonController = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: AppColours.surface,
+        title: const Text('Cancel match?'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Joined players will see this match as cancelled. '
+              'Refunds must be handled manually until real payments are wired up.',
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: reasonController,
+              maxLines: 3,
+              maxLength: 200,
+              decoration: const InputDecoration(
+                labelText: 'Reason (shown to players)',
+                hintText: 'e.g. Pitch unavailable, not enough players',
+                border: OutlineInputBorder(),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Keep match'),
+          ),
+          TextButton(
+            onPressed: () {
+              final text = reasonController.text.trim();
+              if (text.isEmpty) return;
+              Navigator.of(context).pop(text);
+            },
+            style: TextButton.styleFrom(foregroundColor: AppColours.error),
+            child: const Text('Cancel match'),
+          ),
+        ],
+      ),
+    );
+    reasonController.dispose();
+
+    if (!context.mounted || reason == null || reason.isEmpty) return;
+    final viewModel = context.read<MatchViewModel>();
+    final success = await viewModel.cancelMatch(
+      matchId: match.id,
+      reason: reason,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Match cancelled. Joined players will see the reason.'
+              : viewModel.errorMessage ?? 'Could not cancel match.',
         ),
       ),
     );

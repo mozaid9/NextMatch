@@ -30,6 +30,8 @@ class FootballMatch {
     this.minimumReliabilityRequired = 60,
     this.requiresApprovalForLowReliability = true,
     this.completedAt,
+    this.cancelledAt,
+    this.cancelReason,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -62,6 +64,8 @@ class FootballMatch {
   final int minimumReliabilityRequired;
   final bool requiresApprovalForLowReliability;
   final DateTime? completedAt;
+  final DateTime? cancelledAt;
+  final String? cancelReason;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -120,6 +124,8 @@ class FootballMatch {
       requiresApprovalForLowReliability:
           data['requiresApprovalForLowReliability'] as bool? ?? true,
       completedAt: _readNullableDate(data['completedAt']),
+      cancelledAt: _readNullableDate(data['cancelledAt']),
+      cancelReason: data['cancelReason'] as String?,
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
@@ -159,6 +165,10 @@ class FootballMatch {
       'completedAt': completedAt == null
           ? null
           : Timestamp.fromDate(completedAt!),
+      'cancelledAt': cancelledAt == null
+          ? null
+          : Timestamp.fromDate(cancelledAt!),
+      'cancelReason': cancelReason,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -193,6 +203,8 @@ class FootballMatch {
     int? minimumReliabilityRequired,
     bool? requiresApprovalForLowReliability,
     DateTime? completedAt,
+    DateTime? cancelledAt,
+    String? cancelReason,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -230,6 +242,8 @@ class FootballMatch {
           requiresApprovalForLowReliability ??
           this.requiresApprovalForLowReliability,
       completedAt: completedAt ?? this.completedAt,
+      cancelledAt: cancelledAt ?? this.cancelledAt,
+      cancelReason: cancelReason ?? this.cancelReason,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

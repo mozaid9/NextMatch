@@ -148,6 +148,16 @@ class MatchViewModel extends ChangeNotifier {
     );
   }
 
+  Future<bool> cancelMatch({
+    required String matchId,
+    required String reason,
+  }) async {
+    return _runAction(
+      () => _matchService.cancelMatch(matchId: matchId, reason: reason),
+      failureMessage: 'Could not cancel this match.',
+    );
+  }
+
   Future<bool> _runAction(
     Future<void> Function() action, {
     required String failureMessage,

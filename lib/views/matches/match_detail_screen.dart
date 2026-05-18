@@ -73,6 +73,10 @@ class MatchDetailScreen extends StatelessWidget {
                       child: ListView(
                         padding: const EdgeInsets.all(20),
                         children: [
+                          if (match.isCancelled) ...[
+                            _CancelledBanner(match: match),
+                            const SizedBox(height: 14),
+                          ],
                           _Header(match: match),
                           if (isOrganiser) ...[
                             const SizedBox(height: 14),
@@ -974,5 +978,51 @@ class _BottomJoinBar extends StatelessWidget {
       return 'Organiser approval needed before payment.';
     }
     return 'Join first, then pay within 24h to lock in your spot.';
+  }
+}
+
+class _CancelledBanner extends StatelessWidget {
+  const _CancelledBanner({required this.match});
+
+  final FootballMatch match;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.error.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.error.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.cancel_outlined, color: AppColours.error, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Match cancelled',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: AppColours.error,
+                  ),
+                ),
+                if ((match.cancelReason ?? '').isNotEmpty) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    match.cancelReason!,
+                    style: AppTextStyles.small,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

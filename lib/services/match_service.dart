@@ -841,6 +841,57 @@ class MatchService {
     await batch.commit();
   }
 
+  /// Cancels a match. Updates the match status + records the reason and
+  /// timestamp, and propagates the cancelled state to every joined user's
+  /// `joinedMatches` summary so their Home / My matches screens reflect it.
+  Future<void> cancelMatch({
+    required String matchId,
+    required String reason,
+  }) async {
+    final matchRef = _matches.doc(matchId);
+    final matchSnapshot = await matchRef.get();
+    if (!matchSnapshot.exists) throw Exception('Match not found.');
+    final match = FootballMatch.fromFirestore(matchSnapshot);
+    if (match.isCancelled) return;
+    if (match.isCompleted) {
+      throw Exception('Completed matches cannot be cancelled.');
+    }
+
+    final now = DateTime.now();
+    final batch = _firestore.batch();
+
+    batch.update(matchRef, {
+      'status': 'Cancelled',
+      'cancelledAt': Timestamp.fromDate(now),
+      'cancelReason': reason,
+      'updatedAt': Timestamp.fromDate(now),
+    });
+
+    final participants =
+        await matchRef.collection('participants').get();
+    for (final doc in participants.docs) {
+      final participant = MatchParticipant.fromFirestore(doc);
+      batch.update(doc.reference, {
+        'attendanceStatus':
+            participant.hasConfirmedSlot ? 'Cancelled' : participant.attendanceStatus,
+      });
+      batch.set(
+        _users
+            .doc(participant.userId)
+            .collection('joinedMatches')
+            .doc(matchId),
+        {
+          'matchStatus': 'Cancelled',
+          'cancelledAt': Timestamp.fromDate(now),
+          'cancelReason': reason,
+        },
+        SetOptions(merge: true),
+      );
+    }
+
+    await batch.commit();
+  }
+
   Future<void> _applyAttendanceOutcome({
     required String matchId,
     required String userId,

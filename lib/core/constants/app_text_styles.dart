@@ -96,6 +96,10 @@ class AppTextStyles {
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
         fillColor: AppColours.card,
+        // Hide floating labels project-wide — CustomTextField renders a
+        // separate Text label above the field for a cleaner, less Material
+        // look.
+        floatingLabelBehavior: FloatingLabelBehavior.never,
         labelStyle: GoogleFonts.inter(color: AppColours.mutedText),
         hintStyle: GoogleFonts.inter(color: AppColours.mutedText),
         border: OutlineInputBorder(
@@ -118,6 +122,30 @@ class AppTextStyles {
       snackBarTheme: SnackBarThemeData(
         backgroundColor: AppColours.cardAlt,
         contentTextStyle: GoogleFonts.inter(color: AppColours.text),
+        behavior: SnackBarBehavior.floating,
+        elevation: 0,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: const BorderSide(color: AppColours.line),
+        ),
+        actionTextColor: AppColours.accent,
+        insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      ),
+      switchTheme: SwitchThemeData(
+        thumbColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) return AppColours.accent;
+          return AppColours.mutedText;
+        }),
+        trackColor: WidgetStateProperty.resolveWith((states) {
+          if (states.contains(WidgetState.selected)) {
+            return AppColours.accent.withValues(alpha: 0.3);
+          }
+          return AppColours.cardAlt;
+        }),
+        trackOutlineColor: WidgetStateProperty.all(AppColours.line),
+      ),
+      progressIndicatorTheme: const ProgressIndicatorThemeData(
+        color: AppColours.accent,
       ),
     );
   }

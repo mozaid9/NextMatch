@@ -5,6 +5,7 @@ import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/app_sheet.dart';
+import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
@@ -285,14 +286,13 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                   style: AppTextStyles.bodyMuted,
                 ),
                 const SizedBox(height: 18),
-                TextFormField(
+                CustomTextField(
                   controller: _emailController,
+                  label: 'Email',
+                  hint: 'name@example.com',
+                  icon: Icons.email_outlined,
                   keyboardType: TextInputType.emailAddress,
                   autofocus: true,
-                  decoration: const InputDecoration(
-                    labelText: 'Email',
-                    prefixIcon: Icon(Icons.email_outlined),
-                  ),
                   validator: Validators.email,
                 ),
                 if (viewModel.errorMessage != null) ...[

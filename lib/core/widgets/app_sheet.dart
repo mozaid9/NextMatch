@@ -131,29 +131,30 @@ Future<String?> showAppInputSheet({
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              if (label.isNotEmpty) ...[
+                Text(
+                  label,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColours.mutedText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+              ],
               TextField(
                 controller: controller,
                 maxLines: maxLines,
                 minLines: 1,
                 maxLength: maxLength,
                 autofocus: true,
+                style: AppTextStyles.body,
                 decoration: InputDecoration(
-                  labelText: label.isEmpty ? null : label,
                   hintText: hint,
                   errorText: errorText,
-                  filled: true,
-                  fillColor: AppColours.card,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColours.line),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColours.line),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(8),
-                    borderSide: const BorderSide(color: AppColours.accent),
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
                   ),
                 ),
               ),

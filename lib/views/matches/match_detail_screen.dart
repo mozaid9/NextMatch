@@ -1161,29 +1161,13 @@ class _CommentsSectionState extends State<_CommentsSection> {
                   maxLines: 3,
                   minLines: 1,
                   textInputAction: TextInputAction.newline,
-                  decoration: InputDecoration(
+                  style: AppTextStyles.body,
+                  decoration: const InputDecoration(
                     hintText: 'Write a comment…',
-                    hintStyle: AppTextStyles.bodyMuted,
-                    filled: true,
-                    fillColor: AppColours.cardAlt,
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: AppColours.line),
-                    ),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: AppColours.line),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(8),
-                      borderSide:
-                          const BorderSide(color: AppColours.accent),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
+                    isDense: true,
+                    contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
-                      vertical: 10,
+                      vertical: 12,
                     ),
                   ),
                 ),

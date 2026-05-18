@@ -226,6 +226,7 @@ class MatchDetailScreen extends StatelessWidget {
                                                         .minimumReliabilityRequired,
                                                     isSplitPayment:
                                                         match.isSplitPayment,
+                                                    viewer: currentUser,
                                                     isFriend: friendUids
                                                         .contains(participant.userId),
                                                   ),
@@ -752,12 +753,14 @@ class _PlayerTile extends StatelessWidget {
     required this.participant,
     required this.lowReliabilityThreshold,
     required this.isSplitPayment,
+    required this.viewer,
     this.isFriend = false,
   });
 
   final MatchParticipant participant;
   final int lowReliabilityThreshold;
   final bool isSplitPayment;
+  final AppUser viewer;
   final bool isFriend;
 
   @override
@@ -769,7 +772,10 @@ class _PlayerTile extends StatelessWidget {
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => OtherUserProfileScreen(uid: participant.userId),
+          builder: (_) => OtherUserProfileScreen(
+            uid: participant.userId,
+            viewer: viewer,
+          ),
         ),
       ),
       borderRadius: BorderRadius.circular(8),

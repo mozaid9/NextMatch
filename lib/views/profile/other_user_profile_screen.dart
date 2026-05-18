@@ -4,17 +4,26 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/empty_state.dart';
+import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../services/reliability_service.dart';
 import '../../viewmodels/profile_viewmodel.dart';
+import '../social/chat_thread_screen.dart';
 
 /// Read-only view of another player's profile. Shown when tapping a
 /// friend in the friends list or a participant tile on a match.
 class OtherUserProfileScreen extends StatelessWidget {
-  const OtherUserProfileScreen({super.key, required this.uid});
+  const OtherUserProfileScreen({
+    super.key,
+    required this.uid,
+    this.viewer,
+  });
 
   final String uid;
+  /// When provided, a "Message" button appears that opens the 1:1 chat
+  /// between [viewer] and this user.
+  final AppUser? viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +60,23 @@ class OtherUserProfileScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
                   child: Column(
                     children: [
+                      if (viewer != null && viewer!.uid != user.uid) ...[
+                        PrimaryButton(
+                          label: 'Message ${user.fullName.split(' ').first}',
+                          icon: Icons.chat_bubble_outline,
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ChatThreadScreen(
+                                currentUser: viewer!,
+                                otherUid: user.uid,
+                                otherName: user.fullName,
+                                otherPhotoUrl: user.photoUrl,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
                       _StatsCard(user: user),
                       const SizedBox(height: 16),
                       _DetailPanel(user: user),

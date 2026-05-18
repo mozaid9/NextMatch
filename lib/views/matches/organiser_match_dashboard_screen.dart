@@ -101,6 +101,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                                   (participant) => _ApprovalTile(
                                     match: match,
                                     participant: participant,
+                                    viewer: currentUser,
                                   ),
                                 )
                                 .toList(),
@@ -120,6 +121,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                                   (participant) => _PaymentPendingTile(
                                     match: match,
                                     participant: participant,
+                                    viewer: currentUser,
                                   ),
                                 )
                                 .toList(),
@@ -139,6 +141,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                                   (participant) => _ConfirmedTile(
                                     match: match,
                                     participant: participant,
+                                    viewer: currentUser,
                                   ),
                                 )
                                 .toList(),
@@ -381,10 +384,15 @@ class _Section extends StatelessWidget {
 }
 
 class _ApprovalTile extends StatelessWidget {
-  const _ApprovalTile({required this.match, required this.participant});
+  const _ApprovalTile({
+    required this.match,
+    required this.participant,
+    required this.viewer,
+  });
 
   final FootballMatch match;
   final MatchParticipant participant;
+  final AppUser viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -395,6 +403,7 @@ class _ApprovalTile extends StatelessWidget {
     return _PlayerPanel(
       participant: participant,
       threshold: match.minimumReliabilityRequired,
+      viewer: viewer,
       trailing: approvedPendingPayment
           ? const _Badge(label: 'Payment needed', colour: AppColours.warning)
           : Row(
@@ -427,10 +436,15 @@ class _ApprovalTile extends StatelessWidget {
 }
 
 class _PaymentPendingTile extends StatelessWidget {
-  const _PaymentPendingTile({required this.match, required this.participant});
+  const _PaymentPendingTile({
+    required this.match,
+    required this.participant,
+    required this.viewer,
+  });
 
   final FootballMatch match;
   final MatchParticipant participant;
+  final AppUser viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -458,6 +472,7 @@ class _PaymentPendingTile extends StatelessWidget {
     return _PlayerPanel(
       participant: participant,
       threshold: match.minimumReliabilityRequired,
+      viewer: viewer,
       trailing: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
@@ -547,10 +562,15 @@ class _GuaranteeBanner extends StatelessWidget {
 }
 
 class _ConfirmedTile extends StatelessWidget {
-  const _ConfirmedTile({required this.match, required this.participant});
+  const _ConfirmedTile({
+    required this.match,
+    required this.participant,
+    required this.viewer,
+  });
 
   final FootballMatch match;
   final MatchParticipant participant;
+  final AppUser viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -558,6 +578,7 @@ class _ConfirmedTile extends StatelessWidget {
 
     return _PlayerPanel(
       participant: participant,
+      viewer: viewer,
       threshold: match.minimumReliabilityRequired,
       trailing: IconButton(
         tooltip: 'Attendance',
@@ -598,11 +619,13 @@ class _PlayerPanel extends StatelessWidget {
     required this.participant,
     required this.threshold,
     required this.trailing,
+    required this.viewer,
   });
 
   final MatchParticipant participant;
   final int threshold;
   final Widget trailing;
+  final AppUser viewer;
 
   @override
   Widget build(BuildContext context) {
@@ -623,8 +646,10 @@ class _PlayerPanel extends StatelessWidget {
           GestureDetector(
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
-                builder: (_) =>
-                    OtherUserProfileScreen(uid: participant.userId),
+                builder: (_) => OtherUserProfileScreen(
+                      uid: participant.userId,
+                      viewer: viewer,
+                    ),
               ),
             ),
             child: UserAvatar(

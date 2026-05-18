@@ -129,6 +129,7 @@ class _FriendsTabState extends State<FriendsTab> {
           _SearchResultsSection(
             results: _searchResults,
             loading: _searching,
+            viewer: widget.currentUser,
             onAdd: _addUser,
             friendsViewModel: friendsViewModel,
           ),
@@ -238,6 +239,7 @@ class _SuggestionsSection extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: 8),
                 child: _SuggestionTile(
                   data: item,
+                  viewer: currentUser,
                   onAddTap: () async {
                     final uid = item['userId'] as String;
                     final friend = await context
@@ -256,9 +258,14 @@ class _SuggestionsSection extends StatelessWidget {
 }
 
 class _SuggestionTile extends StatelessWidget {
-  const _SuggestionTile({required this.data, required this.onAddTap});
+  const _SuggestionTile({
+    required this.data,
+    required this.viewer,
+    required this.onAddTap,
+  });
 
   final Map<String, dynamic> data;
+  final AppUser viewer;
   final Future<void> Function() onAddTap;
 
   @override
@@ -272,7 +279,10 @@ class _SuggestionTile extends StatelessWidget {
           ? null
           : () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => OtherUserProfileScreen(uid: uid),
+                  builder: (_) => OtherUserProfileScreen(
+                    uid: uid,
+                    viewer: viewer,
+                  ),
                 ),
               ),
       borderRadius: BorderRadius.circular(10),
@@ -341,12 +351,14 @@ class _SearchResultsSection extends StatelessWidget {
   const _SearchResultsSection({
     required this.results,
     required this.loading,
+    required this.viewer,
     required this.onAdd,
     required this.friendsViewModel,
   });
 
   final List<AppUser> results;
   final bool loading;
+  final AppUser viewer;
   final ValueChanged<AppUser> onAdd;
   final FriendsViewModel friendsViewModel;
 
@@ -380,6 +392,7 @@ class _SearchResultsSection extends StatelessWidget {
             padding: const EdgeInsets.only(bottom: 8),
             child: _SearchResultTile(
               user: user,
+              viewer: viewer,
               onAdd: () => onAdd(user),
             ),
           ),
@@ -390,9 +403,14 @@ class _SearchResultsSection extends StatelessWidget {
 }
 
 class _SearchResultTile extends StatelessWidget {
-  const _SearchResultTile({required this.user, required this.onAdd});
+  const _SearchResultTile({
+    required this.user,
+    required this.viewer,
+    required this.onAdd,
+  });
 
   final AppUser user;
+  final AppUser viewer;
   final VoidCallback onAdd;
 
   @override
@@ -400,7 +418,10 @@ class _SearchResultTile extends StatelessWidget {
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => OtherUserProfileScreen(uid: user.uid),
+          builder: (_) => OtherUserProfileScreen(
+            uid: user.uid,
+            viewer: viewer,
+          ),
         ),
       ),
       borderRadius: BorderRadius.circular(10),
@@ -510,7 +531,10 @@ class _FriendsListSection extends StatelessWidget {
                     friend: friend,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
-                        builder: (_) => OtherUserProfileScreen(uid: friend.uid),
+                        builder: (_) => OtherUserProfileScreen(
+                          uid: friend.uid,
+                          viewer: currentUser,
+                        ),
                       ),
                     ),
                     onRemove: () => _confirmRemove(context, friend, currentUser),

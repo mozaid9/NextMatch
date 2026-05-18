@@ -98,7 +98,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     const SizedBox(height: 12),
                     _BookPitchCard(currentUser: widget.currentUser),
                     _SavedVenuesStrip(currentUser: widget.currentUser),
-                    _CoPlayersStrip(uid: widget.currentUser.uid),
+                    _CoPlayersStrip(currentUser: widget.currentUser),
                     _MatchInvitesSection(currentUser: widget.currentUser),
                     Text('Your next match', style: AppTextStyles.h2),
                     const SizedBox(height: 12),
@@ -686,16 +686,16 @@ class _BookPitchCard extends StatelessWidget {
 }
 
 class _CoPlayersStrip extends StatelessWidget {
-  const _CoPlayersStrip({required this.uid});
+  const _CoPlayersStrip({required this.currentUser});
 
-  final String uid;
+  final AppUser currentUser;
 
   @override
   Widget build(BuildContext context) {
     final matchViewModel = context.read<MatchViewModel>();
 
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: matchViewModel.getFrequentCoPlayers(uid),
+      future: matchViewModel.getFrequentCoPlayers(currentUser.uid),
       builder: (context, snapshot) {
         final players = snapshot.data ?? [];
         if (players.isEmpty) return const SizedBox.shrink();
@@ -712,8 +712,10 @@ class _CoPlayersStrip extends StatelessWidget {
                 scrollDirection: Axis.horizontal,
                 itemCount: players.length,
                 separatorBuilder: (_, _) => const SizedBox(width: 10),
-                itemBuilder: (context, index) =>
-                    _CoPlayerCard(player: players[index]),
+                itemBuilder: (context, index) => _CoPlayerCard(
+                  player: players[index],
+                  currentUser: currentUser,
+                ),
               ),
             ),
             const SizedBox(height: 26),
@@ -725,7 +727,9 @@ class _CoPlayersStrip extends StatelessWidget {
 }
 
 class _CoPlayerCard extends StatelessWidget {
-  const _CoPlayerCard({required this.player});
+  const _CoPlayerCard({required this.player, required this.currentUser});
+
+  final AppUser currentUser;
 
   final Map<String, dynamic> player;
 
@@ -741,7 +745,10 @@ class _CoPlayerCard extends StatelessWidget {
           ? null
           : () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
-                  builder: (_) => OtherUserProfileScreen(uid: uid),
+                  builder: (_) => OtherUserProfileScreen(
+                    uid: uid,
+                    viewer: currentUser,
+                  ),
                 ),
               ),
       borderRadius: BorderRadius.circular(10),

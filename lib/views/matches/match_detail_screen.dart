@@ -15,7 +15,9 @@ import '../profile/other_user_profile_screen.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
+import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/payment_viewmodel.dart';
 import 'organiser_match_dashboard_screen.dart';
@@ -189,25 +191,49 @@ class MatchDetailScreen extends StatelessWidget {
                             ),
                           ),
                           const SizedBox(height: 14),
-                          _Section(
-                            title: 'Players & requests',
-                            child: participants.isEmpty
-                                ? Text(
-                                    'No confirmed players yet.',
-                                    style: AppTextStyles.bodyMuted,
-                                  )
-                                : Column(
-                                    children: participants
-                                        .map(
-                                          (participant) => _PlayerTile(
-                                            participant: participant,
-                                            lowReliabilityThreshold: match
-                                                .minimumReliabilityRequired,
-                                            isSplitPayment: match.isSplitPayment,
+                          StreamBuilder<List<Friend>>(
+                            stream: context
+                                .read<FriendsViewModel>()
+                                .friendsStream(currentUser.uid),
+                            builder: (context, friendsSnapshot) {
+                              final friendUids = (friendsSnapshot.data ?? [])
+                                  .map((f) => f.uid)
+                                  .toSet();
+                              final friendCount = participants
+                                  .where((p) => friendUids.contains(p.userId))
+                                  .length;
+                              return Column(
+                                children: [
+                                  if (friendCount > 0) ...[
+                                    _FriendsInMatchBanner(count: friendCount),
+                                    const SizedBox(height: 12),
+                                  ],
+                                  _Section(
+                                    title: 'Players & requests',
+                                    child: participants.isEmpty
+                                        ? Text(
+                                            'No confirmed players yet.',
+                                            style: AppTextStyles.bodyMuted,
+                                          )
+                                        : Column(
+                                            children: participants
+                                                .map(
+                                                  (participant) => _PlayerTile(
+                                                    participant: participant,
+                                                    lowReliabilityThreshold: match
+                                                        .minimumReliabilityRequired,
+                                                    isSplitPayment:
+                                                        match.isSplitPayment,
+                                                    isFriend: friendUids
+                                                        .contains(participant.userId),
+                                                  ),
+                                                )
+                                                .toList(),
                                           ),
-                                        )
-                                        .toList(),
                                   ),
+                                ],
+                              );
+                            },
                           ),
                           const SizedBox(height: 96),
                         ],
@@ -730,11 +756,13 @@ class _PlayerTile extends StatelessWidget {
     required this.participant,
     required this.lowReliabilityThreshold,
     required this.isSplitPayment,
+    this.isFriend = false,
   });
 
   final MatchParticipant participant;
   final int lowReliabilityThreshold;
   final bool isSplitPayment;
+  final bool isFriend;
 
   @override
   Widget build(BuildContext context) {
@@ -773,6 +801,11 @@ class _PlayerTile extends StatelessWidget {
                   spacing: 6,
                   runSpacing: 4,
                   children: [
+                    if (isFriend)
+                      const _MiniBadge(
+                        label: 'Friend',
+                        colour: AppColours.accent,
+                      ),
                     if (isSplitPayment && participant.hasConfirmedSlot)
                       _MiniBadge(
                         label: participant.amountPaid > 0 ? 'Paid' : 'Paid',
@@ -1031,6 +1064,41 @@ class _BottomJoinBar extends StatelessWidget {
       return 'Organiser approval needed before payment.';
     }
     return 'Join first, then pay within 24h to lock in your spot.';
+  }
+}
+
+class _FriendsInMatchBanner extends StatelessWidget {
+  const _FriendsInMatchBanner({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: AppColours.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.accent.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.groups, color: AppColours.accent, size: 18),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              count == 1
+                  ? '1 of your friends is in this match'
+                  : '$count of your friends are in this match',
+              style: AppTextStyles.small.copyWith(
+                color: AppColours.accent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

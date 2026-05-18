@@ -14,8 +14,10 @@ import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
 import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
+import '../../models/team.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../../viewmodels/team_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
 import 'create_match_screen.dart';
 
@@ -787,13 +789,74 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
                   ),
                 ),
               ),
-              Text('Invite friends', style: AppTextStyles.h2),
+              Text('Invite to match', style: AppTextStyles.h2),
               const SizedBox(height: 6),
               Text(
-                'Pick which friends should get an invite for this match.',
+                'Tap a team to invite the whole squad, or pick friends individually.',
                 style: AppTextStyles.bodyMuted,
               ),
               const SizedBox(height: 14),
+              StreamBuilder<List<Team>>(
+                stream: context
+                    .read<TeamViewModel>()
+                    .myTeamsStream(widget.currentUser.uid),
+                builder: (context, snapshot) {
+                  final teams = snapshot.data ?? [];
+                  if (teams.isEmpty) return const SizedBox.shrink();
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Your teams',
+                        style: AppTextStyles.small.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColours.mutedText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SizedBox(
+                        height: 38,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: teams.length,
+                          separatorBuilder: (_, _) =>
+                              const SizedBox(width: 8),
+                          itemBuilder: (context, index) {
+                            final team = teams[index];
+                            final teamMemberIds = team.memberIds
+                                .where((id) => id != widget.currentUser.uid)
+                                .toSet();
+                            final allSelected = teamMemberIds.isNotEmpty &&
+                                teamMemberIds.every(_selected.contains);
+                            return _TeamInviteChip(
+                              team: team,
+                              allSelected: allSelected,
+                              onTap: () {
+                                setState(() {
+                                  if (allSelected) {
+                                    _selected.removeAll(teamMemberIds);
+                                  } else {
+                                    _selected.addAll(teamMemberIds);
+                                  }
+                                });
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Text(
+                        'Friends',
+                        style: AppTextStyles.small.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: AppColours.mutedText,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                  );
+                },
+              ),
               Flexible(
                 child: StreamBuilder<List<Friend>>(
                   stream:
@@ -925,6 +988,71 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TeamInviteChip extends StatelessWidget {
+  const _TeamInviteChip({
+    required this.team,
+    required this.allSelected,
+    required this.onTap,
+  });
+
+  final Team team;
+  final bool allSelected;
+  final VoidCallback onTap;
+
+  Color _teamColour() {
+    final hex = team.colour.replaceFirst('#', '');
+    return Color(int.parse('FF$hex', radix: 16));
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colour = _teamColour();
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(8),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: allSelected
+              ? colour.withValues(alpha: 0.18)
+              : AppColours.card,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(
+            color: allSelected ? colour : AppColours.line,
+            width: allSelected ? 1.5 : 1,
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              allSelected ? Icons.shield : Icons.shield_outlined,
+              size: 14,
+              color: colour,
+            ),
+            const SizedBox(width: 6),
+            Text(
+              team.name,
+              style: AppTextStyles.small.copyWith(
+                color: allSelected ? colour : AppColours.text,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(width: 5),
+            Text(
+              '· ${team.memberIds.length - 1}',
+              style: AppTextStyles.small.copyWith(
+                color: AppColours.mutedText,
+              ),
+            ),
+          ],
         ),
       ),
     );

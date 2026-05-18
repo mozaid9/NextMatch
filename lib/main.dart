@@ -7,9 +7,7 @@ import 'firebase_options.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  await _initialiseFirebase();
-
-  runApp(const NextMatchApp());
+  runApp(NextMatchApp(startupFuture: _initialiseFirebase()));
 }
 
 Future<void> _initialiseFirebase() async {

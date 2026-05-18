@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../core/utils/currency_helpers.dart';
 import '../models/app_user.dart';
 import '../models/football_match.dart';
+import '../models/match_comment.dart';
 import '../models/match_participant.dart';
 import '../models/payment_record.dart';
 import '../models/reliability_event.dart';
@@ -839,6 +840,49 @@ class MatchService {
     }
 
     await batch.commit();
+  }
+
+  Stream<List<MatchComment>> commentsStream(String matchId) {
+    return _matches
+        .doc(matchId)
+        .collection('comments')
+        .orderBy('createdAt')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(MatchComment.fromFirestore).toList(
+                growable: false,
+              ),
+        );
+  }
+
+  Future<void> addComment({
+    required String matchId,
+    required AppUser author,
+    required String body,
+  }) async {
+    final trimmed = body.trim();
+    if (trimmed.isEmpty) {
+      throw Exception('Comment is empty.');
+    }
+    final ref = _matches.doc(matchId).collection('comments').doc();
+    final now = DateTime.now();
+    final comment = MatchComment(
+      id: ref.id,
+      authorUid: author.uid,
+      authorName: author.fullName,
+      authorPhotoUrl: author.photoUrl,
+      body: trimmed,
+      createdAt: now,
+    );
+    await ref.set(comment.toMap());
+  }
+
+  Future<void> deleteComment({
+    required String matchId,
+    required String commentId,
+  }) async {
+    await _matches.doc(matchId).collection('comments').doc(commentId).delete();
   }
 
   /// Returns the current user's pending match invites, ordered most-recent

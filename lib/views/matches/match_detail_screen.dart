@@ -14,6 +14,7 @@ import '../profile/other_user_profile_screen.dart';
 
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
+import '../../models/match_comment.dart';
 import '../../models/match_participant.dart';
 import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
@@ -234,6 +235,11 @@ class MatchDetailScreen extends StatelessWidget {
                                 ],
                               );
                             },
+                          ),
+                          const SizedBox(height: 14),
+                          _CommentsSection(
+                            matchId: match.id,
+                            currentUser: currentUser,
                           ),
                           const SizedBox(height: 96),
                         ],
@@ -1064,6 +1070,230 @@ class _BottomJoinBar extends StatelessWidget {
       return 'Organiser approval needed before payment.';
     }
     return 'Join first, then pay within 24h to lock in your spot.';
+  }
+}
+
+class _CommentsSection extends StatefulWidget {
+  const _CommentsSection({
+    required this.matchId,
+    required this.currentUser,
+  });
+
+  final String matchId;
+  final AppUser currentUser;
+
+  @override
+  State<_CommentsSection> createState() => _CommentsSectionState();
+}
+
+class _CommentsSectionState extends State<_CommentsSection> {
+  final _bodyController = TextEditingController();
+
+  @override
+  void dispose() {
+    _bodyController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _post() async {
+    final body = _bodyController.text.trim();
+    if (body.isEmpty) return;
+    final viewModel = context.read<MatchViewModel>();
+    final ok = await viewModel.addComment(
+      matchId: widget.matchId,
+      author: widget.currentUser,
+      body: body,
+    );
+    if (!mounted) return;
+    if (ok) {
+      _bodyController.clear();
+      FocusScope.of(context).unfocus();
+    } else if (viewModel.errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(viewModel.errorMessage!)),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.watch<MatchViewModel>();
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Match chat', style: AppTextStyles.h3),
+          const SizedBox(height: 10),
+          StreamBuilder<List<MatchComment>>(
+            stream: viewModel.commentsStream(widget.matchId),
+            builder: (context, snapshot) {
+              final comments = snapshot.data ?? [];
+              if (comments.isEmpty) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 8),
+                  child: Text(
+                    'No comments yet. Be the first to chime in.',
+                    style: AppTextStyles.bodyMuted,
+                  ),
+                );
+              }
+              return Column(
+                children: comments
+                    .map(
+                      (c) => _CommentTile(
+                        comment: c,
+                        canDelete: c.authorUid == widget.currentUser.uid,
+                        onDelete: () => viewModel.deleteComment(
+                          matchId: widget.matchId,
+                          commentId: c.id,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+          const SizedBox(height: 10),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _bodyController,
+                  maxLines: 3,
+                  minLines: 1,
+                  textInputAction: TextInputAction.newline,
+                  decoration: InputDecoration(
+                    hintText: 'Write a comment…',
+                    hintStyle: AppTextStyles.bodyMuted,
+                    filled: true,
+                    fillColor: AppColours.cardAlt,
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: AppColours.line),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: AppColours.line),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(8),
+                      borderSide:
+                          const BorderSide(color: AppColours.accent),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton(
+                onPressed: viewModel.isLoading ? null : _post,
+                style: IconButton.styleFrom(
+                  backgroundColor: AppColours.accent,
+                  foregroundColor: const Color(0xFF071014),
+                  padding: const EdgeInsets.all(12),
+                ),
+                icon: const Icon(Icons.send, size: 18),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CommentTile extends StatelessWidget {
+  const _CommentTile({
+    required this.comment,
+    required this.canDelete,
+    required this.onDelete,
+  });
+
+  final MatchComment comment;
+  final bool canDelete;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          UserAvatar(
+            fullName: comment.authorName,
+            photoUrl: comment.authorPhotoUrl,
+            radius: 16,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        comment.authorName,
+                        style: AppTextStyles.small.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    Text(
+                      _ago(comment.createdAt),
+                      style: AppTextStyles.small.copyWith(fontSize: 11),
+                    ),
+                    if (canDelete) ...[
+                      const SizedBox(width: 4),
+                      InkWell(
+                        onTap: onDelete,
+                        borderRadius: BorderRadius.circular(99),
+                        child: const Padding(
+                          padding: EdgeInsets.all(2),
+                          child: Icon(
+                            Icons.close,
+                            size: 14,
+                            color: AppColours.mutedText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(comment.body, style: AppTextStyles.body),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _ago(DateTime time) {
+    final diff = DateTime.now().difference(time);
+    if (diff.inMinutes < 1) return 'now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m';
+    if (diff.inHours < 24) return '${diff.inHours}h';
+    if (diff.inDays < 7) return '${diff.inDays}d';
+    return '${time.day}/${time.month}';
   }
 }
 

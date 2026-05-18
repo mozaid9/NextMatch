@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
 import '../models/football_match.dart';
+import '../models/match_comment.dart';
 import '../models/match_participant.dart';
 import '../services/match_service.dart';
 
@@ -160,6 +161,37 @@ class MatchViewModel extends ChangeNotifier {
 
   Stream<List<Map<String, dynamic>>> matchInvitesStream(String uid) =>
       _matchService.matchInvitesStream(uid);
+
+  Stream<List<MatchComment>> commentsStream(String matchId) =>
+      _matchService.commentsStream(matchId);
+
+  Future<bool> addComment({
+    required String matchId,
+    required AppUser author,
+    required String body,
+  }) async {
+    return _runAction(
+      () => _matchService.addComment(
+        matchId: matchId,
+        author: author,
+        body: body,
+      ),
+      failureMessage: 'Could not post comment.',
+    );
+  }
+
+  Future<bool> deleteComment({
+    required String matchId,
+    required String commentId,
+  }) async {
+    return _runAction(
+      () => _matchService.deleteComment(
+        matchId: matchId,
+        commentId: commentId,
+      ),
+      failureMessage: 'Could not delete comment.',
+    );
+  }
 
   Future<bool> inviteFriendsToMatch({
     required FootballMatch match,

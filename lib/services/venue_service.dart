@@ -13,6 +13,33 @@ class VenueService {
   CollectionReference<Map<String, dynamic>> get _venues =>
       _firestore.collection('venues');
 
+  CollectionReference<Map<String, dynamic>> _favouritesFor(String uid) =>
+      _firestore.collection('users').doc(uid).collection('favouriteVenues');
+
+  Stream<Set<String>> favouriteVenueIdsStream(String uid) {
+    return _favouritesFor(uid)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((d) => d.id).toSet());
+  }
+
+  Future<void> toggleFavouriteVenue({
+    required String uid,
+    required Venue venue,
+  }) async {
+    final ref = _favouritesFor(uid).doc(venue.id);
+    final existing = await ref.get();
+    if (existing.exists) {
+      await ref.delete();
+    } else {
+      await ref.set({
+        'venueId': venue.id,
+        'name': venue.name,
+        'city': venue.city,
+        'savedAt': Timestamp.fromDate(DateTime.now()),
+      });
+    }
+  }
+
   Stream<List<Venue>> venuesStream({String? city}) {
     Query<Map<String, dynamic>> query = _venues;
     if (city != null && city.isNotEmpty) {

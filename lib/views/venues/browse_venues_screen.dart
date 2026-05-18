@@ -182,23 +182,32 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                         );
                       }
 
-                      return ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
-                        itemCount: filtered.length,
-                        separatorBuilder: (_, _) =>
-                            const SizedBox(height: 12),
-                        itemBuilder: (context, index) {
-                          final venue = filtered[index];
-                          return _VenueCard(
-                            venue: venue,
-                            onTap: () => Navigator.of(context).push(
-                              MaterialPageRoute<void>(
-                                builder: (_) => VenueDetailScreen(
-                                  venueId: venue.id,
-                                  currentUser: widget.currentUser,
+                      return StreamBuilder<Set<String>>(
+                        stream: venueViewModel.favouriteVenueIdsStream(
+                            widget.currentUser.uid),
+                        builder: (context, favSnap) {
+                          final favs = favSnap.data ?? const <String>{};
+                          return ListView.separated(
+                            padding:
+                                const EdgeInsets.fromLTRB(20, 4, 20, 80),
+                            itemCount: filtered.length,
+                            separatorBuilder: (_, _) =>
+                                const SizedBox(height: 12),
+                            itemBuilder: (context, index) {
+                              final venue = filtered[index];
+                              return _VenueCard(
+                                venue: venue,
+                                isFavourite: favs.contains(venue.id),
+                                onTap: () => Navigator.of(context).push(
+                                  MaterialPageRoute<void>(
+                                    builder: (_) => VenueDetailScreen(
+                                      venueId: venue.id,
+                                      currentUser: widget.currentUser,
+                                    ),
+                                  ),
                                 ),
-                              ),
-                            ),
+                              );
+                            },
                           );
                         },
                       );
@@ -393,10 +402,15 @@ class _PopupFilter extends StatelessWidget {
 }
 
 class _VenueCard extends StatelessWidget {
-  const _VenueCard({required this.venue, required this.onTap});
+  const _VenueCard({
+    required this.venue,
+    required this.onTap,
+    this.isFavourite = false,
+  });
 
   final Venue venue;
   final VoidCallback onTap;
+  final bool isFavourite;
 
   @override
   Widget build(BuildContext context) {
@@ -413,28 +427,49 @@ class _VenueCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              height: 96,
-              decoration: BoxDecoration(
-                color: AppColours.cardAlt,
-                borderRadius:
-                    const BorderRadius.vertical(top: Radius.circular(10)),
-                gradient: LinearGradient(
-                  colors: [
-                    AppColours.accent.withValues(alpha: 0.18),
-                    AppColours.accent.withValues(alpha: 0.04),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
+            Stack(
+              children: [
+                Container(
+                  height: 96,
+                  decoration: BoxDecoration(
+                    color: AppColours.cardAlt,
+                    borderRadius:
+                        const BorderRadius.vertical(top: Radius.circular(10)),
+                    gradient: LinearGradient(
+                      colors: [
+                        AppColours.accent.withValues(alpha: 0.18),
+                        AppColours.accent.withValues(alpha: 0.04),
+                      ],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.stadium,
+                      color: AppColours.accent,
+                      size: 36,
+                    ),
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Icon(
-                  Icons.stadium,
-                  color: AppColours.accent,
-                  size: 36,
-                ),
-              ),
+                if (isFavourite)
+                  Positioned(
+                    top: 8,
+                    right: 8,
+                    child: Container(
+                      padding: const EdgeInsets.all(5),
+                      decoration: BoxDecoration(
+                        color: AppColours.surface.withValues(alpha: 0.85),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(
+                        Icons.bookmark,
+                        size: 16,
+                        color: AppColours.accent,
+                      ),
+                    ),
+                  ),
+              ],
             ),
             Padding(
               padding: const EdgeInsets.all(14),

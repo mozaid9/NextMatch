@@ -45,7 +45,49 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     final venueViewModel = context.watch<VenueViewModel>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Venue')),
+      appBar: AppBar(
+        title: const Text('Venue'),
+        actions: [
+          StreamBuilder<Set<String>>(
+            stream: venueViewModel.favouriteVenueIdsStream(widget.currentUser.uid),
+            builder: (context, snapshot) {
+              final favourites = snapshot.data ?? const <String>{};
+              final isFav = favourites.contains(widget.venueId);
+              return FutureBuilder<Venue?>(
+                future: _venueFuture,
+                builder: (context, venueSnapshot) {
+                  final venue = venueSnapshot.data;
+                  return IconButton(
+                    tooltip: isFav ? 'Remove from saved' : 'Save venue',
+                    icon: Icon(
+                      isFav ? Icons.bookmark : Icons.bookmark_border,
+                      color: isFav ? AppColours.accent : null,
+                    ),
+                    onPressed: venue == null
+                        ? null
+                        : () async {
+                            await venueViewModel.toggleFavouriteVenue(
+                              uid: widget.currentUser.uid,
+                              venue: venue,
+                            );
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(
+                                content: Text(
+                                  isFav
+                                      ? 'Removed from saved venues.'
+                                      : 'Saved ${venue.name}.',
+                                ),
+                              ),
+                            );
+                          },
+                  );
+                },
+              );
+            },
+          ),
+        ],
+      ),
       body: FutureBuilder<Venue?>(
         future: _venueFuture,
         builder: (context, snapshot) {

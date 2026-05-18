@@ -19,6 +19,15 @@ class VenueViewModel extends ChangeNotifier {
   List<VenueSlot> generateSlotsForDay(Venue venue, DateTime day) =>
       _venueService.generateSlotsForDay(venue, day);
 
+  Stream<Set<String>> favouriteVenueIdsStream(String uid) =>
+      _venueService.favouriteVenueIdsStream(uid);
+
+  Future<void> toggleFavouriteVenue({
+    required String uid,
+    required Venue venue,
+  }) =>
+      _venueService.toggleFavouriteVenue(uid: uid, venue: venue);
+
   Future<bool> seedDemoVenues() async {
     isLoading = true;
     errorMessage = null;

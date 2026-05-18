@@ -16,6 +16,7 @@ import '../../models/venue.dart';
 import '../../viewmodels/venue_viewmodel.dart';
 import '../matches/match_detail_screen.dart';
 import '../matches/my_matches_screen.dart';
+import '../profile/other_user_profile_screen.dart';
 import '../venues/browse_venues_screen.dart';
 import '../venues/venue_detail_screen.dart';
 
@@ -731,12 +732,20 @@ class _CoPlayerCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final name = player['fullName'] as String? ?? '';
+    final uid = player['userId'] as String? ?? '';
     final count = player['count'] as int? ?? 0;
     final firstName = name.split(' ').first;
-    final initial =
-        firstName.isEmpty ? '?' : firstName[0].toUpperCase();
 
-    return Container(
+    return InkWell(
+      onTap: uid.isEmpty
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => OtherUserProfileScreen(uid: uid),
+                ),
+              ),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
       width: 72,
       padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
       decoration: BoxDecoration(
@@ -768,6 +777,7 @@ class _CoPlayerCard extends StatelessWidget {
           ),
         ],
       ),
+      ),  // close Container child of InkWell
     );
   }
 }

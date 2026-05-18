@@ -9,6 +9,7 @@ import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
+import '../profile/other_user_profile_screen.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
@@ -697,7 +698,14 @@ class _PlayerTile extends StatelessWidget {
         (participant.amountPaid > 0 || isSplitPayment);
     final isPending = participant.isPendingPayment && isSplitPayment;
 
-    return Padding(
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OtherUserProfileScreen(uid: participant.userId),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(8),
+      child: Padding(
       padding: const EdgeInsets.only(bottom: 10),
       child: Row(
         children: [
@@ -769,7 +777,8 @@ class _PlayerTile extends StatelessWidget {
           ),
         ],
       ),
-    );
+    ),  // close Padding
+    );  // close InkWell
   }
 }
 

@@ -15,6 +15,7 @@ import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../profile/other_user_profile_screen.dart';
 
 class OrganiserMatchDashboardScreen extends StatelessWidget {
   const OrganiserMatchDashboardScreen({
@@ -645,11 +646,19 @@ class _PlayerPanel extends StatelessWidget {
       ),
       child: Row(
         children: [
-          UserAvatar(
-            fullName: participant.fullName,
-            photoUrl: participant.photoUrl,
-            radius: 20,
-            backgroundColor: AppColours.surface,
+          GestureDetector(
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) =>
+                    OtherUserProfileScreen(uid: participant.userId),
+              ),
+            ),
+            child: UserAvatar(
+              fullName: participant.fullName,
+              photoUrl: participant.photoUrl,
+              radius: 20,
+              backgroundColor: AppColours.surface,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(

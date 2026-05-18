@@ -10,6 +10,7 @@ import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../services/friends_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
+import '../profile/other_user_profile_screen.dart';
 
 class FriendsScreen extends StatelessWidget {
   const FriendsScreen({super.key, required this.currentUser});
@@ -67,6 +68,11 @@ class FriendsScreen extends StatelessWidget {
                 final friend = friends[index];
                 return _FriendTile(
                   friend: friend,
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => OtherUserProfileScreen(uid: friend.uid),
+                    ),
+                  ),
                   onRemove: () => _confirmRemove(context, friend),
                 );
               },
@@ -130,9 +136,14 @@ class FriendsScreen extends StatelessWidget {
 }
 
 class _FriendTile extends StatelessWidget {
-  const _FriendTile({required this.friend, required this.onRemove});
+  const _FriendTile({
+    required this.friend,
+    required this.onTap,
+    required this.onRemove,
+  });
 
   final Friend friend;
+  final VoidCallback onTap;
   final VoidCallback onRemove;
 
   @override
@@ -143,14 +154,17 @@ class _FriendTile extends StatelessWidget {
             ? AppColours.warning
             : AppColours.error;
 
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: AppColours.card,
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColours.line),
-      ),
-      child: Row(
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColours.line),
+        ),
+        child: Row(
         children: [
           UserAvatar(
             fullName: friend.fullName,
@@ -202,6 +216,7 @@ class _FriendTile extends StatelessWidget {
             ),
           ),
         ],
+        ),
       ),
     );
   }

@@ -12,9 +12,12 @@ import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../../models/venue.dart';
+import '../../viewmodels/venue_viewmodel.dart';
 import '../matches/match_detail_screen.dart';
 import '../matches/my_matches_screen.dart';
 import '../venues/browse_venues_screen.dart';
+import '../venues/venue_detail_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({
@@ -93,6 +96,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: 12),
                     _BookPitchCard(currentUser: widget.currentUser),
+                    _SavedVenuesStrip(currentUser: widget.currentUser),
                     _CoPlayersStrip(uid: widget.currentUser.uid),
                     _MatchInvitesSection(currentUser: widget.currentUser),
                     Text('Your next match', style: AppTextStyles.h2),
@@ -290,6 +294,132 @@ class _ActionTile extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _SavedVenuesStrip extends StatelessWidget {
+  const _SavedVenuesStrip({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final venueViewModel = context.read<VenueViewModel>();
+    return StreamBuilder<Set<String>>(
+      stream: venueViewModel.favouriteVenueIdsStream(currentUser.uid),
+      builder: (context, snapshot) {
+        final ids = snapshot.data ?? const <String>{};
+        if (ids.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 26),
+            Row(
+              children: [
+                const Icon(Icons.bookmark,
+                    color: AppColours.accent, size: 18),
+                const SizedBox(width: 8),
+                Text('Saved venues', style: AppTextStyles.h2),
+              ],
+            ),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 110,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: ids.length,
+                separatorBuilder: (_, _) => const SizedBox(width: 10),
+                itemBuilder: (context, index) {
+                  final venueId = ids.elementAt(index);
+                  return _SavedVenueCard(
+                    venueId: venueId,
+                    currentUser: currentUser,
+                  );
+                },
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SavedVenueCard extends StatelessWidget {
+  const _SavedVenueCard({required this.venueId, required this.currentUser});
+
+  final String venueId;
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Venue?>(
+      future: context.read<VenueViewModel>().getVenue(venueId),
+      builder: (context, snapshot) {
+        final venue = snapshot.data;
+        return InkWell(
+          borderRadius: BorderRadius.circular(10),
+          onTap: venue == null
+              ? null
+              : () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => VenueDetailScreen(
+                        venueId: venue.id,
+                        currentUser: currentUser,
+                      ),
+                    ),
+                  ),
+          child: Container(
+            width: 150,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: AppColours.card,
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColours.line),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: AppColours.accent.withValues(alpha: 0.14),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.stadium,
+                    color: AppColours.accent,
+                    size: 18,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  venue?.name ?? '…',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (venue != null) ...[
+                  const SizedBox(height: 2),
+                  Text(
+                    venue.city,
+                    style: AppTextStyles.small,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

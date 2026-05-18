@@ -67,6 +67,15 @@ class ChatService {
     return id;
   }
 
+  Future<void> markChatSeen({
+    required String chatId,
+    required String uid,
+  }) async {
+    await _chats.doc(chatId).set({
+      'seenAt': {uid: Timestamp.fromDate(DateTime.now())},
+    }, SetOptions(merge: true));
+  }
+
   Future<void> sendMessage({
     required String chatId,
     required AppUser sender,

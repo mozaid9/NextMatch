@@ -5,6 +5,8 @@ import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/app_user.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../../models/chat.dart';
+import '../../viewmodels/chat_viewmodel.dart';
 import '../matches/browse_matches_screen.dart';
 import '../matches/create_match_screen.dart';
 import '../profile/profile_screen.dart';
@@ -48,13 +50,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         stream: context
             .read<MatchViewModel>()
             .matchInvitesStream(widget.currentUser.uid),
-        builder: (context, snapshot) {
-          final inviteCount = snapshot.data?.length ?? 0;
-          return _NextMatchTabBar(
-            currentIndex: _currentIndex,
-            // Show the invite badge on Home (index 0).
-            badgeCounts: {0: inviteCount},
-            onSelected: (index) => setState(() => _currentIndex = index),
+        builder: (context, inviteSnap) {
+          final inviteCount = inviteSnap.data?.length ?? 0;
+          return StreamBuilder<List<Chat>>(
+            stream: context
+                .read<ChatViewModel>()
+                .myChatsStream(widget.currentUser.uid),
+            builder: (context, chatsSnap) {
+              final unread = (chatsSnap.data ?? [])
+                  .where((c) => c.hasUnreadFor(widget.currentUser.uid))
+                  .length;
+              return _NextMatchTabBar(
+                currentIndex: _currentIndex,
+                badgeCounts: {
+                  0: inviteCount, // Home: pending match invites
+                  2: unread, // Community: unread chats
+                },
+                onSelected: (index) =>
+                    setState(() => _currentIndex = index),
+              );
+            },
           );
         },
       ),

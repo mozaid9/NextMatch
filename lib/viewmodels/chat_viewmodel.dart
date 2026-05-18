@@ -31,6 +31,12 @@ class ChatViewModel extends ChangeNotifier {
     }
   }
 
+  Future<void> markChatSeen({
+    required String chatId,
+    required String uid,
+  }) =>
+      _chatService.markChatSeen(chatId: chatId, uid: uid);
+
   Future<void> sendMessage({
     required String chatId,
     required AppUser sender,

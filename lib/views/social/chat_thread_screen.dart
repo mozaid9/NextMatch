@@ -58,6 +58,11 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
           updatedAt: DateTime.now(),
         ),
       );
+      if (!mounted) return;
+      await viewModel.markChatSeen(
+        chatId: _chatId,
+        uid: widget.currentUser.uid,
+      );
     });
   }
 
@@ -72,11 +77,16 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
     final body = _bodyController.text.trim();
     if (body.isEmpty) return;
     _bodyController.clear();
-    await context.read<ChatViewModel>().sendMessage(
-          chatId: _chatId,
-          sender: widget.currentUser,
-          body: body,
-        );
+    final viewModel = context.read<ChatViewModel>();
+    await viewModel.sendMessage(
+      chatId: _chatId,
+      sender: widget.currentUser,
+      body: body,
+    );
+    await viewModel.markChatSeen(
+      chatId: _chatId,
+      uid: widget.currentUser.uid,
+    );
     // Scroll to bottom shortly after the new message lands.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (_scrollController.hasClients) {

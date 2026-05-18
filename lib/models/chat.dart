@@ -13,6 +13,7 @@ class Chat {
     required this.lastSenderUid,
     required this.lastMessageAt,
     required this.createdAt,
+    this.seenAt = const <String, DateTime>{},
   });
 
   final String id;
@@ -23,6 +24,17 @@ class Chat {
   final String lastSenderUid;
   final DateTime lastMessageAt;
   final DateTime createdAt;
+  /// Per-uid timestamp of when each participant last opened the chat.
+  /// Used to compute unread counts client-side.
+  final Map<String, DateTime> seenAt;
+
+  bool hasUnreadFor(String uid) {
+    if (lastMessage.isEmpty) return false;
+    if (lastSenderUid == uid) return false;
+    final seen = seenAt[uid];
+    if (seen == null) return true;
+    return lastMessageAt.isAfter(seen);
+  }
 
   /// Convenience — given my uid, returns the other participant's details.
   ({String uid, String name, String? photoUrl}) otherParticipant(String myUid) {
@@ -62,7 +74,17 @@ class Chat {
       lastSenderUid: data['lastSenderUid'] as String? ?? '',
       lastMessageAt: _readDate(data['lastMessageAt']),
       createdAt: _readDate(data['createdAt']),
+      seenAt: _readSeenAt(data['seenAt']),
     );
+  }
+
+  static Map<String, DateTime> _readSeenAt(dynamic raw) {
+    if (raw is! Map) return const {};
+    final out = <String, DateTime>{};
+    raw.forEach((key, value) {
+      if (value is Timestamp) out[key.toString()] = value.toDate();
+    });
+    return out;
   }
 
   Map<String, dynamic> toMap() => {

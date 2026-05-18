@@ -57,6 +57,7 @@ class ChatsTab extends StatelessWidget {
             final chat = chats[index];
             final other = chat.otherParticipant(currentUser.uid);
             final isMine = chat.lastSenderUid == currentUser.uid;
+            final unread = chat.hasUnreadFor(currentUser.uid);
             return InkWell(
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
@@ -97,18 +98,49 @@ class ChatsTab extends StatelessWidget {
                               ),
                               Text(
                                 _formatTime(chat.lastMessageAt),
-                                style: AppTextStyles.small,
+                                style: AppTextStyles.small.copyWith(
+                                  color: unread
+                                      ? AppColours.accent
+                                      : AppColours.mutedText,
+                                  fontWeight: unread
+                                      ? FontWeight.w700
+                                      : FontWeight.w500,
+                                ),
                               ),
                             ],
                           ),
                           const SizedBox(height: 3),
-                          Text(
-                            isMine
-                                ? 'You: ${chat.lastMessage}'
-                                : chat.lastMessage,
-                            style: AppTextStyles.small,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  isMine
+                                      ? 'You: ${chat.lastMessage}'
+                                      : chat.lastMessage,
+                                  style: AppTextStyles.small.copyWith(
+                                    color: unread
+                                        ? AppColours.text
+                                        : AppColours.mutedText,
+                                    fontWeight: unread
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              if (unread) ...[
+                                const SizedBox(width: 6),
+                                Container(
+                                  width: 8,
+                                  height: 8,
+                                  decoration: const BoxDecoration(
+                                    color: AppColours.accent,
+                                    shape: BoxShape.circle,
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
                         ],
                       ),

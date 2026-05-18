@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../models/app_user.dart';
@@ -30,6 +31,35 @@ class FriendsViewModel extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  Future<List<AppUser>> searchUsersByName({
+    required AppUser me,
+    required String query,
+  }) =>
+      _friendsService.searchUsersByName(me: me, query: query);
+
+  Future<List<Map<String, dynamic>>> suggestedFriends(String uid) =>
+      _friendsService.suggestedFriends(uid: uid);
+
+  Future<AppUser?> getUserById(String uid) async {
+    final snapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(uid)
+        .get();
+    if (!snapshot.exists) return null;
+    return AppUser.fromFirestore(snapshot);
+  }
+
+  /// Convenience helper used by suggestion / search rows: creates a
+  /// friendship directly when we already know the target user's uid,
+  /// without going through the email lookup path.
+  Future<bool> addFriendByUser({
+    required AppUser me,
+    required AppUser friend,
+  }) async {
+    final result = await addFriendByEmail(me: me, email: friend.email);
+    return result != null;
   }
 
   Future<bool> removeFriend({

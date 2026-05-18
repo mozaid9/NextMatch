@@ -156,4 +156,84 @@ class FriendsService {
     batch.delete(_users.doc(friendUid).collection('friends').doc(myUid));
     await batch.commit();
   }
+
+  /// Returns users whose name contains (case-insensitive) the query.
+  /// MVP implementation: pulls up to 50 users and filters client-side.
+  /// Self and existing friends are excluded.
+  Future<List<AppUser>> searchUsersByName({
+    required AppUser me,
+    required String query,
+  }) async {
+    final q = query.trim().toLowerCase();
+    if (q.isEmpty) return [];
+
+    final friendsSnap =
+        await _users.doc(me.uid).collection('friends').get();
+    final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
+
+    final all = await _users.limit(50).get();
+    final results = all.docs
+        .map(AppUser.fromFirestore)
+        .where((user) =>
+            user.uid != me.uid &&
+            !friendUids.contains(user.uid) &&
+            user.fullName.toLowerCase().contains(q))
+        .toList(growable: false);
+    return results;
+  }
+
+  /// "People you may know" — users I've shared at least one completed
+  /// match with who aren't already in my friends list. Ranked by how
+  /// many matches we've appeared in together.
+  Future<List<Map<String, dynamic>>> suggestedFriends({
+    required String uid,
+  }) async {
+    final friendsSnap =
+        await _users.doc(uid).collection('friends').get();
+    final friendUids = friendsSnap.docs.map((d) => d.id).toSet();
+
+    final joinedDocs = await _users
+        .doc(uid)
+        .collection('joinedMatches')
+        .limit(30)
+        .get();
+    final matchIds = joinedDocs.docs
+        .map((d) => d.data()['matchId'] as String?)
+        .whereType<String>()
+        .toList();
+    if (matchIds.isEmpty) return [];
+
+    final matches = _firestore.collection('matches');
+    final Map<String, Map<String, dynamic>> suggestions = {};
+    for (final matchId in matchIds) {
+      final snap = await matches.doc(matchId).collection('participants').get();
+      for (final doc in snap.docs) {
+        final data = doc.data();
+        final playerId = data['userId'] as String? ?? doc.id;
+        if (playerId == uid) continue;
+        if (friendUids.contains(playerId)) continue;
+        final name = data['fullName'] as String? ?? '';
+        if (name.isEmpty) continue;
+        final photoUrl = data['photoUrl'] as String?;
+        if (suggestions.containsKey(playerId)) {
+          suggestions[playerId]!['count'] =
+              (suggestions[playerId]!['count'] as int) + 1;
+          if (photoUrl != null && photoUrl.isNotEmpty) {
+            suggestions[playerId]!['photoUrl'] = photoUrl;
+          }
+        } else {
+          suggestions[playerId] = {
+            'userId': playerId,
+            'fullName': name,
+            'photoUrl': photoUrl,
+            'count': 1,
+          };
+        }
+      }
+    }
+
+    final sorted = suggestions.values.toList()
+      ..sort((a, b) => (b['count'] as int).compareTo(a['count'] as int));
+    return sorted.take(8).toList();
+  }
 }

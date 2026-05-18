@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -14,10 +16,77 @@ import '../../services/friends_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
 
-class FriendsScreen extends StatelessWidget {
+class FriendsScreen extends StatefulWidget {
   const FriendsScreen({super.key, required this.currentUser});
 
   final AppUser currentUser;
+
+  @override
+  State<FriendsScreen> createState() => _FriendsScreenState();
+}
+
+class _FriendsScreenState extends State<FriendsScreen> {
+  final _searchController = TextEditingController();
+  Timer? _debounce;
+  String _query = '';
+  bool _searching = false;
+  List<AppUser> _searchResults = const [];
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    final trimmed = value.trim();
+    setState(() => _query = trimmed);
+    _debounce?.cancel();
+    if (trimmed.isEmpty) {
+      setState(() {
+        _searchResults = const [];
+        _searching = false;
+      });
+      return;
+    }
+    setState(() => _searching = true);
+    _debounce = Timer(const Duration(milliseconds: 350), () async {
+      final results = await context
+          .read<FriendsViewModel>()
+          .searchUsersByName(me: widget.currentUser, query: trimmed);
+      if (!mounted) return;
+      setState(() {
+        _searchResults = results;
+        _searching = false;
+      });
+    });
+  }
+
+  Future<void> _addUser(AppUser user) async {
+    final viewModel = context.read<FriendsViewModel>();
+    final ok = await viewModel.addFriendByUser(
+      me: widget.currentUser,
+      friend: user,
+    );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          ok
+              ? 'Added ${user.fullName} as a friend.'
+              : viewModel.errorMessage ?? 'Could not add friend.',
+        ),
+      ),
+    );
+    if (ok) {
+      // Remove from search results / suggestions so it disappears.
+      setState(() {
+        _searchResults =
+            _searchResults.where((u) => u.uid != user.uid).toList();
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -28,76 +97,426 @@ class FriendsScreen extends StatelessWidget {
         title: const Text('Friends'),
         actions: [
           IconButton(
-            tooltip: 'Add friend',
-            onPressed: () => _openAddFriendSheet(context),
-            icon: const Icon(Icons.person_add_alt_1),
+            tooltip: 'Add by email',
+            onPressed: () => _openAddByEmailSheet(context),
+            icon: const Icon(Icons.alternate_email),
           ),
         ],
       ),
       body: SafeArea(
-        child: StreamBuilder<List<Friend>>(
-          stream: friendsViewModel.friendsStream(currentUser.uid),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColours.accent),
-              );
-            }
-
-            final friends = snapshot.data ?? [];
-            if (friends.isEmpty) {
-              return SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(20, 30, 20, 30),
-                child: EmptyState(
-                  icon: Icons.group_add_outlined,
-                  title: 'No friends added yet',
-                  message:
-                      'Add teammates by email to see them in your friends list.',
-                  action: PrimaryButton(
-                    label: 'Add a friend',
-                    icon: Icons.person_add_alt_1,
-                    onPressed: () => _openAddFriendSheet(context),
-                  ),
-                ),
-              );
-            }
-
-            return ListView.separated(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 30),
-              itemCount: friends.length,
-              separatorBuilder: (_, _) => const SizedBox(height: 10),
-              itemBuilder: (context, index) {
-                final friend = friends[index];
-                return _FriendTile(
-                  friend: friend,
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => OtherUserProfileScreen(uid: friend.uid),
-                    ),
-                  ),
-                  onRemove: () => _confirmRemove(context, friend),
-                );
-              },
-            );
-          },
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(20, 14, 20, 40),
+          children: [
+            _SearchField(
+              controller: _searchController,
+              onChanged: _onSearchChanged,
+            ),
+            const SizedBox(height: 18),
+            if (_query.isEmpty) ...[
+              _SuggestionsSection(
+                currentUser: widget.currentUser,
+                onAdd: _addUser,
+              ),
+              const SizedBox(height: 18),
+              _FriendsListSection(currentUser: widget.currentUser),
+            ] else
+              _SearchResultsSection(
+                results: _searchResults,
+                loading: _searching,
+                onAdd: _addUser,
+                friendsViewModel: friendsViewModel,
+              ),
+          ],
         ),
       ),
     );
   }
 
-  Future<void> _openAddFriendSheet(BuildContext context) async {
+  Future<void> _openAddByEmailSheet(BuildContext context) async {
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => _AddFriendSheet(currentUser: currentUser),
+      builder: (_) => _AddFriendSheet(currentUser: widget.currentUser),
+    );
+  }
+}
+
+class _SearchField extends StatelessWidget {
+  const _SearchField({required this.controller, required this.onChanged});
+
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: AppTextStyles.body,
+        decoration: InputDecoration(
+          hintText: 'Search players by name',
+          prefixIcon: const Icon(Icons.search, color: AppColours.mutedText),
+          suffixIcon: controller.text.isEmpty
+              ? null
+              : IconButton(
+                  icon: const Icon(Icons.close, size: 18),
+                  onPressed: () {
+                    controller.clear();
+                    onChanged('');
+                  },
+                ),
+          border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          filled: false,
+          contentPadding:
+              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        ),
+      ),
+    );
+  }
+}
+
+class _SuggestionsSection extends StatelessWidget {
+  const _SuggestionsSection({
+    required this.currentUser,
+    required this.onAdd,
+  });
+
+  final AppUser currentUser;
+  final ValueChanged<AppUser> onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final viewModel = context.read<FriendsViewModel>();
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: viewModel.suggestedFriends(currentUser.uid),
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? [];
+        if (items.isEmpty) return const SizedBox.shrink();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                const Icon(Icons.auto_awesome,
+                    color: AppColours.accent, size: 18),
+                const SizedBox(width: 8),
+                Text('People you may know', style: AppTextStyles.h2),
+              ],
+            ),
+            const SizedBox(height: 4),
+            Text(
+              "Players you've shared matches with.",
+              style: AppTextStyles.small,
+            ),
+            const SizedBox(height: 10),
+            ...items.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: _SuggestionTile(
+                  data: item,
+                  onAddTap: () async {
+                    final uid = item['userId'] as String;
+                    final friend = await context
+                        .read<FriendsViewModel>()
+                        .getUserById(uid);
+                    if (friend != null) onAdd(friend);
+                  },
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _SuggestionTile extends StatelessWidget {
+  const _SuggestionTile({required this.data, required this.onAddTap});
+
+  final Map<String, dynamic> data;
+  final Future<void> Function() onAddTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final name = data['fullName'] as String? ?? '';
+    final count = data['count'] as int? ?? 0;
+    final uid = data['userId'] as String? ?? '';
+
+    return InkWell(
+      onTap: uid.isEmpty
+          ? null
+          : () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => OtherUserProfileScreen(uid: uid),
+                ),
+              ),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColours.line),
+        ),
+        child: Row(
+          children: [
+            UserAvatar(
+              fullName: name,
+              photoUrl: data['photoUrl'] as String?,
+              radius: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    name,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    count == 1
+                        ? 'Played 1 match together'
+                        : 'Played $count matches together',
+                    style: AppTextStyles.small,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 32,
+              child: ElevatedButton.icon(
+                onPressed: onAddTap,
+                icon: const Icon(Icons.person_add_alt_1, size: 14),
+                label: const Text('Add'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColours.accent,
+                  foregroundColor: AppColours.background,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: AppTextStyles.small.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SearchResultsSection extends StatelessWidget {
+  const _SearchResultsSection({
+    required this.results,
+    required this.loading,
+    required this.onAdd,
+    required this.friendsViewModel,
+  });
+
+  final List<AppUser> results;
+  final bool loading;
+  final ValueChanged<AppUser> onAdd;
+  final FriendsViewModel friendsViewModel;
+
+  @override
+  Widget build(BuildContext context) {
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.symmetric(vertical: 30),
+        child: Center(
+          child: CircularProgressIndicator(color: AppColours.accent),
+        ),
+      );
+    }
+    if (results.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 30),
+        child: EmptyState(
+          icon: Icons.person_search_outlined,
+          title: 'No players found',
+          message: 'Try a different name, or invite them by email.',
+        ),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Search results', style: AppTextStyles.h2),
+        const SizedBox(height: 10),
+        ...results.map(
+          (user) => Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: _SearchResultTile(
+              user: user,
+              onAdd: () => onAdd(user),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SearchResultTile extends StatelessWidget {
+  const _SearchResultTile({required this.user, required this.onAdd});
+
+  final AppUser user;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => OtherUserProfileScreen(uid: user.uid),
+        ),
+      ),
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColours.line),
+        ),
+        child: Row(
+          children: [
+            UserAvatar(
+              fullName: user.fullName,
+              photoUrl: user.photoUrl,
+              radius: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user.fullName,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  Text(
+                    '${user.preferredPosition} · ${user.skillLevel}',
+                    style: AppTextStyles.small,
+                  ),
+                ],
+              ),
+            ),
+            SizedBox(
+              height: 32,
+              child: ElevatedButton.icon(
+                onPressed: onAdd,
+                icon: const Icon(Icons.person_add_alt_1, size: 14),
+                label: const Text('Add'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColours.accent,
+                  foregroundColor: AppColours.background,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  textStyle: AppTextStyles.small.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FriendsListSection extends StatelessWidget {
+  const _FriendsListSection({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsViewModel = context.watch<FriendsViewModel>();
+
+    return StreamBuilder<List<Friend>>(
+      stream: friendsViewModel.friendsStream(currentUser.uid),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 24),
+            child: Center(
+              child: CircularProgressIndicator(color: AppColours.accent),
+            ),
+          );
+        }
+
+        final friends = snapshot.data ?? [];
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              friends.isEmpty
+                  ? 'Your friends'
+                  : 'Your friends · ${friends.length}',
+              style: AppTextStyles.h2,
+            ),
+            const SizedBox(height: 10),
+            if (friends.isEmpty)
+              EmptyState(
+                icon: Icons.group_add_outlined,
+                title: 'No friends yet',
+                message:
+                    'Search above to find players, or invite a teammate by email.',
+              )
+            else
+              ...friends.map(
+                (friend) => Padding(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: _FriendTile(
+                    friend: friend,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => OtherUserProfileScreen(uid: friend.uid),
+                      ),
+                    ),
+                    onRemove: () => _confirmRemove(context, friend, currentUser),
+                  ),
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  Future<void> _confirmRemove(BuildContext context, Friend friend) async {
+  Future<void> _confirmRemove(
+    BuildContext context,
+    Friend friend,
+    AppUser me,
+  ) async {
     final confirmed = await showAppConfirmSheet(
       context: context,
       title: 'Remove friend?',
@@ -111,14 +530,16 @@ class FriendsScreen extends StatelessWidget {
     if (!context.mounted || confirmed != true) return;
     final viewModel = context.read<FriendsViewModel>();
     final ok = await viewModel.removeFriend(
-      myUid: currentUser.uid,
+      myUid: me.uid,
       friendUid: friend.uid,
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-          ok ? 'Removed ${friend.fullName}.' : viewModel.errorMessage ?? 'Could not remove friend.',
+          ok
+              ? 'Removed ${friend.fullName}.'
+              : viewModel.errorMessage ?? 'Could not remove friend.',
         ),
       ),
     );
@@ -155,57 +576,57 @@ class _FriendTile extends StatelessWidget {
           border: Border.all(color: AppColours.line),
         ),
         child: Row(
-        children: [
-          UserAvatar(
-            fullName: friend.fullName,
-            photoUrl: friend.photoUrl,
-            radius: 22,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  friend.fullName,
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
+          children: [
+            UserAvatar(
+              fullName: friend.fullName,
+              photoUrl: friend.photoUrl,
+              radius: 22,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    friend.fullName,
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  '${friend.position} · ${friend.skillLevel}',
-                  style: AppTextStyles.small,
-                ),
-              ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: relColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(6),
-            ),
-            child: Text(
-              'Rel ${friend.reliabilityScore}',
-              style: AppTextStyles.small.copyWith(
-                color: relColor,
-                fontWeight: FontWeight.w700,
-                fontSize: 11,
+                  const SizedBox(height: 2),
+                  Text(
+                    '${friend.position} · ${friend.skillLevel}',
+                    style: AppTextStyles.small,
+                  ),
+                ],
               ),
             ),
-          ),
-          const SizedBox(width: 4),
-          IconButton(
-            tooltip: 'Remove',
-            onPressed: onRemove,
-            icon: const Icon(
-              Icons.more_vert,
-              size: 18,
-              color: AppColours.mutedText,
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: relColor.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: Text(
+                'Rel ${friend.reliabilityScore}',
+                style: AppTextStyles.small.copyWith(
+                  color: relColor,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 11,
+                ),
+              ),
             ),
-          ),
-        ],
+            const SizedBox(width: 4),
+            IconButton(
+              tooltip: 'Remove',
+              onPressed: onRemove,
+              icon: const Icon(
+                Icons.more_vert,
+                size: 18,
+                color: AppColours.mutedText,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -240,7 +661,6 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
     );
     if (!mounted) return;
     if (friend == null) {
-      // Surface the underlying error in the sheet.
       setState(() {});
       return;
     }
@@ -279,10 +699,11 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                     ),
                   ),
                 ),
-                Text('Add a friend', style: AppTextStyles.h2),
+                Text('Invite by email', style: AppTextStyles.h2),
                 const SizedBox(height: 6),
                 Text(
-                  "Enter the email your friend signed up with.",
+                  "Useful when you can't find someone by name — paste the "
+                  'email they signed up with.',
                   style: AppTextStyles.bodyMuted,
                 ),
                 const SizedBox(height: 18),
@@ -305,8 +726,8 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                 ],
                 const SizedBox(height: 18),
                 PrimaryButton(
-                  label: 'Add friend',
-                  icon: Icons.person_add_alt_1,
+                  label: 'Send invite',
+                  icon: Icons.send_outlined,
                   isLoading: viewModel.isLoading,
                   onPressed: _submit,
                 ),

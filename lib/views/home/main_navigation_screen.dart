@@ -8,6 +8,7 @@ import '../../viewmodels/match_viewmodel.dart';
 import '../matches/browse_matches_screen.dart';
 import '../matches/create_match_screen.dart';
 import '../profile/profile_screen.dart';
+import '../social/friends_screen.dart';
 import 'home_screen.dart';
 
 class MainNavigationScreen extends StatefulWidget {
@@ -27,11 +28,17 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final screens = [
       HomeScreen(
         currentUser: widget.currentUser,
-        onCreateMatch: () => setState(() => _currentIndex = 2),
+        // Create now opens as a pushed route so the bottom nav can
+        // stay dedicated to ongoing destinations.
+        onCreateMatch: () => Navigator.of(context).push(
+          MaterialPageRoute<void>(
+            builder: (_) => CreateMatchScreen(currentUser: widget.currentUser),
+          ),
+        ),
         onBrowseMatches: () => setState(() => _currentIndex = 1),
       ),
       BrowseMatchesScreen(currentUser: widget.currentUser),
-      CreateMatchScreen(currentUser: widget.currentUser),
+      FriendsScreen(currentUser: widget.currentUser),
       ProfileScreen(currentUser: widget.currentUser),
     ];
 
@@ -80,9 +87,9 @@ class _NextMatchTabBar extends StatelessWidget {
       selectedIcon: Icons.sports_soccer,
     ),
     _TabItemData(
-      label: 'Create',
-      icon: Icons.add_circle_outline,
-      selectedIcon: Icons.add_circle,
+      label: 'Friends',
+      icon: Icons.group_outlined,
+      selectedIcon: Icons.group,
     ),
     _TabItemData(
       label: 'Profile',

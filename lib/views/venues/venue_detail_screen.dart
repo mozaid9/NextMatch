@@ -28,12 +28,16 @@ class VenueDetailScreen extends StatefulWidget {
 class _VenueDetailScreenState extends State<VenueDetailScreen> {
   late DateTime _selectedDay;
   VenueSlot? _selectedSlot;
+  int _durationMinutes = 60;
+  late final Future<Venue?> _venueFuture;
 
   @override
   void initState() {
     super.initState();
     final now = DateTime.now();
     _selectedDay = DateTime(now.year, now.month, now.day);
+    // Cache the future once so setState() doesn't trigger a refetch.
+    _venueFuture = context.read<VenueViewModel>().getVenue(widget.venueId);
   }
 
   @override
@@ -43,7 +47,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     return Scaffold(
       appBar: AppBar(title: const Text('Venue')),
       body: FutureBuilder<Venue?>(
-        future: venueViewModel.getVenue(widget.venueId),
+        future: _venueFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -93,6 +97,12 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                       }),
                     ),
                     const SizedBox(height: 16),
+                    _DurationPicker(
+                      selected: _durationMinutes,
+                      onSelect: (mins) =>
+                          setState(() => _durationMinutes = mins),
+                    ),
+                    const SizedBox(height: 16),
                     _SlotGrid(
                       slots: slots,
                       selected: _selectedSlot,
@@ -107,7 +117,12 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
                 _BookingBar(
                   venue: venue,
                   slot: _selectedSlot!,
-                  onContinue: () => _continueToCreateMatch(venue, _selectedSlot!),
+                  durationMinutes: _durationMinutes,
+                  onContinue: () => _continueToCreateMatch(
+                    venue,
+                    _selectedSlot!,
+                    _durationMinutes,
+                  ),
                 ),
             ],
           );
@@ -116,15 +131,98 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
     );
   }
 
-  void _continueToCreateMatch(Venue venue, VenueSlot slot) {
+  void _continueToCreateMatch(
+    Venue venue,
+    VenueSlot slot,
+    int durationMinutes,
+  ) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => CreateMatchScreen(
           currentUser: widget.currentUser,
-          venueDraft: VenueBookingDraft(venue: venue, slot: slot),
+          venueDraft: VenueBookingDraft(
+            venue: venue,
+            slot: slot,
+            durationMinutes: durationMinutes,
+          ),
         ),
       ),
     );
+  }
+}
+
+class _DurationPicker extends StatelessWidget {
+  const _DurationPicker({required this.selected, required this.onSelect});
+
+  final int selected;
+  final ValueChanged<int> onSelect;
+
+  static const _options = [60, 90, 120];
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Duration',
+          style: AppTextStyles.small.copyWith(
+            fontWeight: FontWeight.w700,
+            color: AppColours.mutedText,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Row(
+          children: _options.map((mins) {
+            final isSelected = mins == selected;
+            return Expanded(
+              child: Padding(
+                padding: EdgeInsets.only(
+                  right: mins == _options.last ? 0 : 8,
+                ),
+                child: InkWell(
+                  onTap: () => onSelect(mins),
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(vertical: 11),
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? AppColours.accent.withValues(alpha: 0.14)
+                          : AppColours.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color:
+                            isSelected ? AppColours.accent : AppColours.line,
+                      ),
+                    ),
+                    child: Text(
+                      _label(mins),
+                      style: AppTextStyles.small.copyWith(
+                        color: isSelected
+                            ? AppColours.accent
+                            : AppColours.text,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+      ],
+    );
+  }
+
+  String _label(int mins) {
+    if (mins == 60) return '1 hour';
+    if (mins == 90) return '1.5 hours';
+    if (mins == 120) return '2 hours';
+    final h = mins ~/ 60;
+    final m = mins % 60;
+    return m == 0 ? '${h}h' : '${h}h ${m}m';
   }
 }
 
@@ -475,15 +573,19 @@ class _BookingBar extends StatelessWidget {
   const _BookingBar({
     required this.venue,
     required this.slot,
+    required this.durationMinutes,
     required this.onContinue,
   });
 
   final Venue venue;
   final VenueSlot slot;
+  final int durationMinutes;
   final VoidCallback onContinue;
 
   @override
   Widget build(BuildContext context) {
+    final endTime = slot.startTime.add(Duration(minutes: durationMinutes));
+    final totalCost = slot.pitch.pricePerHour * (durationMinutes / 60);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
       decoration: const BoxDecoration(
@@ -506,7 +608,7 @@ class _BookingBar extends StatelessWidget {
                     ),
                   ),
                   Text(
-                    '${_hourLabel(slot.startTime)} – ${_hourLabel(slot.endTime)} · ${CurrencyHelpers.formatGBP(slot.pitch.pricePerHour)}',
+                    '${_hourLabel(slot.startTime)}–${_hourLabel(endTime)} · ${CurrencyHelpers.formatGBP(totalCost)}',
                     style: AppTextStyles.small,
                   ),
                 ],

@@ -62,7 +62,9 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     _titleController = TextEditingController();
     _locationNameController = TextEditingController(text: draft?.venue.name ?? '');
     _addressController = TextEditingController(text: draft?.venue.address ?? '');
-    _durationController = TextEditingController(text: '60');
+    _durationController = TextEditingController(
+      text: '${draft?.durationMinutes ?? 60}',
+    );
     _totalPlayersController = TextEditingController(
       text: '${draft?.slot.pitch.capacity ?? 10}',
     );
@@ -1069,7 +1071,7 @@ class _VenueDraftBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final start = draft.slot.startTime;
-    final end = draft.slot.endTime;
+    final end = draft.endTime;
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(

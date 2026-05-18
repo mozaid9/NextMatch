@@ -144,15 +144,41 @@ class VenueSlot {
   final bool isAvailable;
 
   DateTime get endTime => startTime.add(const Duration(hours: 1));
+
+  /// Slot identity is derived from start time + pitch — so two slot
+  /// instances representing the same booking unit compare equal even
+  /// after re-generation.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is VenueSlot &&
+          other.startTime == startTime &&
+          other.pitch.id == pitch.id;
+
+  @override
+  int get hashCode => Object.hash(startTime, pitch.id);
 }
 
 /// A pre-booked venue slot used to seed Create Match with location,
 /// date/time, format and an estimated price per player.
 class VenueBookingDraft {
-  const VenueBookingDraft({required this.venue, required this.slot});
+  const VenueBookingDraft({
+    required this.venue,
+    required this.slot,
+    this.durationMinutes = 60,
+  });
 
   final Venue venue;
   final VenueSlot slot;
+  /// Selected play duration in minutes (60, 90, 120…).
+  final int durationMinutes;
+
+  DateTime get endTime =>
+      slot.startTime.add(Duration(minutes: durationMinutes));
+
+  /// Total pitch hire across the selected duration.
+  double get totalPitchCost =>
+      slot.pitch.pricePerHour * (durationMinutes / 60);
 
   /// Maps the pitch's surface ("Astroturf", "3G", …) to the AppStrings
   /// pitchTypes list used by Create Match.
@@ -165,11 +191,11 @@ class VenueBookingDraft {
     return 'Outdoor';
   }
 
-  /// Even split of the pitch hire across the pitch's capacity.
+  /// Even split of the total pitch hire across the pitch's capacity.
   double get suggestedPricePerPlayer {
-    if (slot.pitch.capacity <= 0) return slot.pitch.pricePerHour;
+    if (slot.pitch.capacity <= 0) return totalPitchCost;
     return double.parse(
-      (slot.pitch.pricePerHour / slot.pitch.capacity).toStringAsFixed(2),
+      (totalPitchCost / slot.pitch.capacity).toStringAsFixed(2),
     );
   }
 }

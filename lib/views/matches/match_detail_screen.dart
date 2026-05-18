@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colours.dart';
@@ -10,6 +11,7 @@ import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../profile/other_user_profile_screen.dart';
+
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_participant.dart';
@@ -19,6 +21,28 @@ import '../../viewmodels/payment_viewmodel.dart';
 import 'organiser_match_dashboard_screen.dart';
 import 'post_match_rating_screen.dart';
 import '../payment/mock_payment_screen.dart';
+
+String _shareTextFor(FootballMatch match) {
+  final start = match.startDateTime;
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+  ];
+  final h = start.hour.toString().padLeft(2, '0');
+  final m = start.minute.toString().padLeft(2, '0');
+  final dateLabel = '${start.day} ${months[start.month - 1]} at $h:$m';
+  final priceLabel = match.isOrganiserPays
+      ? 'Free to join (settle ${CurrencyHelpers.formatGBP(match.pricePerPlayer)} with organiser)'
+      : '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} per player';
+  return [
+    '⚽ ${match.title}',
+    '📅 $dateLabel',
+    '📍 ${match.locationName}, ${match.address}',
+    '👥 ${match.format} · ${match.skillLevel} · ${match.spacesLabel} filled',
+    '💷 $priceLabel',
+    'Open NextMatch to grab a spot.',
+  ].join('\n');
+}
 
 class MatchDetailScreen extends StatelessWidget {
   const MatchDetailScreen({
@@ -35,7 +59,27 @@ class MatchDetailScreen extends StatelessWidget {
     final matchViewModel = context.watch<MatchViewModel>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Match details')),
+      appBar: AppBar(
+        title: const Text('Match details'),
+        actions: [
+          IconButton(
+            tooltip: 'Share match',
+            icon: const Icon(Icons.share_outlined),
+            onPressed: () async {
+              final match = await matchViewModel.getMatch(matchId);
+              if (match == null || !context.mounted) return;
+              final text = _shareTextFor(match);
+              await Clipboard.setData(ClipboardData(text: text));
+              if (!context.mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Match details copied to clipboard.'),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
       body: StreamBuilder<FootballMatch?>(
         stream: matchViewModel.matchStream(matchId),
         builder: (context, snapshot) {

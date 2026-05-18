@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colours.dart';
@@ -8,6 +9,7 @@ import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
+import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 
@@ -91,6 +93,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text('Player profile', style: AppTextStyles.h1),
+                const SizedBox(height: 18),
+                _PhotoRow(user: widget.user),
                 const SizedBox(height: 18),
                 CustomTextField(
                   controller: _nameController,
@@ -200,6 +204,136 @@ class _DropdownField extends StatelessWidget {
       value: value,
       options: items,
       onChanged: onChanged,
+    );
+  }
+}
+
+class _PhotoRow extends StatefulWidget {
+  const _PhotoRow({required this.user});
+
+  final AppUser user;
+
+  @override
+  State<_PhotoRow> createState() => _PhotoRowState();
+}
+
+class _PhotoRowState extends State<_PhotoRow> {
+  bool _uploading = false;
+
+  Future<void> _pickAndUpload() async {
+    if (_uploading) return;
+
+    XFile? file;
+    try {
+      final picker = ImagePicker();
+      file = await picker.pickImage(
+        source: ImageSource.gallery,
+        maxWidth: 1024,
+        maxHeight: 1024,
+        imageQuality: 88,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not open photo picker: $error')),
+      );
+      return;
+    }
+    if (file == null || !mounted) return;
+
+    setState(() => _uploading = true);
+    try {
+      final bytes = await file.readAsBytes();
+      if (!mounted) return;
+      final profileViewModel = context.read<ProfileViewModel>();
+      final url = await profileViewModel
+          .uploadProfilePhoto(
+            uid: widget.user.uid,
+            bytes: bytes,
+            contentType: file.mimeType ?? 'image/jpeg',
+          )
+          .timeout(
+            const Duration(seconds: 30),
+            onTimeout: () => null,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            url == null
+                ? profileViewModel.errorMessage ?? 'Upload failed.'
+                : 'Profile photo updated.',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Upload failed: $error')),
+      );
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Row(
+        children: [
+          Stack(
+            alignment: Alignment.center,
+            children: [
+              UserAvatar(
+                fullName: widget.user.fullName,
+                photoUrl: widget.user.photoUrl,
+                radius: 28,
+              ),
+              if (_uploading)
+                const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: AppColours.accent,
+                  ),
+                ),
+            ],
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Profile photo',
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  widget.user.photoUrl == null
+                      ? 'Add a photo so teammates recognise you.'
+                      : 'Tap change to update your photo.',
+                  style: AppTextStyles.small,
+                ),
+              ],
+            ),
+          ),
+          TextButton.icon(
+            onPressed: _uploading ? null : _pickAndUpload,
+            icon: const Icon(Icons.camera_alt_outlined, size: 16),
+            label: Text(widget.user.photoUrl == null ? 'Add' : 'Change'),
+          ),
+        ],
+      ),
     );
   }
 }

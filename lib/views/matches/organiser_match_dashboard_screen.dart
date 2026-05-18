@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/date_time_helpers.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
@@ -240,25 +241,14 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
     BuildContext context,
     FootballMatch match,
   ) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppConfirmSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColours.surface,
-        title: const Text('Complete match?'),
-        content: const Text(
+      title: 'Complete match?',
+      message:
           'Confirmed players not already marked as no-show or withdrawn will be marked as attended and receive +1 reliability.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Not yet'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Complete'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Complete',
+      confirmIcon: Icons.flag_circle_outlined,
+      cancelLabel: 'Not yet',
     );
 
     if (!context.mounted || confirmed != true) return;
@@ -298,51 +288,19 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
     BuildContext context,
     FootballMatch match,
   ) async {
-    final reasonController = TextEditingController();
-    final reason = await showDialog<String>(
+    final reason = await showAppInputSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColours.surface,
-        title: const Text('Cancel match?'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Joined players will see this match as cancelled. '
-              'Refunds must be handled manually until real payments are wired up.',
-            ),
-            const SizedBox(height: 14),
-            TextField(
-              controller: reasonController,
-              maxLines: 3,
-              maxLength: 200,
-              decoration: const InputDecoration(
-                labelText: 'Reason (shown to players)',
-                hintText: 'e.g. Pitch unavailable, not enough players',
-                border: OutlineInputBorder(),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Keep match'),
-          ),
-          TextButton(
-            onPressed: () {
-              final text = reasonController.text.trim();
-              if (text.isEmpty) return;
-              Navigator.of(context).pop(text);
-            },
-            style: TextButton.styleFrom(foregroundColor: AppColours.error),
-            child: const Text('Cancel match'),
-          ),
-        ],
-      ),
+      title: 'Cancel match?',
+      message:
+          'Joined players will see this match as cancelled. Refunds must be handled manually until real payments are wired up.',
+      label: 'Reason (shown to players)',
+      hint: 'e.g. Pitch unavailable, not enough players',
+      confirmLabel: 'Cancel match',
+      confirmIcon: Icons.cancel_outlined,
+      isDestructive: true,
+      validator: (value) =>
+          value.isEmpty ? 'Add a short reason.' : null,
     );
-    reasonController.dispose();
 
     if (!context.mounted || reason == null || reason.isEmpty) return;
     final viewModel = context.read<MatchViewModel>();

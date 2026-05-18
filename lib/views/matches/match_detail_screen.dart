@@ -7,6 +7,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/currency_helpers.dart';
 import '../../core/utils/date_time_helpers.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
@@ -452,29 +453,18 @@ class MatchDetailScreen extends StatelessWidget {
       match.startDateTime,
       DateTime.now(),
     );
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppConfirmSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColours.surface,
-        title: const Text('Withdraw from match?'),
-        content: Text(
-          [
-            warning,
-            if (match.isSplitPayment && participant.amountPaid > 0)
-              'Refund handling will be added when real payments are enabled.',
-          ].join('\n\n'),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Stay in'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Withdraw'),
-          ),
-        ],
-      ),
+      title: 'Withdraw from match?',
+      message: [
+        warning,
+        if (match.isSplitPayment && participant.amountPaid > 0)
+          'Refund handling will be added when real payments are enabled.',
+      ].join('\n\n'),
+      confirmLabel: 'Withdraw',
+      confirmIcon: Icons.logout,
+      cancelLabel: 'Stay in',
+      isDestructive: true,
     );
 
     if (!context.mounted || confirmed != true) return;

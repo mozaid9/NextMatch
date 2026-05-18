@@ -10,6 +10,7 @@ class PrimaryButton extends StatelessWidget {
     this.icon,
     this.isLoading = false,
     this.isSecondary = false,
+    this.destructive = false,
   });
 
   final String label;
@@ -17,6 +18,8 @@ class PrimaryButton extends StatelessWidget {
   final IconData? icon;
   final bool isLoading;
   final bool isSecondary;
+  /// Renders the filled button in the error colour. Ignored when isSecondary.
+  final bool destructive;
 
   @override
   Widget build(BuildContext context) {
@@ -62,8 +65,10 @@ class PrimaryButton extends StatelessWidget {
       child: ElevatedButton(
         onPressed: isLoading ? null : onPressed,
         style: ElevatedButton.styleFrom(
-          backgroundColor: AppColours.accent,
-          foregroundColor: AppColours.background,
+          backgroundColor:
+              destructive ? AppColours.error : AppColours.accent,
+          foregroundColor:
+              destructive ? Colors.white : AppColours.background,
           disabledBackgroundColor: AppColours.line,
           disabledForegroundColor: AppColours.mutedText,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),

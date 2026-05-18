@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
@@ -96,26 +97,14 @@ class FriendsScreen extends StatelessWidget {
   }
 
   Future<void> _confirmRemove(BuildContext context, Friend friend) async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppConfirmSheet(
       context: context,
-      builder: (context) => AlertDialog(
-        backgroundColor: AppColours.surface,
-        title: const Text('Remove friend?'),
-        content: Text(
+      title: 'Remove friend?',
+      message:
           'Remove ${friend.fullName} from your friends list? You can re-add them later.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            style: TextButton.styleFrom(foregroundColor: AppColours.error),
-            child: const Text('Remove'),
-          ),
-        ],
-      ),
+      confirmLabel: 'Remove',
+      confirmIcon: Icons.person_remove_alt_1_outlined,
+      isDestructive: true,
     );
 
     if (!context.mounted || confirmed != true) return;

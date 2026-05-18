@@ -11,6 +11,7 @@ import 'services/friends_service.dart';
 import 'services/match_service.dart';
 import 'services/payment_service.dart';
 import 'services/rating_service.dart';
+import 'services/team_service.dart';
 import 'services/user_service.dart';
 import 'services/venue_service.dart';
 import 'viewmodels/auth_viewmodel.dart';
@@ -20,6 +21,7 @@ import 'viewmodels/match_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/rating_viewmodel.dart';
+import 'viewmodels/team_viewmodel.dart';
 import 'viewmodels/venue_viewmodel.dart';
 import 'views/auth/profile_setup_screen.dart';
 import 'views/auth/welcome_screen.dart';
@@ -42,6 +44,7 @@ class NextMatchApp extends StatelessWidget {
         Provider<VenueService>(create: (_) => VenueService()),
         Provider<FriendsService>(create: (_) => FriendsService()),
         Provider<ChatService>(create: (_) => ChatService()),
+        Provider<TeamService>(create: (_) => TeamService()),
         Provider<PaymentService>(
           create: (context) => PaymentService(context.read<MatchService>()),
         ),
@@ -69,6 +72,9 @@ class NextMatchApp extends StatelessWidget {
         ),
         ChangeNotifierProvider<ChatViewModel>(
           create: (context) => ChatViewModel(context.read<ChatService>()),
+        ),
+        ChangeNotifierProvider<TeamViewModel>(
+          create: (context) => TeamViewModel(context.read<TeamService>()),
         ),
       ],
       child: MaterialApp(

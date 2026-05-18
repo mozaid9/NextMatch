@@ -88,12 +88,18 @@ class ChatMessage {
     required this.senderUid,
     required this.body,
     required this.createdAt,
+    this.senderName,
+    this.senderPhotoUrl,
   });
 
   final String id;
   final String senderUid;
   final String body;
   final DateTime createdAt;
+  /// Denormalised sender info — only populated for group/team chats where
+  /// the thread needs to render the sender's name per message.
+  final String? senderName;
+  final String? senderPhotoUrl;
 
   factory ChatMessage.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -104,6 +110,8 @@ class ChatMessage {
       senderUid: data['senderUid'] as String? ?? '',
       body: data['body'] as String? ?? '',
       createdAt: Chat._readDate(data['createdAt']),
+      senderName: data['senderName'] as String?,
+      senderPhotoUrl: data['senderPhotoUrl'] as String?,
     );
   }
 
@@ -111,5 +119,7 @@ class ChatMessage {
         'senderUid': senderUid,
         'body': body,
         'createdAt': Timestamp.fromDate(createdAt),
+        if (senderName != null) 'senderName': senderName,
+        if (senderPhotoUrl != null) 'senderPhotoUrl': senderPhotoUrl,
       };
 }

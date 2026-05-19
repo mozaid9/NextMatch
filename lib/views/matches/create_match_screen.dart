@@ -9,10 +9,12 @@ import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
+import '../../core/widgets/venue_autocomplete_field.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/venue.dart';
 import '../../viewmodels/match_viewmodel.dart';
+import '../../viewmodels/venue_viewmodel.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   const CreateMatchScreen({
@@ -58,6 +60,18 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   String _visibility = 'Public';
   String _paymentMode = AppStrings.paymentModeSplit;
   bool _requiresApprovalForLowReliability = true;
+
+  List<Venue> _venues = const [];
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Subscribe once to the venues stream so autocomplete has data.
+    context.read<VenueViewModel>().venuesStream().first.then((venues) {
+      if (!mounted) return;
+      setState(() => _venues = venues);
+    });
+  }
 
   @override
   void initState() {
@@ -162,6 +176,45 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     super.dispose();
   }
 
+  void _applyVenuePick(Venue venue) {
+    setState(() {
+      _locationNameController.text = venue.name;
+      _addressController.text = venue.address;
+
+      // Pre-fill format + pitch type from the first available pitch, but
+      // only when the user hasn't already picked something non-default.
+      if (venue.pitches.isNotEmpty) {
+        final pitch = venue.pitches.first;
+        if (AppStrings.matchFormats.contains(pitch.format)) {
+          _format = pitch.format;
+        }
+        _pitchType = _surfaceToPitchType(pitch.surface);
+
+        // Suggest a per-player price based on the pitch hire / capacity.
+        if (pitch.capacity > 0) {
+          final per = (pitch.pricePerHour / pitch.capacity);
+          _priceController.text = per.toStringAsFixed(2);
+        }
+      }
+    });
+    // Show a brief confirmation so the user knows it worked.
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Filled in details from ${venue.name}.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _surfaceToPitchType(String surface) {
+    final lower = surface.toLowerCase();
+    if (lower.contains('indoor')) return 'Indoor';
+    if (lower.contains('3g') || lower.contains('4g')) return '3G/4G';
+    if (lower.contains('astro')) return 'Astro';
+    if (lower.contains('grass')) return 'Grass';
+    return 'Outdoor';
+  }
+
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -263,10 +316,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                       Validators.required(value, label: 'Match title'),
                 ),
                 const SizedBox(height: 14),
-                CustomTextField(
+                VenueAutocompleteField(
                   controller: _locationNameController,
-                  label: 'Location name',
-                  icon: Icons.place_outlined,
+                  venues: _venues,
+                  onVenuePicked: _applyVenuePick,
                   validator: (value) =>
                       Validators.required(value, label: 'Location name'),
                 ),

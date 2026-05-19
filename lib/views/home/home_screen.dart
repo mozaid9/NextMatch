@@ -11,6 +11,8 @@ import '../../core/widgets/skeleton_loader.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
+import '../../services/friends_service.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../models/team.dart';
 import '../../models/venue.dart';
@@ -127,7 +129,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
             ),
-            StreamBuilder<List<FootballMatch>>(
+            StreamBuilder<List<Friend>>(
+              stream: context
+                  .read<FriendsViewModel>()
+                  .friendsStream(widget.currentUser.uid),
+              builder: (context, friendsSnap) {
+                final friendUids = (friendsSnap.data ?? const <Friend>[])
+                    .map((f) => f.uid)
+                    .toSet();
+                return StreamBuilder<List<FootballMatch>>(
               stream: matchViewModel.openMatchesStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -179,10 +189,13 @@ class _HomeScreenState extends State<HomeScreen> {
                       return MatchCard(
                         match: match,
                         onTap: () => _openMatch(context, match),
+                        friendUids: friendUids,
                       );
                     },
                   ),
                 );
+              },
+            );
               },
             ),
           ],

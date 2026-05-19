@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
 import '../../models/football_match.dart';
+import '../../models/match_participant.dart';
+import '../../viewmodels/match_viewmodel.dart';
 import '../constants/app_colours.dart';
 import '../constants/app_text_styles.dart';
 import '../utils/currency_helpers.dart';
@@ -14,6 +17,7 @@ class MatchCard extends StatelessWidget {
     this.actionLabel,
     this.onActionPressed,
     this.trailing,
+    this.friendUids,
   });
 
   final FootballMatch match;
@@ -21,6 +25,11 @@ class MatchCard extends StatelessWidget {
   final String? actionLabel;
   final VoidCallback? onActionPressed;
   final Widget? trailing;
+
+  /// Optional set of friend uids for the current viewer. When provided
+  /// and non-empty, the card shows a "N friend(s) joining" chip after
+  /// looking up the match's participants subcollection.
+  final Set<String>? friendUids;
 
   @override
   Widget build(BuildContext context) {
@@ -96,6 +105,13 @@ class MatchCard extends StatelessWidget {
                   ],
                 ),
               ),
+              if (friendUids != null && friendUids!.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                _FriendsInMatchChip(
+                  matchId: match.id,
+                  friendUids: friendUids!,
+                ),
+              ],
               const SizedBox(height: 14),
               Row(
                 children: [
@@ -186,6 +202,68 @@ class _InfoChip extends StatelessWidget {
           Text(label, style: AppTextStyles.small),
         ],
       ),
+    );
+  }
+}
+
+class _FriendsInMatchChip extends StatelessWidget {
+  const _FriendsInMatchChip({
+    required this.matchId,
+    required this.friendUids,
+  });
+
+  final String matchId;
+  final Set<String> friendUids;
+
+  @override
+  Widget build(BuildContext context) {
+    final matchViewModel = context.read<MatchViewModel>();
+
+    return StreamBuilder<List<MatchParticipant>>(
+      stream: matchViewModel.participantsStream(matchId),
+      builder: (context, snapshot) {
+        final participants = snapshot.data;
+        if (participants == null || participants.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final overlap = participants
+            .where((p) => friendUids.contains(p.userId))
+            .length;
+        if (overlap == 0) return const SizedBox.shrink();
+
+        final label = overlap == 1
+            ? '1 friend joining'
+            : '$overlap friends joining';
+
+        return Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColours.accent.withValues(alpha: 0.14),
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(
+              color: AppColours.accent.withValues(alpha: 0.5),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.people_alt,
+                size: 14,
+                color: AppColours.accent,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: AppTextStyles.small.copyWith(
+                  color: AppColours.accent,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }

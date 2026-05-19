@@ -11,6 +11,8 @@ import '../../core/widgets/selection_sheet.dart';
 import '../../core/widgets/skeleton_loader.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
+import '../../services/friends_service.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import 'match_detail_screen.dart';
 import 'my_matches_screen.dart';
@@ -55,6 +57,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
   @override
   Widget build(BuildContext context) {
     final matchViewModel = context.watch<MatchViewModel>();
+    final friendsViewModel = context.read<FriendsViewModel>();
 
     return Scaffold(
       appBar: AppBar(
@@ -110,7 +113,13 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
               ),
             ),
             Expanded(
-              child: StreamBuilder<List<FootballMatch>>(
+              child: StreamBuilder<List<Friend>>(
+                stream: friendsViewModel.friendsStream(widget.currentUser.uid),
+                builder: (context, friendsSnap) {
+                  final friendUids = (friendsSnap.data ?? const <Friend>[])
+                      .map((f) => f.uid)
+                      .toSet();
+                  return StreamBuilder<List<FootballMatch>>(
                 stream: matchViewModel.openMatchesStream(),
                 builder: (context, snapshot) {
                   if (snapshot.connectionState == ConnectionState.waiting) {
@@ -177,10 +186,13 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                         return MatchCard(
                           match: match,
                           onTap: () => _openDetail(match),
+                          friendUids: friendUids,
                         );
                       },
                     ),
                   );
+                },
+              );
                 },
               ),
             ),

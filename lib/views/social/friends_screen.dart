@@ -15,6 +15,7 @@ import '../../models/app_user.dart';
 import '../../services/friends_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
+import 'connections_screen.dart';
 
 /// Standalone screen wrapper used when Friends is pushed as a route
 /// (e.g. from the Profile screen's old "Friends" button).
@@ -81,24 +82,24 @@ class _FriendsTabState extends State<FriendsTab> {
     });
   }
 
-  Future<void> _addUser(AppUser user) async {
+  Future<void> _followUser(AppUser user) async {
     final viewModel = context.read<FriendsViewModel>();
-    final ok = await viewModel.addFriendByUser(
+    final ok = await viewModel.follow(
       me: widget.currentUser,
-      friend: user,
+      target: user,
     );
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           ok
-              ? 'Added ${user.fullName} as a friend.'
-              : viewModel.errorMessage ?? 'Could not add friend.',
+              ? 'Following ${user.fullName.split(' ').first}.'
+              : viewModel.errorMessage ?? 'Could not follow.',
         ),
       ),
     );
     if (ok) {
-      // Remove from search results / suggestions so it disappears.
+      // Drop from search results / suggestions so the row disappears.
       setState(() {
         _searchResults =
             _searchResults.where((u) => u.uid != user.uid).toList();
@@ -119,9 +120,11 @@ class _FriendsTabState extends State<FriendsTab> {
         ),
         const SizedBox(height: 18),
         if (_query.isEmpty) ...[
+          _ConnectionStats(currentUser: widget.currentUser),
+          const SizedBox(height: 18),
           _SuggestionsSection(
             currentUser: widget.currentUser,
-            onAdd: _addUser,
+            onFollow: _followUser,
           ),
           const SizedBox(height: 18),
           _FriendsListSection(currentUser: widget.currentUser),
@@ -130,15 +133,15 @@ class _FriendsTabState extends State<FriendsTab> {
             results: _searchResults,
             loading: _searching,
             viewer: widget.currentUser,
-            onAdd: _addUser,
+            onFollow: _followUser,
             friendsViewModel: friendsViewModel,
           ),
         const SizedBox(height: 18),
-        // Invite by email available inline since there's no AppBar here.
+        // Find by email available inline since there's no AppBar here.
         OutlinedButton.icon(
           onPressed: () => _openAddByEmailSheet(context),
           icon: const Icon(Icons.alternate_email, size: 16),
-          label: const Text('Invite by email'),
+          label: const Text('Follow by email'),
         ),
       ],
     );
@@ -199,14 +202,116 @@ class _SearchField extends StatelessWidget {
   }
 }
 
+class _ConnectionStats extends StatelessWidget {
+  const _ConnectionStats({required this.currentUser});
+
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsViewModel = context.read<FriendsViewModel>();
+
+    return Row(
+      children: [
+        Expanded(
+          child: _StatBox(
+            label: 'Following',
+            stream: friendsViewModel.followingStream(currentUser.uid),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ConnectionsScreen(
+                  user: currentUser,
+                  viewer: currentUser,
+                  mode: ConnectionsMode.following,
+                ),
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: _StatBox(
+            label: 'Followers',
+            stream: friendsViewModel.followersStream(currentUser.uid),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => ConnectionsScreen(
+                  user: currentUser,
+                  viewer: currentUser,
+                  mode: ConnectionsMode.followers,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _StatBox extends StatelessWidget {
+  const _StatBox({
+    required this.label,
+    required this.stream,
+    required this.onTap,
+  });
+
+  final String label;
+  final Stream<List<Friend>> stream;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AppColours.line),
+        ),
+        child: StreamBuilder<List<Friend>>(
+          stream: stream,
+          builder: (context, snapshot) {
+            final count = snapshot.data?.length ?? 0;
+            return Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '$count',
+                      style: AppTextStyles.h2,
+                    ),
+                    const SizedBox(height: 2),
+                    Text(label, style: AppTextStyles.small),
+                  ],
+                ),
+                const Icon(
+                  Icons.chevron_right,
+                  size: 18,
+                  color: AppColours.mutedText,
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
 class _SuggestionsSection extends StatelessWidget {
   const _SuggestionsSection({
     required this.currentUser,
-    required this.onAdd,
+    required this.onFollow,
   });
 
   final AppUser currentUser;
-  final ValueChanged<AppUser> onAdd;
+  final ValueChanged<AppUser> onFollow;
 
   @override
   Widget build(BuildContext context) {
@@ -240,12 +345,12 @@ class _SuggestionsSection extends StatelessWidget {
                 child: _SuggestionTile(
                   data: item,
                   viewer: currentUser,
-                  onAddTap: () async {
+                  onFollowTap: () async {
                     final uid = item['userId'] as String;
-                    final friend = await context
+                    final user = await context
                         .read<FriendsViewModel>()
                         .getUserById(uid);
-                    if (friend != null) onAdd(friend);
+                    if (user != null) onFollow(user);
                   },
                 ),
               ),
@@ -261,12 +366,12 @@ class _SuggestionTile extends StatelessWidget {
   const _SuggestionTile({
     required this.data,
     required this.viewer,
-    required this.onAddTap,
+    required this.onFollowTap,
   });
 
   final Map<String, dynamic> data;
   final AppUser viewer;
-  final Future<void> Function() onAddTap;
+  final Future<void> Function() onFollowTap;
 
   @override
   Widget build(BuildContext context) {
@@ -324,9 +429,9 @@ class _SuggestionTile extends StatelessWidget {
             SizedBox(
               height: 32,
               child: ElevatedButton.icon(
-                onPressed: onAddTap,
+                onPressed: onFollowTap,
                 icon: const Icon(Icons.person_add_alt_1, size: 14),
-                label: const Text('Add'),
+                label: const Text('Follow'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColours.accent,
                   foregroundColor: AppColours.background,
@@ -352,14 +457,14 @@ class _SearchResultsSection extends StatelessWidget {
     required this.results,
     required this.loading,
     required this.viewer,
-    required this.onAdd,
+    required this.onFollow,
     required this.friendsViewModel,
   });
 
   final List<AppUser> results;
   final bool loading;
   final AppUser viewer;
-  final ValueChanged<AppUser> onAdd;
+  final ValueChanged<AppUser> onFollow;
   final FriendsViewModel friendsViewModel;
 
   @override
@@ -393,7 +498,7 @@ class _SearchResultsSection extends StatelessWidget {
             child: _SearchResultTile(
               user: user,
               viewer: viewer,
-              onAdd: () => onAdd(user),
+              onFollow: () => onFollow(user),
             ),
           ),
         ),
@@ -406,12 +511,12 @@ class _SearchResultTile extends StatelessWidget {
   const _SearchResultTile({
     required this.user,
     required this.viewer,
-    required this.onAdd,
+    required this.onFollow,
   });
 
   final AppUser user;
   final AppUser viewer;
-  final VoidCallback onAdd;
+  final VoidCallback onFollow;
 
   @override
   Widget build(BuildContext context) {
@@ -460,9 +565,9 @@ class _SearchResultTile extends StatelessWidget {
             SizedBox(
               height: 32,
               child: ElevatedButton.icon(
-                onPressed: onAdd,
+                onPressed: onFollow,
                 icon: const Icon(Icons.person_add_alt_1, size: 14),
-                label: const Text('Add'),
+                label: const Text('Follow'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColours.accent,
                   foregroundColor: AppColours.background,
@@ -511,17 +616,22 @@ class _FriendsListSection extends StatelessWidget {
           children: [
             Text(
               friends.isEmpty
-                  ? 'Your friends'
-                  : 'Your friends · ${friends.length}',
+                  ? 'Friends'
+                  : 'Friends · ${friends.length}',
               style: AppTextStyles.h2,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'People who follow you back.',
+              style: AppTextStyles.small,
             ),
             const SizedBox(height: 10),
             if (friends.isEmpty)
               EmptyState(
                 icon: Icons.group_add_outlined,
-                title: 'No friends yet',
+                title: 'No mutual follows yet',
                 message:
-                    'Search above to find players, or invite a teammate by email.',
+                    "Once someone you follow follows you back, you'll see them here.",
               )
             else
               ...friends.map(
@@ -554,27 +664,27 @@ class _FriendsListSection extends StatelessWidget {
   ) async {
     final confirmed = await showAppConfirmSheet(
       context: context,
-      title: 'Remove friend?',
+      title: 'Unfollow ${friend.fullName.split(' ').first}?',
       message:
-          'Remove ${friend.fullName} from your friends list? You can re-add them later.',
-      confirmLabel: 'Remove',
+          "You'll no longer be friends. They'll still follow you unless they unfollow back.",
+      confirmLabel: 'Unfollow',
       confirmIcon: Icons.person_remove_alt_1_outlined,
       isDestructive: true,
     );
 
     if (!context.mounted || confirmed != true) return;
     final viewModel = context.read<FriendsViewModel>();
-    final ok = await viewModel.removeFriend(
+    final ok = await viewModel.unfollow(
       myUid: me.uid,
-      friendUid: friend.uid,
+      targetUid: friend.uid,
     );
     if (!context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
           ok
-              ? 'Removed ${friend.fullName}.'
-              : viewModel.errorMessage ?? 'Could not remove friend.',
+              ? 'Unfollowed ${friend.fullName.split(' ').first}.'
+              : viewModel.errorMessage ?? 'Could not unfollow.',
         ),
       ),
     );
@@ -653,7 +763,7 @@ class _FriendTile extends StatelessWidget {
             ),
             const SizedBox(width: 4),
             IconButton(
-              tooltip: 'Remove',
+              tooltip: 'Unfollow',
               onPressed: onRemove,
               icon: const Icon(
                 Icons.more_vert,
@@ -690,18 +800,20 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     final viewModel = context.read<FriendsViewModel>();
-    final friend = await viewModel.addFriendByEmail(
+    final target = await viewModel.followByEmail(
       me: widget.currentUser,
       email: _emailController.text,
     );
     if (!mounted) return;
-    if (friend == null) {
+    if (target == null) {
       setState(() {});
       return;
     }
     Navigator.of(context).pop();
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Added ${friend.fullName} as a friend.')),
+      SnackBar(
+        content: Text('Following ${target.fullName.split(' ').first}.'),
+      ),
     );
   }
 
@@ -734,7 +846,7 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                     ),
                   ),
                 ),
-                Text('Invite by email', style: AppTextStyles.h2),
+                Text('Follow by email', style: AppTextStyles.h2),
                 const SizedBox(height: 6),
                 Text(
                   "Useful when you can't find someone by name — paste the "
@@ -761,8 +873,8 @@ class _AddFriendSheetState extends State<_AddFriendSheet> {
                 ],
                 const SizedBox(height: 18),
                 PrimaryButton(
-                  label: 'Send invite',
-                  icon: Icons.send_outlined,
+                  label: 'Follow',
+                  icon: Icons.person_add_alt_1,
                   isLoading: viewModel.isLoading,
                   onPressed: _submit,
                 ),

@@ -15,7 +15,60 @@ class FriendsViewModel extends ChangeNotifier {
   Stream<List<Friend>> friendsStream(String uid) =>
       _friendsService.friendsStream(uid);
 
-  Future<AppUser?> addFriendByEmail({
+  Stream<List<Friend>> followingStream(String uid) =>
+      _friendsService.followingStream(uid);
+
+  Stream<List<Friend>> followersStream(String uid) =>
+      _friendsService.followersStream(uid);
+
+  Stream<FollowStatus> followStatusStream({
+    required String viewerUid,
+    required String targetUid,
+  }) =>
+      _friendsService.followStatusStream(
+        viewerUid: viewerUid,
+        targetUid: targetUid,
+      );
+
+  Future<bool> follow({
+    required AppUser me,
+    required AppUser target,
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _friendsService.follow(me: me, target: target);
+      return true;
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> unfollow({
+    required String myUid,
+    required String targetUid,
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+    try {
+      await _friendsService.unfollow(myUid: myUid, targetUid: targetUid);
+      return true;
+    } catch (error) {
+      errorMessage = 'Could not unfollow.';
+      return false;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  Future<AppUser?> followByEmail({
     required AppUser me,
     required String email,
   }) async {
@@ -23,7 +76,7 @@ class FriendsViewModel extends ChangeNotifier {
     errorMessage = null;
     notifyListeners();
     try {
-      return await _friendsService.addFriendByEmail(me: me, email: email);
+      return await _friendsService.followByEmail(me: me, email: email);
     } catch (error) {
       errorMessage = error.toString().replaceFirst('Exception: ', '');
       return null;
@@ -49,38 +102,5 @@ class FriendsViewModel extends ChangeNotifier {
         .get();
     if (!snapshot.exists) return null;
     return AppUser.fromFirestore(snapshot);
-  }
-
-  /// Convenience helper used by suggestion / search rows: creates a
-  /// friendship directly when we already know the target user's uid,
-  /// without going through the email lookup path.
-  Future<bool> addFriendByUser({
-    required AppUser me,
-    required AppUser friend,
-  }) async {
-    final result = await addFriendByEmail(me: me, email: friend.email);
-    return result != null;
-  }
-
-  Future<bool> removeFriend({
-    required String myUid,
-    required String friendUid,
-  }) async {
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
-    try {
-      await _friendsService.removeFriend(
-        myUid: myUid,
-        friendUid: friendUid,
-      );
-      return true;
-    } catch (error) {
-      errorMessage = 'Could not remove friend.';
-      return false;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
   }
 }

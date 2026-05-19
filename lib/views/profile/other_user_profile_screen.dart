@@ -3,11 +3,14 @@ import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
+import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
+import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
 import '../social/chat_thread_screen.dart';
 
@@ -61,9 +64,12 @@ class OtherUserProfileScreen extends StatelessWidget {
                   child: Column(
                     children: [
                       if (viewer != null && viewer!.uid != user.uid) ...[
+                        _FollowButton(viewer: viewer!, target: user),
+                        const SizedBox(height: 10),
                         PrimaryButton(
                           label: 'Message ${user.fullName.split(' ').first}',
                           icon: Icons.chat_bubble_outline,
+                          isSecondary: true,
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => ChatThreadScreen(
@@ -88,6 +94,90 @@ class OtherUserProfileScreen extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _FollowButton extends StatelessWidget {
+  const _FollowButton({required this.viewer, required this.target});
+
+  final AppUser viewer;
+  final AppUser target;
+
+  @override
+  Widget build(BuildContext context) {
+    final friendsViewModel = context.watch<FriendsViewModel>();
+
+    return StreamBuilder<FollowStatus>(
+      stream: friendsViewModel.followStatusStream(
+        viewerUid: viewer.uid,
+        targetUid: target.uid,
+      ),
+      builder: (context, snapshot) {
+        final status = snapshot.data ?? FollowStatus.notFollowing;
+        final isLoading = friendsViewModel.isLoading;
+
+        final (label, icon) = switch (status) {
+          FollowStatus.notFollowing => ('Follow', Icons.person_add_alt_1),
+          FollowStatus.following => ('Following', Icons.check),
+          FollowStatus.mutual => ('Friends · Following', Icons.people_alt),
+        };
+
+        Future<void> onTap() async {
+          if (status == FollowStatus.notFollowing) {
+            final ok = await friendsViewModel.follow(
+              me: viewer,
+              target: target,
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ok
+                      ? 'Following ${target.fullName.split(' ').first}.'
+                      : friendsViewModel.errorMessage ?? 'Could not follow.',
+                ),
+              ),
+            );
+          } else {
+            // Following or mutual — confirm before unfollowing.
+            final confirmed = await showAppConfirmSheet(
+              context: context,
+              title: 'Unfollow ${target.fullName.split(' ').first}?',
+              message: status == FollowStatus.mutual
+                  ? "You'll no longer be friends. They'll still follow you unless they unfollow back."
+                  : 'You can follow them again anytime.',
+              confirmLabel: 'Unfollow',
+              confirmIcon: Icons.person_remove_alt_1_outlined,
+              isDestructive: true,
+            );
+            if (confirmed != true) return;
+            final ok = await friendsViewModel.unfollow(
+              myUid: viewer.uid,
+              targetUid: target.uid,
+            );
+            if (!context.mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  ok
+                      ? 'Unfollowed ${target.fullName.split(' ').first}.'
+                      : friendsViewModel.errorMessage ??
+                          'Could not unfollow.',
+                ),
+              ),
+            );
+          }
+        }
+
+        return PrimaryButton(
+          label: label,
+          icon: icon,
+          isLoading: isLoading,
+          isSecondary: status != FollowStatus.notFollowing,
+          onPressed: onTap,
+        );
+      },
     );
   }
 }

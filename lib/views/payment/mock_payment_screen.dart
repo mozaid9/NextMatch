@@ -112,6 +112,7 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             _MethodTile(
               selected: _method == _PayMethod.applePay,
               onTap: () => setState(() => _method = _PayMethod.applePay),
+              dark: true,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -126,7 +127,6 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                   ),
                 ],
               ),
-              dark: true,
             ),
             const SizedBox(height: 10),
 
@@ -147,12 +147,16 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             _MethodTile(
               selected: _method == _PayMethod.card,
               onTap: () => setState(() => _method = _PayMethod.card),
+              dark: false,
               child: Row(
                 children: [
                   const Icon(Icons.credit_card_outlined, size: 20),
                   const SizedBox(width: 10),
                   Expanded(
-                    child: Text('Debit / Credit card', style: AppTextStyles.body),
+                    child: Text(
+                      'Debit / Credit card',
+                      style: AppTextStyles.body,
+                    ),
                   ),
                   // Mock card brand logos
                   _CardLogo(icon: Icons.credit_card, label: 'VISA'),
@@ -160,7 +164,6 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                   _CardLogo(icon: Icons.credit_card, label: 'MC'),
                 ],
               ),
-              dark: false,
             ),
 
             // Card fields (shown when card selected)
@@ -172,7 +175,9 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                 children: const [
                   Expanded(child: _CardField(hint: 'MM / YY')),
                   SizedBox(width: 8),
-                  Expanded(child: _CardField(hint: 'CVC', icon: Icons.lock_outline)),
+                  Expanded(
+                    child: _CardField(hint: 'CVC', icon: Icons.lock_outline),
+                  ),
                 ],
               ),
             ],
@@ -211,7 +216,11 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.lock_outline, size: 12, color: AppColours.mutedText),
+                const Icon(
+                  Icons.lock_outline,
+                  size: 12,
+                  color: AppColours.mutedText,
+                ),
                 const SizedBox(width: 4),
                 Text(
                   'Payments are secure and encrypted',
@@ -256,8 +265,8 @@ class _MethodTile extends StatelessWidget {
           border: Border.all(
             color: dark
                 ? selected
-                    ? AppColours.accent
-                    : Colors.transparent
+                      ? AppColours.accent
+                      : Colors.transparent
                 : selected
                 ? AppColours.accent
                 : AppColours.line,
@@ -287,11 +296,8 @@ class _CardField extends StatelessWidget {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: Text(hint, style: AppTextStyles.bodyMuted),
-          ),
-          if (icon != null)
-            Icon(icon, size: 16, color: AppColours.mutedText),
+          Expanded(child: Text(hint, style: AppTextStyles.bodyMuted)),
+          if (icon != null) Icon(icon, size: 16, color: AppColours.mutedText),
         ],
       ),
     );

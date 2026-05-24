@@ -41,6 +41,7 @@ class MatchParticipant {
   final bool requiresApproval;
   final String? withdrawalReason;
   final DateTime? paymentDeadline;
+
   /// Snapshot of the player's profile photo at join time. Lets organiser
   /// dashboards / match detail / co-players strip render real avatars.
   final String? photoUrl;
@@ -59,7 +60,7 @@ class MatchParticipant {
       isPendingPayment;
 
   Duration? get timeUntilDeadline =>
-      paymentDeadline == null ? null : paymentDeadline!.difference(DateTime.now());
+      paymentDeadline?.difference(DateTime.now());
 
   bool get isRejected => attendanceStatus == 'Rejected';
   bool get isWithdrawn =>
@@ -119,7 +120,9 @@ class MatchParticipant {
       'organiserApproved': organiserApproved,
       'requiresApproval': requiresApproval,
       'withdrawalReason': withdrawalReason,
-      'paymentDeadline': paymentDeadline == null ? null : Timestamp.fromDate(paymentDeadline!),
+      'paymentDeadline': paymentDeadline == null
+          ? null
+          : Timestamp.fromDate(paymentDeadline!),
       'photoUrl': photoUrl,
     };
   }

@@ -29,19 +29,13 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
   String _format = 'Any format';
   String _maxPrice = 'Any price';
 
-  bool get _hasActiveFilters =>
-      _city != 'Any city' ||
-      _format != 'Any format' ||
-      _maxPrice != 'Any price' ||
-      _query.isNotEmpty;
-
   void _clearFilters() => setState(() {
-        _city = 'Any city';
-        _format = 'Any format';
-        _maxPrice = 'Any price';
-        _query = '';
-        _searchController.clear();
-      });
+    _city = 'Any city';
+    _format = 'Any format';
+    _maxPrice = 'Any price';
+    _query = '';
+    _searchController.clear();
+  });
 
   @override
   void dispose() {
@@ -53,7 +47,8 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
     return venues.where((venue) {
       if (_query.isNotEmpty) {
         final q = _query.toLowerCase();
-        final matches = venue.name.toLowerCase().contains(q) ||
+        final matches =
+            venue.name.toLowerCase().contains(q) ||
             venue.city.toLowerCase().contains(q) ||
             venue.address.toLowerCase().contains(q);
         if (!matches) return false;
@@ -71,11 +66,11 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
   }
 
   double _maxPriceValue(String label) => switch (label) {
-        'Under £50/hr' => 50,
-        'Under £75/hr' => 75,
-        'Under £100/hr' => 100,
-        _ => double.infinity,
-      };
+    'Under £50/hr' => 50,
+    'Under £75/hr' => 75,
+    'Under £100/hr' => 100,
+    _ => double.infinity,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -120,8 +115,7 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                         cities: cities,
                         onCityChanged: (v) => setState(() => _city = v),
                         onFormatChanged: (v) => setState(() => _format = v),
-                        onMaxPriceChanged: (v) =>
-                            setState(() => _maxPrice = v),
+                        onMaxPriceChanged: (v) => setState(() => _maxPrice = v),
                       ),
                     ],
                   ),
@@ -129,15 +123,13 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                 Expanded(
                   child: Builder(
                     builder: (context) {
-                      if (snapshot.connectionState ==
-                          ConnectionState.waiting) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
                         return const SkeletonMatchList();
                       }
 
                       if (allVenues.isEmpty) {
                         return SingleChildScrollView(
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 20, 20, 80),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                           child: EmptyState(
                             icon: Icons.stadium_outlined,
                             title: 'No venues onboarded yet',
@@ -148,8 +140,8 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                               icon: Icons.auto_awesome,
                               isLoading: venueViewModel.isLoading,
                               onPressed: () async {
-                                final ok =
-                                    await venueViewModel.seedDemoVenues();
+                                final ok = await venueViewModel
+                                    .seedDemoVenues();
                                 if (!context.mounted || !ok) return;
                                 ScaffoldMessenger.of(context).showSnackBar(
                                   const SnackBar(
@@ -165,8 +157,7 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                       final filtered = _applyFilters(allVenues);
                       if (filtered.isEmpty) {
                         return SingleChildScrollView(
-                          padding:
-                              const EdgeInsets.fromLTRB(20, 20, 20, 80),
+                          padding: const EdgeInsets.fromLTRB(20, 20, 20, 80),
                           child: EmptyState(
                             icon: Icons.filter_alt_off,
                             title: 'No venues match these filters',
@@ -184,12 +175,12 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
 
                       return StreamBuilder<Set<String>>(
                         stream: venueViewModel.favouriteVenueIdsStream(
-                            widget.currentUser.uid),
+                          widget.currentUser.uid,
+                        ),
                         builder: (context, favSnap) {
                           final favs = favSnap.data ?? const <String>{};
                           return ListView.separated(
-                            padding:
-                                const EdgeInsets.fromLTRB(20, 4, 20, 80),
+                            padding: const EdgeInsets.fromLTRB(20, 4, 20, 80),
                             itemCount: filtered.length,
                             separatorBuilder: (_, _) =>
                                 const SizedBox(height: 12),
@@ -255,8 +246,10 @@ class _SearchField extends StatelessWidget {
                   },
                 ),
           border: InputBorder.none,
-          contentPadding:
-              const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
         ),
       ),
     );
@@ -433,8 +426,9 @@ class _VenueCard extends StatelessWidget {
                   height: 96,
                   decoration: BoxDecoration(
                     color: AppColours.cardAlt,
-                    borderRadius:
-                        const BorderRadius.vertical(top: Radius.circular(10)),
+                    borderRadius: const BorderRadius.vertical(
+                      top: Radius.circular(10),
+                    ),
                     gradient: LinearGradient(
                       colors: [
                         AppColours.accent.withValues(alpha: 0.18),
@@ -482,8 +476,11 @@ class _VenueCard extends StatelessWidget {
                         child: Text(venue.name, style: AppTextStyles.h3),
                       ),
                       if (venue.reviewCount > 0) ...[
-                        const Icon(Icons.star,
-                            color: AppColours.warning, size: 14),
+                        const Icon(
+                          Icons.star,
+                          color: AppColours.warning,
+                          size: 14,
+                        ),
                         const SizedBox(width: 3),
                         Text(
                           venue.rating.toStringAsFixed(1),
@@ -497,8 +494,11 @@ class _VenueCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(Icons.place_outlined,
-                          size: 13, color: AppColours.mutedText),
+                      const Icon(
+                        Icons.place_outlined,
+                        size: 13,
+                        color: AppColours.mutedText,
+                      ),
                       const SizedBox(width: 4),
                       Expanded(
                         child: Text(
@@ -518,7 +518,9 @@ class _VenueCard extends StatelessWidget {
                         .map(
                           (type) => Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 4),
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColours.cardAlt,
                               borderRadius: BorderRadius.circular(6),
@@ -539,8 +541,11 @@ class _VenueCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      const Icon(Icons.chevron_right,
-                          color: AppColours.mutedText, size: 18),
+                      const Icon(
+                        Icons.chevron_right,
+                        color: AppColours.mutedText,
+                        size: 18,
+                      ),
                     ],
                   ),
                 ],

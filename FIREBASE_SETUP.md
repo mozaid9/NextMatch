@@ -12,20 +12,34 @@ NextMatch is wired for Firebase Auth, Cloud Firestore and Firebase Storage place
 4. Create a Cloud Firestore database.
 5. Create a Firebase Storage bucket if you want profile photos later.
 
-## 2. Generate real Firebase options
+## 2. Add local Firebase options
 
-Install FlutterFire CLI if needed, then run:
+NextMatch keeps real Firebase client config out of Git using a local `.env.firebase` file. The committed `lib/firebase_options.dart` reads those values at runtime via Flutter dart-defines and falls back to safe placeholders when the local file is missing.
+
+Create your local file:
 
 ```bash
-dart pub global activate flutterfire_cli
-flutterfire configure --project=nextmatch-eb038
+cp .env.firebase.example .env.firebase
 ```
 
-Replace the placeholder values in `lib/firebase_options.dart`, `android/app/google-services.json`, and the Apple `GoogleService-Info.plist` files with the generated local Firebase config.
+Fill `.env.firebase` with the values from Firebase Console project settings, or run FlutterFire CLI in a temporary/local workspace and copy the generated values into `.env.firebase`.
 
-Important: if GitHub secret scanning flags the generated Google API keys, either keep the generated files local or ensure the keys are restricted to the correct app identifiers in Google Cloud Console before committing.
+Run the app with:
 
-If the login screen says the app is using placeholder API keys, this step has not been completed for your local workspace yet.
+```bash
+flutter run -d chrome --dart-define-from-file=.env.firebase
+```
+
+For iOS or Android:
+
+```bash
+flutter run -d ios --dart-define-from-file=.env.firebase
+flutter run -d android --dart-define-from-file=.env.firebase
+```
+
+Important: Firebase API keys in client apps are not server secrets because they are still shipped in web/mobile builds. Keeping them in `.env.firebase` prevents accidental Git commits and GitHub alerts, but you must also restrict the keys in Google Cloud Console to the correct domains, bundle IDs and package names.
+
+If the login screen says the app is using placeholder API keys, `.env.firebase` is missing, still contains placeholder values, or the app was launched without `--dart-define-from-file=.env.firebase`.
 
 ## 3. Deploy Firestore rules
 
@@ -41,7 +55,7 @@ TODO: move trust score writes, Stripe fulfilment, refunds and no-show enforcemen
 
 ```bash
 flutter pub get
-flutter run
+flutter run -d chrome --dart-define-from-file=.env.firebase
 ```
 
 After registering, complete the player profile. If the match list is empty, use the in-app `Add demo matches` button.

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../core/constants/app_colours.dart';
-import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 
 class AnimatedSplashScreen extends StatefulWidget {
@@ -36,7 +35,9 @@ class _AnimatedSplashScreenState extends State<AnimatedSplashScreen> {
         widget.startupFuture,
         Future<void>.delayed(const Duration(milliseconds: 650)),
       ]);
-      if (mounted) setState(() => _showApp = true);
+      if (mounted) {
+        setState(() => _showApp = true);
+      }
     } catch (error) {
       if (mounted) setState(() => _startupError = error);
     }
@@ -60,6 +61,9 @@ class _LogoSplashView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final screenWidth = MediaQuery.sizeOf(context).width;
+    final logoWidth = screenWidth < 520 ? screenWidth * 0.78 : 420.0;
+
     return Scaffold(
       backgroundColor: AppColours.background,
       body: SafeArea(
@@ -71,19 +75,14 @@ class _LogoSplashView extends StatelessWidget {
               children: [
                 Image.asset(
                   'assets/images/nextmatchlogo.png',
-                  width: 220,
+                  width: logoWidth,
                   fit: BoxFit.contain,
+                  filterQuality: FilterQuality.high,
+                  errorBuilder: (context, error, stackTrace) {
+                    return Text('NextMatch', style: AppTextStyles.display);
+                  },
                 ),
-                const SizedBox(height: 26),
-                Text(
-                  AppStrings.tagline,
-                  style: AppTextStyles.bodyMuted.copyWith(
-                    letterSpacing: 0.8,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 26),
+                const SizedBox(height: 24),
                 const SizedBox(
                   width: 22,
                   height: 22,

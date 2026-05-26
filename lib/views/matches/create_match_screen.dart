@@ -25,8 +25,10 @@ class CreateMatchScreen extends StatefulWidget {
   });
 
   final AppUser currentUser;
+
   /// When provided, the form is pre-filled from this venue + slot booking.
   final VenueBookingDraft? venueDraft;
+
   /// When provided, the form is pre-filled from a past match the user is
   /// "running it back" from. Date defaults to one week from the template's
   /// start time, same hour.
@@ -94,9 +96,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           '${draft?.slot.pitch.capacity ?? template?.totalPlayersNeeded ?? 10}',
     );
     _priceController = TextEditingController(
-      text: (draft?.suggestedPricePerPlayer ??
-              template?.pricePerPlayer ??
-              5.00)
+      text: (draft?.suggestedPricePerPlayer ?? template?.pricePerPlayer ?? 5.00)
           .toStringAsFixed(2),
     );
     _descriptionController = TextEditingController(
@@ -298,8 +298,8 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   widget.venueDraft != null
                       ? "We've pre-filled the location, date and format from your booking."
                       : widget.template != null
-                          ? "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
-                          : 'Set the terms, collect payments and fill the game.',
+                      ? "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
+                      : 'Set the terms, collect payments and fill the game.',
                   style: AppTextStyles.bodyMuted,
                 ),
                 if (widget.venueDraft != null) ...[
@@ -565,7 +565,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => _MatchDateSheet(selectedDate: _selectedDate),
     );
@@ -579,7 +579,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => _MatchTimeSheet(selectedTime: _selectedTime),
     );
@@ -628,7 +628,9 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 560),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -636,8 +638,13 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
               const SelectionSheetHandle(),
               Text('Match date', style: AppTextStyles.h2),
               const SizedBox(height: 6),
-              Text('Choose a kick-off date.', style: AppTextStyles.bodyMuted),
+              Text(
+                'Choose when players should meet.',
+                style: AppTextStyles.bodyMuted,
+              ),
               const SizedBox(height: 14),
+              Text('Popular', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -665,22 +672,16 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
                 ],
               ),
               const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColours.card,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColours.line),
-                ),
-                child: Text(
-                  DateTimeHelpers.formatDate(_selectedDate),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _SheetSummaryTile(
+                icon: Icons.event_available,
+                label: 'Selected date',
+                value: DateTimeHelpers.formatDate(_selectedDate),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Text('Next 8 weeks', style: AppTextStyles.small),
+              const SizedBox(height: 8),
+              const _WeekdayHeader(),
+              const SizedBox(height: 6),
               Expanded(
                 child: GridView.builder(
                   itemCount: _dates.length,
@@ -754,6 +755,87 @@ class _DateShortcut extends StatelessWidget {
       label: label,
       selected: selected,
       onTap: () => onSelected(date),
+    );
+  }
+}
+
+class _SheetSummaryTile extends StatelessWidget {
+  const _SheetSummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: AppColours.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppColours.accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.small),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekdayHeader extends StatelessWidget {
+  const _WeekdayHeader();
+
+  static const _weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _weekdays
+          .map(
+            (day) => Expanded(
+              child: Center(
+                child: Text(
+                  day,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColours.mutedText.withValues(alpha: 0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -844,7 +926,9 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 540),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -852,8 +936,13 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
               const SelectionSheetHandle(),
               Text('Kick-off time', style: AppTextStyles.h2),
               const SizedBox(height: 6),
-              Text('Pick the first whistle.', style: AppTextStyles.bodyMuted),
+              Text(
+                'Pick the first whistle. Times use a 24-hour clock.',
+                style: AppTextStyles.bodyMuted,
+              ),
               const SizedBox(height: 14),
+              Text('Popular kick-offs', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -875,22 +964,14 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
                         .toList(),
               ),
               const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColours.card,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColours.line),
-                ),
-                child: Text(
-                  _formatSheetTime(_selectedTime),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _SheetSummaryTile(
+                icon: Icons.schedule,
+                label: 'Selected kick-off',
+                value: _formatSheetTime(_selectedTime),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Text('All times', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Expanded(
                 child: GridView.builder(
                   itemCount: _times.length,
@@ -1197,7 +1278,11 @@ class _VenueDraftBanner extends StatelessWidget {
               color: AppColours.accent.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.stadium, color: AppColours.accent, size: 20),
+            child: const Icon(
+              Icons.stadium,
+              color: AppColours.accent,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1207,7 +1292,9 @@ class _VenueDraftBanner extends StatelessWidget {
               children: [
                 Text(
                   draft.venue.name,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1227,8 +1314,18 @@ class _VenueDraftBanner extends StatelessWidget {
 
   static String _dayLabel(DateTime time) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${time.day} ${months[time.month - 1]}';
   }

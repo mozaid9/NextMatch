@@ -15,6 +15,8 @@ import '../../models/football_match.dart';
 import '../../models/venue.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/venue_viewmodel.dart';
+import '../payment/mock_payment_screen.dart';
+import 'match_detail_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   const CreateMatchScreen({
@@ -99,6 +101,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       text: (draft?.suggestedPricePerPlayer ?? template?.pricePerPlayer ?? 5.00)
           .toStringAsFixed(2),
     );
+    _priceController.addListener(_rebuildPaymentNotice);
     _descriptionController = TextEditingController(
       text: template?.description ?? '',
     );
@@ -160,6 +163,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
   @override
   void dispose() {
+    _priceController.removeListener(_rebuildPaymentNotice);
     _titleController.dispose();
     _locationNameController.dispose();
     _addressController.dispose();
@@ -174,6 +178,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     _minimumReliabilityController.dispose();
     _cancellationPolicyController.dispose();
     super.dispose();
+  }
+
+  void _rebuildPaymentNotice() {
+    if (mounted) setState(() {});
   }
 
   void _applyVenuePick(Venue venue) {
@@ -218,6 +226,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final pricePerPlayer = double.parse(_priceController.text);
+    final confirmed = await _confirmPaymentSetup(pricePerPlayer);
+    if (!confirmed || !mounted) return;
+
     final startDateTime = DateTimeHelpers.combineDateAndTime(
       _selectedDate,
       _selectedTime.hour,
@@ -242,7 +254,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       format: _format,
       totalPlayersNeeded: int.parse(_totalPlayersController.text),
       joinedPlayerCount: 0,
-      pricePerPlayer: double.parse(_priceController.text),
+      pricePerPlayer: pricePerPlayer,
       skillLevel: _skillLevel,
       pitchType: _pitchType,
       description: _descriptionController.text.trim(),
@@ -263,19 +275,102 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       updatedAt: now,
     );
 
-    final success = await context.read<MatchViewModel>().createMatch(match);
+    final matchId = await context.read<MatchViewModel>().createMatch(match);
     if (!mounted) return;
 
-    if (success) {
-      _formKey.currentState!.reset();
-      _titleController.clear();
-      _locationNameController.clear();
-      _addressController.clear();
-      _descriptionController.clear();
+    if (matchId != null) {
+      final createdMatch = match.copyWith(id: matchId);
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(const SnackBar(content: Text('Match created.')));
+      ).showSnackBar(const SnackBar(content: Text('Match created')));
+      if (createdMatch.isSplitPayment) {
+        final payNow = await _askToPayOwnSpot(createdMatch);
+        if (!mounted) return;
+        if (payNow) {
+          final position =
+              AppStrings.positions.contains(
+                widget.currentUser.preferredPosition,
+              )
+              ? widget.currentUser.preferredPosition
+              : 'Any';
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => MockPaymentScreen(
+                match: createdMatch,
+                currentUser: widget.currentUser,
+                position: position,
+              ),
+            ),
+          );
+          if (!mounted) return;
+        }
+      }
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => MatchDetailScreen(
+            matchId: matchId,
+            currentUser: widget.currentUser,
+          ),
+        ),
+      );
     }
+  }
+
+  Future<bool> _confirmPaymentSetup(double pricePerPlayer) async {
+    final isSplit = _paymentMode == AppStrings.paymentModeSplit;
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: Text(
+                isSplit ? 'Split payment setup' : 'Organiser pays setup',
+              ),
+              content: Text(
+                isSplit
+                    ? 'Each player pays their own share before their spot is secured. You will need to pay £${pricePerPlayer.toStringAsFixed(2)} for your own place after creating the match. If a player misses the payment deadline, their share is shown as organiser liability in your dashboard. Real card charging will be added with Stripe.'
+                    : 'You are covering the pitch upfront. Players can join without paying in app and their share will be recorded as owed to you.',
+                style: AppTextStyles.bodyMuted,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Review'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Create match'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<bool> _askToPayOwnSpot(FootballMatch match) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Pay your place now?'),
+              content: Text(
+                'Your match is live. Pay your own ${match.format} spot now so the organiser liability starts clean.',
+                style: AppTextStyles.bodyMuted,
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Go to match'),
+                ),
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Pay now'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   @override
@@ -298,7 +393,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   widget.venueDraft != null
                       ? "We've pre-filled the location, date and format from your booking."
                       : widget.template != null
-                      ? "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
+                      ? "Running it back. We've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
                       : 'Set the terms, collect payments and fill the game.',
                   style: AppTextStyles.bodyMuted,
                 ),
@@ -459,6 +554,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 _PaymentModePicker(
                   selected: _paymentMode,
                   onChanged: (value) => setState(() => _paymentMode = value),
+                ),
+                const SizedBox(height: 12),
+                _PaymentResponsibilityNotice(
+                  paymentMode: _paymentMode,
+                  priceText: _priceController.text,
                 ),
 
                 _SectionHeader(title: 'Positions needed'),
@@ -1076,6 +1176,51 @@ class _PaymentModePicker extends StatelessWidget {
           onTap: () => onChanged(AppStrings.paymentModeOrganiserPays),
         ),
       ],
+    );
+  }
+}
+
+class _PaymentResponsibilityNotice extends StatelessWidget {
+  const _PaymentResponsibilityNotice({
+    required this.paymentMode,
+    required this.priceText,
+  });
+
+  final String paymentMode;
+  final String priceText;
+
+  @override
+  Widget build(BuildContext context) {
+    final price = double.tryParse(priceText) ?? 0;
+    final isSplit = paymentMode == AppStrings.paymentModeSplit;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isSplit ? Icons.shield_outlined : Icons.account_balance_wallet,
+            color: AppColours.accent,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isSplit
+                  ? 'Players pay before their spot is secured. You will pay £${price.toStringAsFixed(2)} for your own place after creating the match. If someone misses the payment deadline, their share appears as organiser liability.'
+                  : 'You cover the pitch upfront. Players can join without paying in app and their share is tracked as owed to you.',
+              style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

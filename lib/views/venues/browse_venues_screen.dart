@@ -98,7 +98,7 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                       Text('Pitches near you', style: AppTextStyles.h1),
                       const SizedBox(height: 6),
                       Text(
-                        'Pick a venue, pick a slot — done. No address typing.',
+                        'Pick a venue, pick a slot. Done. No address typing.',
                         style: AppTextStyles.bodyMuted,
                       ),
                       const SizedBox(height: 14),

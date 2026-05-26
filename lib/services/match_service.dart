@@ -91,15 +91,13 @@ class MatchService {
   }
 
   Stream<List<FootballMatch>> organisedMatchesStream(String uid) {
-    return _matches
-        .where('organiserId', isEqualTo: uid)
-        .snapshots()
-        .map((snapshot) {
-          final matches =
-              snapshot.docs.map(FootballMatch.fromFirestore).toList();
-          matches.sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
-          return matches;
-        });
+    return _matches.where('organiserId', isEqualTo: uid).snapshots().map((
+      snapshot,
+    ) {
+      final matches = snapshot.docs.map(FootballMatch.fromFirestore).toList();
+      matches.sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
+      return matches;
+    });
   }
 
   /// Returns up to 6 players the user has most frequently played with,
@@ -120,10 +118,7 @@ class MatchService {
 
     final Map<String, Map<String, dynamic>> coMap = {};
     for (final matchId in matchIds) {
-      final snap = await _matches
-          .doc(matchId)
-          .collection('participants')
-          .get();
+      final snap = await _matches.doc(matchId).collection('participants').get();
       for (final doc in snap.docs) {
         final data = doc.data();
         final playerId = data['userId'] as String? ?? doc.id;
@@ -228,12 +223,14 @@ class MatchService {
         throw Exception('You already have a record for this match.');
       }
 
+      final isPrivateMatch = latestMatch.visibility != 'Public';
       final requiresApproval =
+          isPrivateMatch ||
           latestMatch.requiresApprovalForLowReliability &&
-          ReliabilityService.isLowReliability(
-            user.reliabilityScore,
-            latestMatch.minimumReliabilityRequired,
-          );
+              ReliabilityService.isLowReliability(
+                user.reliabilityScore,
+                latestMatch.minimumReliabilityRequired,
+              );
 
       final now = DateTime.now();
 
@@ -267,14 +264,16 @@ class MatchService {
           'amountOwed': 0,
           'requiresApproval': false,
           'organiserApproved': true,
-          'paymentDeadline': Timestamp.fromDate(now.add(const Duration(hours: 24))),
+          'paymentDeadline': Timestamp.fromDate(
+            now.add(const Duration(hours: 24)),
+          ),
         });
 
         return const JoinRequestResult(
           requiresApproval: false,
           canContinueToPayment: false,
           message:
-              'You have joined this match view. Pay when ready to secure your spot.',
+              'You have joined this match. Pay when ready to secure your spot.',
         );
       }
 
@@ -320,7 +319,7 @@ class MatchService {
         requiresApproval: true,
         canContinueToPayment: false,
         message:
-            'Your request has been sent to the organiser because your reliability score is below this match’s requirement.',
+            'Your request has been sent to the organiser. You can pay once they approve you.',
       );
     });
   }
@@ -568,7 +567,9 @@ class MatchService {
       if (match.isSplitPayment) {
         update['paymentStatus'] = 'ApprovedPendingPayment';
         update['attendanceStatus'] = 'PendingPayment';
-        update['paymentDeadline'] = Timestamp.fromDate(now.add(const Duration(hours: 24)));
+        update['paymentDeadline'] = Timestamp.fromDate(
+          now.add(const Duration(hours: 24)),
+        );
         transaction.update(participantRef, update);
         transaction.set(userJoinedRef, {
           'paymentStatus': 'ApprovedPendingPayment',
@@ -576,7 +577,9 @@ class MatchService {
           'organiserApproved': true,
           'requiresApproval': false,
           'approvedAt': Timestamp.fromDate(now),
-          'paymentDeadline': Timestamp.fromDate(now.add(const Duration(hours: 24))),
+          'paymentDeadline': Timestamp.fromDate(
+            now.add(const Duration(hours: 24)),
+          ),
         }, SetOptions(merge: true));
         return;
       }
@@ -849,10 +852,9 @@ class MatchService {
         .orderBy('createdAt')
         .snapshots()
         .map(
-          (snapshot) =>
-              snapshot.docs.map(MatchComment.fromFirestore).toList(
-                growable: false,
-              ),
+          (snapshot) => snapshot.docs
+              .map(MatchComment.fromFirestore)
+              .toList(growable: false),
         );
   }
 
@@ -865,6 +867,26 @@ class MatchService {
     if (trimmed.isEmpty) {
       throw Exception('Comment is empty.');
     }
+    final matchRef = _matches.doc(matchId);
+    final matchSnapshot = await matchRef.get();
+    if (!matchSnapshot.exists) throw Exception('Match not found.');
+
+    final match = FootballMatch.fromFirestore(matchSnapshot);
+    final participantSnapshot = await matchRef
+        .collection('participants')
+        .doc(author.uid)
+        .get();
+    final participant = participantSnapshot.exists
+        ? MatchParticipant.fromFirestore(participantSnapshot)
+        : null;
+    final canComment =
+        match.organiserId == author.uid ||
+        participant?.hasConfirmedSlot == true ||
+        participant?.isPendingPayment == true;
+    if (!canComment) {
+      throw Exception('Join this match before posting in the chat.');
+    }
+
     final ref = _matches.doc(matchId).collection('comments').doc();
     final now = DateTime.now();
     final comment = MatchComment(
@@ -894,8 +916,10 @@ class MatchService {
         .collection('matchInvites')
         .orderBy('invitedAt', descending: true)
         .snapshots()
-        .map((snapshot) =>
-            snapshot.docs.map((doc) => doc.data()).toList(growable: false));
+        .map(
+          (snapshot) =>
+              snapshot.docs.map((doc) => doc.data()).toList(growable: false),
+        );
   }
 
   Future<void> inviteFriendsToMatch({
@@ -909,8 +933,10 @@ class MatchService {
     final batch = _firestore.batch();
     for (final friendUid in friendUids) {
       if (friendUid == inviterUid) continue;
-      final ref =
-          _users.doc(friendUid).collection('matchInvites').doc(match.id);
+      final ref = _users
+          .doc(friendUid)
+          .collection('matchInvites')
+          .doc(match.id);
       batch.set(ref, {
         'matchId': match.id,
         'matchTitle': match.title,
@@ -930,11 +956,7 @@ class MatchService {
     required String uid,
     required String matchId,
   }) async {
-    await _users
-        .doc(uid)
-        .collection('matchInvites')
-        .doc(matchId)
-        .delete();
+    await _users.doc(uid).collection('matchInvites').doc(matchId).delete();
   }
 
   /// Cancels a match. Updates the match status + records the reason and
@@ -963,19 +985,16 @@ class MatchService {
       'updatedAt': Timestamp.fromDate(now),
     });
 
-    final participants =
-        await matchRef.collection('participants').get();
+    final participants = await matchRef.collection('participants').get();
     for (final doc in participants.docs) {
       final participant = MatchParticipant.fromFirestore(doc);
       batch.update(doc.reference, {
-        'attendanceStatus':
-            participant.hasConfirmedSlot ? 'Cancelled' : participant.attendanceStatus,
+        'attendanceStatus': participant.hasConfirmedSlot
+            ? 'Cancelled'
+            : participant.attendanceStatus,
       });
       batch.set(
-        _users
-            .doc(participant.userId)
-            .collection('joinedMatches')
-            .doc(matchId),
+        _users.doc(participant.userId).collection('joinedMatches').doc(matchId),
         {
           'matchStatus': 'Cancelled',
           'cancelledAt': Timestamp.fromDate(now),

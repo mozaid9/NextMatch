@@ -59,17 +59,16 @@ class MatchViewModel extends ChangeNotifier {
     }
   }
 
-  Future<bool> createMatch(FootballMatch match) async {
+  Future<String?> createMatch(FootballMatch match) async {
     isLoading = true;
     errorMessage = null;
     notifyListeners();
 
     try {
-      await _matchService.createMatch(match);
-      return true;
+      return await _matchService.createMatch(match);
     } catch (error) {
       errorMessage = 'Could not create this match. Please try again.';
-      return false;
+      return null;
     } finally {
       isLoading = false;
       notifyListeners();
@@ -185,10 +184,7 @@ class MatchViewModel extends ChangeNotifier {
     required String commentId,
   }) async {
     return _runAction(
-      () => _matchService.deleteComment(
-        matchId: matchId,
-        commentId: commentId,
-      ),
+      () => _matchService.deleteComment(matchId: matchId, commentId: commentId),
       failureMessage: 'Could not delete comment.',
     );
   }

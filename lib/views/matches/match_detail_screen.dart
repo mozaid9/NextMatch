@@ -116,6 +116,10 @@ class MatchDetailScreen extends StatelessWidget {
               final participants = participantSnapshot.data ?? [];
               final currentParticipant = _currentParticipant(participants);
               final isOrganiser = match.organiserId == currentUser.uid;
+              final canUseChat =
+                  isOrganiser ||
+                  currentParticipant?.hasConfirmedSlot == true ||
+                  currentParticipant?.isPendingPayment == true;
               final canRate =
                   match.isCompleted &&
                   currentParticipant?.attendanceStatus == 'Attended';
@@ -249,6 +253,10 @@ class MatchDetailScreen extends StatelessWidget {
                           _CommentsSection(
                             matchId: match.id,
                             currentUser: currentUser,
+                            canComment: canUseChat,
+                            lockedMessage: match.visibility != 'Public'
+                                ? 'Request access before joining the match chat.'
+                                : 'Join the match before posting in the chat.',
                           ),
                           const SizedBox(height: 96),
                         ],
@@ -330,7 +338,7 @@ class MatchDetailScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       match.isSplitPayment
-                          ? 'This adds you to the match view. You can review the players and then pay to secure your slot.'
+                          ? 'Join first to review the players, then pay to secure your slot.'
                           : 'This helps the organiser balance the teams.',
                       style: AppTextStyles.bodyMuted,
                     ),
@@ -352,8 +360,10 @@ class MatchDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
-                      label: match.isSplitPayment
-                          ? 'Join match view'
+                      label: match.visibility != 'Public'
+                          ? 'Request access'
+                          : match.isSplitPayment
+                          ? 'Join match'
                           : 'Join and owe organiser',
                       icon: match.isSplitPayment
                           ? Icons.how_to_reg
@@ -371,6 +381,26 @@ class MatchDetailScreen extends StatelessWidget {
     );
 
     if (result == null || !context.mounted) return;
+
+    if (match.visibility != 'Public') {
+      final matchViewModel = context.read<MatchViewModel>();
+      final request = await matchViewModel.requestToJoinMatch(
+        match: match,
+        user: currentUser,
+        position: result,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            request?.message ??
+                matchViewModel.errorMessage ??
+                'Could not request access.',
+          ),
+        ),
+      );
+      return;
+    }
 
     if (match.isOrganiserPays) {
       final paymentViewModel = context.read<PaymentViewModel>();
@@ -524,7 +554,7 @@ class _JoinFlowHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final steps = match.isSplitPayment
         ? const [
-            _JoinStepData('1', 'Join view'),
+            _JoinStepData('1', 'Join match'),
             _JoinStepData('2', 'Review players'),
             _JoinStepData('3', 'Pay to secure'),
           ]
@@ -1053,8 +1083,10 @@ class _BottomJoinBar extends StatelessWidget {
             _ =>
               match.isFull
                   ? 'Match full'
+                  : match.visibility != 'Public'
+                  ? 'Request access'
                   : match.isSplitPayment
-                  ? 'Join view'
+                  ? 'Join match'
                   : 'Join match',
           };
 
@@ -1125,6 +1157,8 @@ class _BottomJoinBar extends StatelessWidget {
                             ? Icons.check
                             : isPendingPayment
                             ? Icons.lock
+                            : match.visibility != 'Public'
+                            ? Icons.lock_open_outlined
                             : match.isOrganiserPays
                             ? Icons.how_to_reg
                             : Icons.how_to_reg,
@@ -1182,7 +1216,7 @@ class _BottomJoinBar extends StatelessWidget {
       final deadline = participant?.paymentDeadline;
       final isOverdue = participant?.isPaymentOverdue ?? false;
       if (isOverdue) {
-        return 'Deadline passed — organiser covering your share.';
+        return 'Deadline passed. Organiser covering your share.';
       }
       if (deadline != null) {
         final timeLeft = deadline.difference(DateTime.now());
@@ -1195,7 +1229,10 @@ class _BottomJoinBar extends StatelessWidget {
     if (participant?.isPendingApproval == true) {
       return 'Organiser approval needed before payment.';
     }
-    return 'Join the match view first, then pay within 24h to secure your slot.';
+    if (match.visibility != 'Public') {
+      return 'Request organiser access before you can join.';
+    }
+    return 'Join first, then pay within 24h to secure your slot.';
   }
 }
 
@@ -1236,10 +1273,17 @@ class _JoinBarNotice extends StatelessWidget {
 }
 
 class _CommentsSection extends StatefulWidget {
-  const _CommentsSection({required this.matchId, required this.currentUser});
+  const _CommentsSection({
+    required this.matchId,
+    required this.currentUser,
+    required this.canComment,
+    required this.lockedMessage,
+  });
 
   final String matchId;
   final AppUser currentUser;
+  final bool canComment;
+  final String lockedMessage;
 
   @override
   State<_CommentsSection> createState() => _CommentsSectionState();
@@ -1255,6 +1299,7 @@ class _CommentsSectionState extends State<_CommentsSection> {
   }
 
   Future<void> _post() async {
+    if (!widget.canComment) return;
     final body = _bodyController.text.trim();
     if (body.isEmpty) return;
     final viewModel = context.read<MatchViewModel>();
@@ -1290,6 +1335,10 @@ class _CommentsSectionState extends State<_CommentsSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Match chat', style: AppTextStyles.h3),
+          if (!widget.canComment) ...[
+            const SizedBox(height: 8),
+            Text(widget.lockedMessage, style: AppTextStyles.bodyMuted),
+          ],
           const SizedBox(height: 10),
           StreamBuilder<List<MatchComment>>(
             stream: viewModel.commentsStream(widget.matchId),
@@ -1299,7 +1348,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'No comments yet. Be the first to chime in.',
+                    widget.canComment
+                        ? 'No comments yet. Be the first to post.'
+                        : 'No comments yet.',
                     style: AppTextStyles.bodyMuted,
                   ),
                 );
@@ -1327,12 +1378,13 @@ class _CommentsSectionState extends State<_CommentsSection> {
               Expanded(
                 child: TextField(
                   controller: _bodyController,
+                  enabled: widget.canComment,
                   maxLines: 3,
                   minLines: 1,
                   textInputAction: TextInputAction.newline,
                   style: AppTextStyles.body,
                   decoration: const InputDecoration(
-                    hintText: 'Write a comment…',
+                    hintText: 'Write a comment...',
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1343,7 +1395,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: viewModel.isLoading ? null : _post,
+                onPressed: viewModel.isLoading || !widget.canComment
+                    ? null
+                    : _post,
                 style: IconButton.styleFrom(
                   backgroundColor: AppColours.accent,
                   foregroundColor: const Color(0xFF071014),

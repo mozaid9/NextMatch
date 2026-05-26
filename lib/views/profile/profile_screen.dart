@@ -50,9 +50,9 @@ class ProfileScreen extends StatelessWidget {
                       _DetailPanel(user: user),
                       const SizedBox(height: 20),
                       StreamBuilder<List<Friend>>(
-                        stream: context
-                            .read<FriendsViewModel>()
-                            .friendsStream(user.uid),
+                        stream: context.read<FriendsViewModel>().friendsStream(
+                          user.uid,
+                        ),
                         builder: (context, snapshot) {
                           final count = snapshot.data?.length ?? 0;
                           return OutlinedButton.icon(
@@ -208,8 +208,9 @@ class _StatsCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final relColor = _reliabilityColor(user.reliabilityScore);
-    final relLabel =
-        ReliabilityService.getReliabilityLabel(user.reliabilityScore);
+    final relLabel = ReliabilityService.getReliabilityLabel(
+      user.reliabilityScore,
+    );
 
     return Container(
       decoration: BoxDecoration(
@@ -224,8 +225,9 @@ class _StatsCard extends StatelessWidget {
             height: 3,
             decoration: BoxDecoration(
               color: relColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
           ),
           Padding(
@@ -245,7 +247,7 @@ class _StatsCard extends StatelessWidget {
                   child: _StatBlock(
                     value: user.abilityRatingCount > 0
                         ? user.abilityRating.toStringAsFixed(1)
-                        : '—',
+                        : '-',
                     label: 'Ability',
                     subLabel: user.abilityRatingCount > 0
                         ? '${user.abilityRatingCount} ${user.abilityRatingCount == 1 ? "rating" : "ratings"}'
@@ -268,8 +270,9 @@ class _StatsCard extends StatelessWidget {
                               strokeWidth: 5,
                               strokeCap: StrokeCap.round,
                               backgroundColor: AppColours.line,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(relColor),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                relColor,
+                              ),
                             ),
                             Text(
                               '${user.reliabilityScore}',
@@ -303,15 +306,12 @@ class _StatsCard extends StatelessWidget {
     );
   }
 
-  Widget get _vDivider => Container(width: 1, height: 56, color: AppColours.line);
+  Widget get _vDivider =>
+      Container(width: 1, height: 56, color: AppColours.line);
 }
 
 class _StatBlock extends StatelessWidget {
-  const _StatBlock({
-    required this.value,
-    required this.label,
-    this.subLabel,
-  });
+  const _StatBlock({required this.value, required this.label, this.subLabel});
   final String value;
   final String label;
   final String? subLabel;
@@ -370,10 +370,7 @@ class _DetailPanel extends StatelessWidget {
             value: user.completedMatches.toString(),
           ),
           if (user.noShows > 0)
-            _DetailRow(
-              label: 'No-shows',
-              value: user.noShows.toString(),
-            ),
+            _DetailRow(label: 'No-shows', value: user.noShows.toString()),
           if (user.lateCancellations > 0)
             _DetailRow(
               label: 'Late cancellations',
@@ -462,22 +459,20 @@ class _AvatarUploaderState extends State<_AvatarUploader> {
             bytes: bytes,
             contentType: file.mimeType ?? 'image/jpeg',
           )
-          .timeout(
-            const Duration(seconds: 30),
-            onTimeout: () => null,
-          );
+          .timeout(const Duration(seconds: 30), onTimeout: () => null);
 
       if (!mounted) return;
       if (url == null) {
-        final reason = profileViewModel.errorMessage ??
+        final reason =
+            profileViewModel.errorMessage ??
             'Upload timed out. Check Firebase Storage CORS and rules.';
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(reason), duration: const Duration(seconds: 6)),
         );
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile photo updated.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Profile photo updated.')));
       }
     } catch (error) {
       if (!mounted) return;

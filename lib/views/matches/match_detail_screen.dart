@@ -37,7 +37,7 @@ String _shareTextFor(FootballMatch match) {
   final m = start.minute.toString().padLeft(2, '0');
   final dateLabel = '${start.day} ${months[start.month - 1]} at $h:$m';
   final priceLabel = match.isOrganiserPays
-      ? 'Free to join (settle ${CurrencyHelpers.formatGBP(match.pricePerPlayer)} with organiser)'
+      ? '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} paid to the organiser directly'
       : '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} per player';
   return [
     '⚽ ${match.title}',
@@ -313,7 +313,9 @@ class MatchDetailScreen extends StatelessWidget {
                     Text(
                       match.isSplitPayment
                           ? 'Join the match first so you can review the player list. Payment secures your slot afterwards.'
-                          : 'This helps the organiser balance the teams.',
+                          : 'No payment in the app — you pay the organiser '
+                                '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} '
+                                'for your share directly.',
                       style: AppTextStyles.bodyMuted,
                     ),
                     const SizedBox(height: 18),
@@ -334,9 +336,7 @@ class MatchDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
-                      label: match.isSplitPayment
-                          ? 'Join match'
-                          : 'Join and owe organiser',
+                      label: 'Join match',
                       icon: match.isSplitPayment
                           ? Icons.how_to_reg
                           : Icons.payments_outlined,
@@ -936,11 +936,14 @@ class _BottomJoinBar extends StatelessWidget {
             _ => match.isFull ? 'Match Full' : 'Join match',
           };
 
+    final totalWithFee = CurrencyHelpers.roundMoney(
+      match.pricePerPlayer + CurrencyHelpers.mockPlatformFee(match.pricePerPlayer),
+    );
     final priceLabel = isOrganiser
         ? 'Manage game'
-        : match.isOrganiserPays
-        ? 'Free to join'
-        : CurrencyHelpers.formatGBP(match.pricePerPlayer);
+        : CurrencyHelpers.formatGBP(
+            match.isOrganiserPays ? match.pricePerPlayer : totalWithFee,
+          );
 
     final subLabel = isOrganiser
         ? '${match.spacesLabel} secured spots'
@@ -1054,11 +1057,12 @@ class _BottomJoinBar extends StatelessWidget {
   ) {
     if (match.isOrganiserPays) {
       if (participant?.hasConfirmedSlot == true) {
-        return 'Spot confirmed. Settle with the organiser.';
+        return 'Spot confirmed. Pay the organiser directly.';
       }
-      return 'Join free, then settle your share with the organiser.';
+      return 'Paid to the organiser directly — nothing due in the app.';
     }
 
+    final fee = CurrencyHelpers.mockPlatformFee(match.pricePerPlayer);
     if (participant?.hasConfirmedSlot == true) return 'Payment confirmed';
     if (isPendingPayment) {
       final deadline = participant?.paymentDeadline;
@@ -1077,7 +1081,8 @@ class _BottomJoinBar extends StatelessWidget {
     if (participant?.isPendingApproval == true) {
       return 'Organiser approval needed before payment.';
     }
-    return 'Join first, then pay within 24h to lock in your spot.';
+    return 'Includes ${CurrencyHelpers.formatGBP(fee)} service fee. '
+        'Pay within 24h of joining.';
   }
 }
 

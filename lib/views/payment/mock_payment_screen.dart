@@ -28,7 +28,46 @@ class MockPaymentScreen extends StatefulWidget {
 }
 
 class _MockPaymentScreenState extends State<MockPaymentScreen> {
-  _PayMethod _method = _PayMethod.applePay;
+  _PayMethod _method = _PayMethod.card;
+  final _cardFormKey = GlobalKey<FormState>();
+  final _cardNumberController = TextEditingController();
+  final _expiryController = TextEditingController();
+  final _cvcController = TextEditingController();
+
+  @override
+  void dispose() {
+    _cardNumberController.dispose();
+    _expiryController.dispose();
+    _cvcController.dispose();
+    super.dispose();
+  }
+
+  String? _validateCardNumber(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) return 'Enter a card number';
+    if (digits.length < 13 || digits.length > 19) {
+      return 'Card number looks wrong';
+    }
+    return null;
+  }
+
+  String? _validateExpiry(String? value) {
+    final raw = (value ?? '').trim();
+    final match = RegExp(r'^(0[1-9]|1[0-2])\s*/\s*(\d{2})$').firstMatch(raw);
+    if (match == null) return 'Use MM / YY';
+    final month = int.parse(match.group(1)!);
+    final year = 2000 + int.parse(match.group(2)!);
+    final now = DateTime.now();
+    final endOfMonth = DateTime(year, month + 1, 0, 23, 59);
+    if (endOfMonth.isBefore(now)) return 'Card has expired';
+    return null;
+  }
+
+  String? _validateCvc(String? value) {
+    final digits = (value ?? '').replaceAll(RegExp(r'\D'), '');
+    if (digits.length < 3 || digits.length > 4) return '3–4 digits';
+    return null;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -169,16 +208,44 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             // Card fields (shown when card selected)
             if (_method == _PayMethod.card) ...[
               const SizedBox(height: 10),
-              _CardField(hint: 'Card number', icon: Icons.credit_card_outlined),
-              const SizedBox(height: 8),
-              Row(
-                children: const [
-                  Expanded(child: _CardField(hint: 'MM / YY')),
-                  SizedBox(width: 8),
-                  Expanded(
-                    child: _CardField(hint: 'CVC', icon: Icons.lock_outline),
-                  ),
-                ],
+              Form(
+                key: _cardFormKey,
+                child: Column(
+                  children: [
+                    _CardField(
+                      controller: _cardNumberController,
+                      hint: 'Card number',
+                      icon: Icons.credit_card_outlined,
+                      keyboardType: TextInputType.number,
+                      validator: _validateCardNumber,
+                    ),
+                    const SizedBox(height: 8),
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: _CardField(
+                            controller: _expiryController,
+                            hint: 'MM / YY',
+                            keyboardType: TextInputType.datetime,
+                            validator: _validateExpiry,
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: _CardField(
+                            controller: _cvcController,
+                            hint: 'CVC',
+                            icon: Icons.lock_outline,
+                            keyboardType: TextInputType.number,
+                            obscure: true,
+                            validator: _validateCvc,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
             ],
 
@@ -202,6 +269,10 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                   : Icons.lock_outline,
               isLoading: paymentViewModel.isLoading,
               onPressed: () async {
+                if (_method == _PayMethod.card &&
+                    _cardFormKey.currentState?.validate() != true) {
+                  return;
+                }
                 final success = await paymentViewModel.payAndJoin(
                   match: widget.match,
                   user: widget.currentUser,
@@ -217,13 +288,13 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(
-                  Icons.lock_outline,
+                  Icons.science_outlined,
                   size: 12,
                   color: AppColours.mutedText,
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Payments are secure and encrypted',
+                  'Test mode — no real payment is taken',
                   style: AppTextStyles.small,
                 ),
               ],
@@ -280,25 +351,41 @@ class _MethodTile extends StatelessWidget {
 }
 
 class _CardField extends StatelessWidget {
-  const _CardField({required this.hint, this.icon});
+  const _CardField({
+    required this.controller,
+    required this.hint,
+    required this.validator,
+    this.icon,
+    this.keyboardType,
+    this.obscure = false,
+  });
 
+  final TextEditingController controller;
   final String hint;
+  final String? Function(String?) validator;
   final IconData? icon;
+  final TextInputType? keyboardType;
+  final bool obscure;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-      decoration: BoxDecoration(
-        color: AppColours.card,
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: AppColours.line),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Text(hint, style: AppTextStyles.bodyMuted)),
-          if (icon != null) Icon(icon, size: 16, color: AppColours.mutedText),
-        ],
+    return TextFormField(
+      controller: controller,
+      validator: validator,
+      keyboardType: keyboardType,
+      obscureText: obscure,
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      style: AppTextStyles.body,
+      decoration: InputDecoration(
+        isDense: true,
+        hintText: hint,
+        suffixIcon: icon == null
+            ? null
+            : Icon(icon, size: 16, color: AppColours.mutedText),
+        suffixIconConstraints: const BoxConstraints(
+          minWidth: 32,
+          minHeight: 16,
+        ),
       ),
     );
   }

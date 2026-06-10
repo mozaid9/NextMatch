@@ -989,7 +989,7 @@ class _PaymentModePicker extends StatelessWidget {
           mode: AppStrings.paymentModeOrganiserPays,
           title: 'Organiser pays',
           subtitle:
-              "You cover the pitch cost. Players owe you their share through the app.",
+              "You cover the pitch cost and collect each player's share directly.",
           icon: Icons.payments_outlined,
           selected: selected == AppStrings.paymentModeOrganiserPays,
           onTap: () => onChanged(AppStrings.paymentModeOrganiserPays),

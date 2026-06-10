@@ -118,7 +118,7 @@ class MatchCard extends StatelessWidget {
                   Expanded(
                     child: Text(
                       match.isOrganiserPays
-                          ? 'Free to join · ${CurrencyHelpers.formatGBP(match.pricePerPlayer)} owed'
+                          ? '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} · paid to organiser'
                           : '${CurrencyHelpers.formatGBP(match.pricePerPlayer)} per player',
                       style: AppTextStyles.body.copyWith(
                         fontWeight: FontWeight.w700,

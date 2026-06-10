@@ -15,6 +15,7 @@ import '../../models/football_match.dart';
 import '../../models/venue.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/venue_viewmodel.dart';
+import 'organiser_match_dashboard_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
   const CreateMatchScreen({
@@ -263,10 +264,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       updatedAt: now,
     );
 
-    final success = await context.read<MatchViewModel>().createMatch(match);
+    final matchId = await context.read<MatchViewModel>().createMatch(match);
     if (!mounted) return;
 
-    if (success) {
+    if (matchId != null) {
       _formKey.currentState!.reset();
       _titleController.clear();
       _locationNameController.clear();
@@ -275,6 +276,17 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Match created.')));
+      // Straight into inviting players — the game fills faster when the
+      // squad hears about it immediately.
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute<void>(
+          builder: (_) => OrganiserMatchDashboardScreen(
+            matchId: matchId,
+            currentUser: widget.currentUser,
+            openInviteSheetOnLoad: true,
+          ),
+        ),
+      );
     }
   }
 

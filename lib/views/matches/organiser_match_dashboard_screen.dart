@@ -21,15 +21,47 @@ import '../../viewmodels/team_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
 import 'create_match_screen.dart';
 
-class OrganiserMatchDashboardScreen extends StatelessWidget {
+class OrganiserMatchDashboardScreen extends StatefulWidget {
   const OrganiserMatchDashboardScreen({
     super.key,
     required this.matchId,
     required this.currentUser,
+    this.openInviteSheetOnLoad = false,
   });
 
   final String matchId;
   final AppUser currentUser;
+
+  /// When true (straight after creating a match) the invite sheet opens
+  /// automatically so the organiser can fill the game immediately.
+  final bool openInviteSheetOnLoad;
+
+  @override
+  State<OrganiserMatchDashboardScreen> createState() =>
+      _OrganiserMatchDashboardScreenState();
+}
+
+class _OrganiserMatchDashboardScreenState
+    extends State<OrganiserMatchDashboardScreen> {
+  String get matchId => widget.matchId;
+  AppUser get currentUser => widget.currentUser;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.openInviteSheetOnLoad) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _autoOpenInviteSheet();
+      });
+    }
+  }
+
+  Future<void> _autoOpenInviteSheet() async {
+    if (!mounted) return;
+    final match = await context.read<MatchViewModel>().getMatch(matchId);
+    if (!mounted || match == null) return;
+    await _openInviteFriendsSheet(context, match);
+  }
 
   @override
   Widget build(BuildContext context) {

@@ -66,14 +66,14 @@ class AuthService {
 
   String friendlyAuthError(Object error) {
     if (_isPlaceholderFirebaseConfig()) {
-      return 'Firebase is still using placeholder API keys. Run flutterfire configure locally, then restart the app.';
+      return 'Firebase is still using placeholder API keys. Add .env.firebase locally and run with --dart-define-from-file=.env.firebase.';
     }
 
     if (error is FirebaseException) {
       final message = error.message ?? '';
       if (error.code == 'invalid-api-key' ||
           message.contains('API key not valid')) {
-        return 'Firebase rejected the API key. Refresh your local Firebase config with flutterfire configure.';
+        return 'Firebase rejected the API key. Check your local .env.firebase values, then restart the app.';
       }
     }
 
@@ -83,7 +83,7 @@ class AuthService {
       'email-already-in-use' => 'An account already exists for that email.',
       'invalid-email' => 'Enter a valid email address.',
       'invalid-api-key' =>
-        'Firebase rejected the API key. Refresh your local Firebase config with flutterfire configure.',
+        'Firebase rejected the API key. Check your local .env.firebase values, then restart the app.',
       'operation-not-allowed' =>
         'This sign-in method is not enabled. Enable it in Firebase Console → Authentication.',
       'user-disabled' => 'This account has been disabled.',

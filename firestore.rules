@@ -37,6 +37,16 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/matches/$(matchId)/participants/$(userId));
     }
 
+    function isMatchParticipant(matchId, userId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/matches/$(matchId)/participants/$(userId));
+    }
+
+    function hasMatchInvite(matchId, userId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(userId)/matchInvites/$(matchId));
+    }
+
     function isMatchOrganiser(matchId) {
       return signedIn() && matchDoc(matchId).data.organiserId == request.auth.uid;
     }
@@ -49,6 +59,18 @@ service cloud.firestore {
     function isInvitedToMatch(matchId) {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid)/matchInvites/$(matchId));
+    }
+
+    // Match chat is for people actually involved in the game: the
+    // organiser, or a participant who holds (or is securing) a spot.
+    function canWriteMatchComment(matchId) {
+      return isMatchOrganiser(matchId)
+        || (isMatchParticipant(matchId)
+          && participantDoc(matchId, request.auth.uid).data.attendanceStatus in [
+            'Joined',
+            'PendingPayment',
+            'Attended'
+          ]);
     }
 
     // Player joins bump the counter by one; status may flip Open <-> Full.
@@ -269,17 +291,18 @@ service cloud.firestore {
         allow delete: if false;
       }
 
-      // Match chat.
+      // Match chat — only people involved in the game can post.
       match /comments/{commentId} {
         allow read: if signedIn();
-        allow create: if signedIn()
+        allow create: if canWriteMatchComment(matchId)
           && request.resource.data.authorUid == request.auth.uid
           && request.resource.data.body is string
-          && request.resource.data.body.size() <= 1000;
+          && request.resource.data.body.size() > 0
+          && request.resource.data.body.size() <= 500;
+        allow update: if false;
         allow delete: if signedIn()
           && (resource.data.authorUid == request.auth.uid
             || isMatchOrganiser(matchId));
-        allow update: if false;
       }
 
       match /ratings/{ratingId} {

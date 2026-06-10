@@ -57,13 +57,19 @@ Organisers can open the dashboard from match detail to:
 
 ## Firebase Setup
 
-The app is connected to Firebase project `nextmatch-eb038`, but the committed Firebase config uses placeholder API keys to avoid publishing live keys. To refresh generated config locally:
+The app is connected to Firebase project `nextmatch-eb038`, but the committed Firebase config uses placeholder API keys to avoid publishing live keys. Keep real client config in a local gitignored `.env.firebase` file:
 
 ```bash
-flutterfire configure
+cp .env.firebase.example .env.firebase
 ```
 
-Then replace the placeholder Firebase config values locally before running against the live project.
+Fill `.env.firebase` from Firebase Console project settings, then run with dart-defines:
+
+```bash
+flutter run -d chrome --dart-define-from-file=.env.firebase
+```
+
+Firebase API keys in client apps are not server secrets because they still ship in web/mobile builds. The env file prevents accidental Git commits and GitHub secret alerts; Google Cloud key restrictions are still required before production.
 
 Deploy Firestore rules:
 
@@ -75,7 +81,7 @@ Run the app:
 
 ```bash
 flutter pub get
-flutter run
+flutter run -d chrome --dart-define-from-file=.env.firebase
 ```
 
 ## Validation

@@ -172,7 +172,8 @@ whole reason this handoff exists. **Do not break them.**
 - **Flutter dev server runs on web-server, port 8080**, started via
   Desktop Commander's `start_process` tool:
   ```
-  cd /Users/zaid/Documents/NextMatch && flutter run -d web-server --web-port 8080
+  cd /Users/zaid/Documents/NextMatch && cd /Users/zaid/Documents/NextMatch && flutter run -d web-server --web-port 8080 \
+    --web-hostname 0.0.0.0 --dart-define-from-file=.env.firebase
   ```
   After making changes, hot reload with `r`, hot restart with `R` sent
   via `interact_with_process(pid, "r")`.
@@ -496,7 +497,8 @@ whole reason this handoff exists. **Do not break them.**
    ```
    If nothing's listening, start it:
    ```bash
-   cd /Users/zaid/Documents/NextMatch && flutter run -d web-server --web-port 8080
+   cd /Users/zaid/Documents/NextMatch && cd /Users/zaid/Documents/NextMatch && flutter run -d web-server --web-port 8080 \
+    --web-hostname 0.0.0.0 --dart-define-from-file=.env.firebase
    ```
    Capture the PID for `interact_with_process` hot reloads.
 

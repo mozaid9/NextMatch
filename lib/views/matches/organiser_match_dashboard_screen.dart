@@ -120,7 +120,10 @@ class _OrganiserMatchDashboardScreenState
                 children: [
                   _SummaryCard(match: match),
                   const SizedBox(height: 16),
-                  _GuaranteeBanner(match: match, pendingPayment: pendingPayment),
+                  _GuaranteeBanner(
+                    match: match,
+                    pendingPayment: pendingPayment,
+                  ),
                   const SizedBox(height: 16),
                   _Section(
                     title: 'Pending approvals',
@@ -314,17 +317,12 @@ class _OrganiserMatchDashboardScreenState
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
       ),
-      builder: (_) => _InviteFriendsSheet(
-        match: match,
-        currentUser: currentUser,
-      ),
+      builder: (_) =>
+          _InviteFriendsSheet(match: match, currentUser: currentUser),
     );
   }
 
-  Future<void> _confirmCancel(
-    BuildContext context,
-    FootballMatch match,
-  ) async {
+  Future<void> _confirmCancel(BuildContext context, FootballMatch match) async {
     final reason = await showAppInputSheet(
       context: context,
       title: 'Cancel match?',
@@ -335,8 +333,7 @@ class _OrganiserMatchDashboardScreenState
       confirmLabel: 'Cancel match',
       confirmIcon: Icons.cancel_outlined,
       isDestructive: true,
-      validator: (value) =>
-          value.isEmpty ? 'Add a short reason.' : null,
+      validator: (value) => value.isEmpty ? 'Add a short reason.' : null,
     );
 
     if (!context.mounted || reason == null || reason.isEmpty) return;
@@ -489,13 +486,14 @@ class _PaymentPendingTile extends StatelessWidget {
     String deadlineLabel;
     Color deadlineColor;
     if (deadline == null) {
-      deadlineLabel = 'Pay by: —';
+      deadlineLabel = 'Pay by: not set';
       deadlineColor = AppColours.mutedText;
     } else if (isOverdue) {
-      deadlineLabel = 'Overdue — organiser liable';
+      deadlineLabel = 'Overdue. Organiser liable';
       deadlineColor = AppColours.error;
     } else if (timeLeft != null && timeLeft.inHours < 6) {
-      deadlineLabel = 'Pay in ${timeLeft.inHours}h ${timeLeft.inMinutes.remainder(60)}m';
+      deadlineLabel =
+          'Pay in ${timeLeft.inHours}h ${timeLeft.inMinutes.remainder(60)}m';
       deadlineColor = AppColours.warning;
     } else {
       final h = timeLeft?.inHours ?? 24;
@@ -527,10 +525,7 @@ class _PaymentPendingTile extends StatelessWidget {
 }
 
 class _GuaranteeBanner extends StatelessWidget {
-  const _GuaranteeBanner({
-    required this.match,
-    required this.pendingPayment,
-  });
+  const _GuaranteeBanner({required this.match, required this.pendingPayment});
 
   final FootballMatch match;
   final List<MatchParticipant> pendingPayment;
@@ -561,7 +556,9 @@ class _GuaranteeBanner extends StatelessWidget {
       child: Row(
         children: [
           Icon(
-            overdueCount > 0 ? Icons.warning_amber_rounded : Icons.shield_outlined,
+            overdueCount > 0
+                ? Icons.warning_amber_rounded
+                : Icons.shield_outlined,
             color: overdueCount > 0 ? AppColours.error : AppColours.warning,
             size: 20,
           ),
@@ -576,13 +573,15 @@ class _GuaranteeBanner extends StatelessWidget {
                       : 'Payment guarantee active',
                   style: AppTextStyles.body.copyWith(
                     fontWeight: FontWeight.w700,
-                    color: overdueCount > 0 ? AppColours.error : AppColours.warning,
+                    color: overdueCount > 0
+                        ? AppColours.error
+                        : AppColours.warning,
                   ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   overdueCount > 0
-                      ? '$overdueCount player${overdueCount > 1 ? "s" : ""} overdue — their share is on you.'
+                      ? '$overdueCount player${overdueCount > 1 ? "s" : ""} overdue. Their share is on you.'
                       : '$pendingCount player${pendingCount > 1 ? "s" : ""} have 24h to pay. If they don\'t, you cover their share.',
                   style: AppTextStyles.small,
                 ),
@@ -681,9 +680,9 @@ class _PlayerPanel extends StatelessWidget {
             onTap: () => Navigator.of(context).push(
               MaterialPageRoute<void>(
                 builder: (_) => OtherUserProfileScreen(
-                      uid: participant.userId,
-                      viewer: viewer,
-                    ),
+                  uid: participant.userId,
+                  viewer: viewer,
+                ),
               ),
             ),
             child: UserAvatar(
@@ -829,9 +828,9 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
               ),
               const SizedBox(height: 14),
               StreamBuilder<List<Team>>(
-                stream: context
-                    .read<TeamViewModel>()
-                    .myTeamsStream(widget.currentUser.uid),
+                stream: context.read<TeamViewModel>().myTeamsStream(
+                  widget.currentUser.uid,
+                ),
                 builder: (context, snapshot) {
                   final teams = snapshot.data ?? [];
                   if (teams.isEmpty) return const SizedBox.shrink();
@@ -851,14 +850,14 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: teams.length,
-                          separatorBuilder: (_, _) =>
-                              const SizedBox(width: 8),
+                          separatorBuilder: (_, _) => const SizedBox(width: 8),
                           itemBuilder: (context, index) {
                             final team = teams[index];
                             final teamMemberIds = team.memberIds
                                 .where((id) => id != widget.currentUser.uid)
                                 .toSet();
-                            final allSelected = teamMemberIds.isNotEmpty &&
+                            final allSelected =
+                                teamMemberIds.isNotEmpty &&
                                 teamMemberIds.every(_selected.contains);
                             return _TeamInviteChip(
                               team: team,
@@ -891,8 +890,9 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
               ),
               Flexible(
                 child: StreamBuilder<List<Friend>>(
-                  stream:
-                      friendsViewModel.friendsStream(widget.currentUser.uid),
+                  stream: friendsViewModel.friendsStream(
+                    widget.currentUser.uid,
+                  ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Padding(
@@ -1013,7 +1013,7 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
                               ok
                                   ? 'Invites sent.'
                                   : viewModel.errorMessage ??
-                                      'Could not send invites.',
+                                        'Could not send invites.',
                             ),
                           ),
                         );
@@ -1053,9 +1053,7 @@ class _TeamInviteChip extends StatelessWidget {
         duration: const Duration(milliseconds: 150),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: allSelected
-              ? colour.withValues(alpha: 0.18)
-              : AppColours.card,
+          color: allSelected ? colour.withValues(alpha: 0.18) : AppColours.card,
           borderRadius: BorderRadius.circular(8),
           border: Border.all(
             color: allSelected ? colour : AppColours.line,
@@ -1081,9 +1079,7 @@ class _TeamInviteChip extends StatelessWidget {
             const SizedBox(width: 5),
             Text(
               '· ${team.memberIds.length - 1}',
-              style: AppTextStyles.small.copyWith(
-                color: AppColours.mutedText,
-              ),
+              style: AppTextStyles.small.copyWith(color: AppColours.mutedText),
             ),
           ],
         ),

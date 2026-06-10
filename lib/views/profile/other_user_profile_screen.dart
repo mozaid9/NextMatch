@@ -17,13 +17,10 @@ import '../social/chat_thread_screen.dart';
 /// Read-only view of another player's profile. Shown when tapping a
 /// friend in the friends list or a participant tile on a match.
 class OtherUserProfileScreen extends StatelessWidget {
-  const OtherUserProfileScreen({
-    super.key,
-    required this.uid,
-    this.viewer,
-  });
+  const OtherUserProfileScreen({super.key, required this.uid, this.viewer});
 
   final String uid;
+
   /// When provided, a "Message" button appears that opens the 1:1 chat
   /// between [viewer] and this user.
   final AppUser? viewer;
@@ -162,8 +159,7 @@ class _FollowButton extends StatelessWidget {
                 content: Text(
                   ok
                       ? 'Unfollowed ${target.fullName.split(' ').first}.'
-                      : friendsViewModel.errorMessage ??
-                          'Could not unfollow.',
+                      : friendsViewModel.errorMessage ?? 'Could not unfollow.',
                 ),
               ),
             );
@@ -191,9 +187,9 @@ class _Header extends StatelessWidget {
     final displayName = user.fullName.isEmpty
         ? 'Player'
         : user.fullName
-            .split(' ')
-            .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
-            .join(' ');
+              .split(' ')
+              .map((w) => w.isEmpty ? '' : w[0].toUpperCase() + w.substring(1))
+              .join(' ');
 
     return Container(
       width: double.infinity,
@@ -251,8 +247,11 @@ class _Header extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(Icons.place_outlined,
-                    size: 14, color: AppColours.mutedText),
+                const Icon(
+                  Icons.place_outlined,
+                  size: 14,
+                  color: AppColours.mutedText,
+                ),
                 const SizedBox(width: 4),
                 Text(user.location, style: AppTextStyles.small),
               ],
@@ -307,8 +306,9 @@ class _StatsCard extends StatelessWidget {
             height: 3,
             decoration: BoxDecoration(
               color: relColor,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(12)),
+              borderRadius: const BorderRadius.vertical(
+                top: Radius.circular(12),
+              ),
             ),
           ),
           Padding(
@@ -326,7 +326,7 @@ class _StatsCard extends StatelessWidget {
                   child: _Stat(
                     value: user.abilityRatingCount > 0
                         ? user.abilityRating.toStringAsFixed(1)
-                        : '—',
+                        : '-',
                     label: 'Ability',
                     subLabel: user.abilityRatingCount > 0
                         ? '${user.abilityRatingCount} ratings'
@@ -350,8 +350,9 @@ class _StatsCard extends StatelessWidget {
                               strokeWidth: 5,
                               strokeCap: StrokeCap.round,
                               backgroundColor: AppColours.line,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(relColor),
+                              valueColor: AlwaysStoppedAnimation<Color>(
+                                relColor,
+                              ),
                             ),
                             Text(
                               hasHistory ? '${user.reliabilityScore}' : '—',
@@ -445,12 +446,12 @@ class _DetailPanel extends StatelessWidget {
   }
 
   Widget _row(String label, String value) => Padding(
-        padding: const EdgeInsets.only(bottom: 10),
-        child: Row(
-          children: [
-            Expanded(child: Text(label, style: AppTextStyles.bodyMuted)),
-            Text(value, style: AppTextStyles.body),
-          ],
-        ),
-      );
+    padding: const EdgeInsets.only(bottom: 10),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: AppTextStyles.bodyMuted)),
+        Text(value, style: AppTextStyles.body),
+      ],
+    ),
+  );
 }

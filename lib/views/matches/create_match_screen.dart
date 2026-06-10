@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/utils/currency_helpers.dart';
 import '../../core/utils/date_time_helpers.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
@@ -13,8 +14,10 @@ import '../../core/widgets/venue_autocomplete_field.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/venue.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/venue_viewmodel.dart';
+import '../payment/mock_payment_screen.dart';
 import 'organiser_match_dashboard_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
@@ -26,8 +29,10 @@ class CreateMatchScreen extends StatefulWidget {
   });
 
   final AppUser currentUser;
+
   /// When provided, the form is pre-filled from this venue + slot booking.
   final VenueBookingDraft? venueDraft;
+
   /// When provided, the form is pre-filled from a past match the user is
   /// "running it back" from. Date defaults to one week from the template's
   /// start time, same hour.
@@ -95,11 +100,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
           '${draft?.slot.pitch.capacity ?? template?.totalPlayersNeeded ?? 10}',
     );
     _priceController = TextEditingController(
-      text: (draft?.suggestedPricePerPlayer ??
-              template?.pricePerPlayer ??
-              5.00)
+      text: (draft?.suggestedPricePerPlayer ?? template?.pricePerPlayer ?? 5.00)
           .toStringAsFixed(2),
     );
+    _priceController.addListener(_rebuildPaymentNotice);
     _descriptionController = TextEditingController(
       text: template?.description ?? '',
     );
@@ -161,6 +165,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
 
   @override
   void dispose() {
+    _priceController.removeListener(_rebuildPaymentNotice);
     _titleController.dispose();
     _locationNameController.dispose();
     _addressController.dispose();
@@ -175,6 +180,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     _minimumReliabilityController.dispose();
     _cancellationPolicyController.dispose();
     super.dispose();
+  }
+
+  void _rebuildPaymentNotice() {
+    if (mounted) setState(() {});
   }
 
   void _applyVenuePick(Venue venue) {
@@ -219,6 +228,10 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final pricePerPlayer = double.parse(_priceController.text);
+    final confirmed = await _confirmPaymentSetup(pricePerPlayer);
+    if (!confirmed || !mounted) return;
+
     final startDateTime = DateTimeHelpers.combineDateAndTime(
       _selectedDate,
       _selectedTime.hour,
@@ -243,7 +256,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       format: _format,
       totalPlayersNeeded: int.parse(_totalPlayersController.text),
       joinedPlayerCount: 0,
-      pricePerPlayer: double.parse(_priceController.text),
+      pricePerPlayer: pricePerPlayer,
       skillLevel: _skillLevel,
       pitchType: _pitchType,
       description: _descriptionController.text.trim(),
@@ -268,14 +281,34 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     if (!mounted) return;
 
     if (matchId != null) {
-      _formKey.currentState!.reset();
-      _titleController.clear();
-      _locationNameController.clear();
-      _addressController.clear();
-      _descriptionController.clear();
+      final createdMatch = match.copyWith(id: matchId);
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('Match created.')));
+      // Organisers playing a split match secure their own spot first so
+      // the liability picture starts clean.
+      if (createdMatch.isSplitPayment) {
+        final payNow = await _askToPayOwnSpot(createdMatch);
+        if (!mounted) return;
+        if (payNow) {
+          final position =
+              AppStrings.positions.contains(
+                widget.currentUser.preferredPosition,
+              )
+              ? widget.currentUser.preferredPosition
+              : 'Any';
+          await Navigator.of(context).push<bool>(
+            MaterialPageRoute<bool>(
+              builder: (_) => MockPaymentScreen(
+                match: createdMatch,
+                currentUser: widget.currentUser,
+                position: position,
+              ),
+            ),
+          );
+          if (!mounted) return;
+        }
+      }
       // Straight into inviting players — the game fills faster when the
       // squad hears about it immediately.
       Navigator.of(context).pushReplacement(
@@ -288,6 +321,41 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
         ),
       );
     }
+  }
+
+  Future<bool> _confirmPaymentSetup(double pricePerPlayer) async {
+    final isSplit = _paymentMode == AppStrings.paymentModeSplit;
+    final confirmed = await showAppConfirmSheet(
+      context: context,
+      title: isSplit ? 'Split payment setup' : 'Organiser pays setup',
+      message: isSplit
+          ? 'Each player pays their own share before their spot is secured — '
+                'including you: ${CurrencyHelpers.formatGBP(pricePerPlayer)} '
+                'for your own place after creating the match. If a player '
+                'misses their payment deadline, their share shows as your '
+                'liability on the dashboard.'
+          : 'You are covering the pitch upfront. Players join without paying '
+                'in the app and their share is recorded as owed to you '
+                'directly.',
+      confirmLabel: 'Create match',
+      confirmIcon: Icons.check,
+      cancelLabel: 'Review',
+    );
+    return confirmed == true;
+  }
+
+  Future<bool> _askToPayOwnSpot(FootballMatch match) async {
+    final confirmed = await showAppConfirmSheet(
+      context: context,
+      title: 'Pay your place now?',
+      message:
+          'Your match is live. Pay your own spot now so nothing is owed '
+          'against you when players start joining.',
+      confirmLabel: 'Pay now',
+      confirmIcon: Icons.lock_outline,
+      cancelLabel: 'Later',
+    );
+    return confirmed == true;
   }
 
   @override
@@ -472,6 +540,11 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                   selected: _paymentMode,
                   onChanged: (value) => setState(() => _paymentMode = value),
                 ),
+                const SizedBox(height: 12),
+                _PaymentResponsibilityNotice(
+                  paymentMode: _paymentMode,
+                  priceText: _priceController.text,
+                ),
 
                 _SectionHeader(title: 'Positions needed'),
                 Row(
@@ -577,7 +650,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => _MatchDateSheet(selectedDate: _selectedDate),
     );
@@ -591,7 +664,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
       isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (_) => _MatchTimeSheet(selectedTime: _selectedTime),
     );
@@ -640,7 +713,9 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 560),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.82,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,8 +723,13 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
               const SelectionSheetHandle(),
               Text('Match date', style: AppTextStyles.h2),
               const SizedBox(height: 6),
-              Text('Choose a kick-off date.', style: AppTextStyles.bodyMuted),
+              Text(
+                'Choose when players should meet.',
+                style: AppTextStyles.bodyMuted,
+              ),
               const SizedBox(height: 14),
+              Text('Popular', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -677,22 +757,16 @@ class _MatchDateSheetState extends State<_MatchDateSheet> {
                 ],
               ),
               const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColours.card,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColours.line),
-                ),
-                child: Text(
-                  DateTimeHelpers.formatDate(_selectedDate),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _SheetSummaryTile(
+                icon: Icons.event_available,
+                label: 'Selected date',
+                value: DateTimeHelpers.formatDate(_selectedDate),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Text('Next 8 weeks', style: AppTextStyles.small),
+              const SizedBox(height: 8),
+              const _WeekdayHeader(),
+              const SizedBox(height: 6),
               Expanded(
                 child: GridView.builder(
                   itemCount: _dates.length,
@@ -766,6 +840,87 @@ class _DateShortcut extends StatelessWidget {
       label: label,
       selected: selected,
       onTap: () => onSelected(date),
+    );
+  }
+}
+
+class _SheetSummaryTile extends StatelessWidget {
+  const _SheetSummaryTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Row(
+        children: [
+          Container(
+            height: 34,
+            width: 34,
+            decoration: BoxDecoration(
+              color: AppColours.accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(icon, color: AppColours.accent, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: AppTextStyles.small),
+                const SizedBox(height: 2),
+                Text(
+                  value,
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WeekdayHeader extends StatelessWidget {
+  const _WeekdayHeader();
+
+  static const _weekdays = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: _weekdays
+          .map(
+            (day) => Expanded(
+              child: Center(
+                child: Text(
+                  day,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColours.mutedText.withValues(alpha: 0.7),
+                    fontSize: 10,
+                  ),
+                ),
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -856,7 +1011,9 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         child: ConstrainedBox(
-          constraints: const BoxConstraints(maxHeight: 540),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.78,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -864,8 +1021,13 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
               const SelectionSheetHandle(),
               Text('Kick-off time', style: AppTextStyles.h2),
               const SizedBox(height: 6),
-              Text('Pick the first whistle.', style: AppTextStyles.bodyMuted),
+              Text(
+                'Pick the first whistle. Times use a 24-hour clock.',
+                style: AppTextStyles.bodyMuted,
+              ),
               const SizedBox(height: 14),
+              Text('Popular kick-offs', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
                 runSpacing: 8,
@@ -887,22 +1049,14 @@ class _MatchTimeSheetState extends State<_MatchTimeSheet> {
                         .toList(),
               ),
               const SizedBox(height: 14),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColours.card,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppColours.line),
-                ),
-                child: Text(
-                  _formatSheetTime(_selectedTime),
-                  style: AppTextStyles.body.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
+              _SheetSummaryTile(
+                icon: Icons.schedule,
+                label: 'Selected kick-off',
+                value: _formatSheetTime(_selectedTime),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 14),
+              Text('All times', style: AppTextStyles.small),
+              const SizedBox(height: 8),
               Expanded(
                 child: GridView.builder(
                   itemCount: _times.length,
@@ -1007,6 +1161,51 @@ class _PaymentModePicker extends StatelessWidget {
           onTap: () => onChanged(AppStrings.paymentModeOrganiserPays),
         ),
       ],
+    );
+  }
+}
+
+class _PaymentResponsibilityNotice extends StatelessWidget {
+  const _PaymentResponsibilityNotice({
+    required this.paymentMode,
+    required this.priceText,
+  });
+
+  final String paymentMode;
+  final String priceText;
+
+  @override
+  Widget build(BuildContext context) {
+    final price = double.tryParse(priceText) ?? 0;
+    final isSplit = paymentMode == AppStrings.paymentModeSplit;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            isSplit ? Icons.shield_outlined : Icons.account_balance_wallet,
+            color: AppColours.accent,
+            size: 20,
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              isSplit
+                  ? 'Players pay before their spot is secured. You will pay £${price.toStringAsFixed(2)} for your own place after creating the match. If someone misses the payment deadline, their share appears as organiser liability.'
+                  : 'You cover the pitch upfront. Players can join without paying in app and their share is tracked as owed to you.',
+              style: AppTextStyles.bodyMuted.copyWith(fontSize: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
@@ -1209,7 +1408,11 @@ class _VenueDraftBanner extends StatelessWidget {
               color: AppColours.accent.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.stadium, color: AppColours.accent, size: 20),
+            child: const Icon(
+              Icons.stadium,
+              color: AppColours.accent,
+              size: 20,
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -1219,7 +1422,9 @@ class _VenueDraftBanner extends StatelessWidget {
               children: [
                 Text(
                   draft.venue.name,
-                  style: AppTextStyles.body.copyWith(fontWeight: FontWeight.w700),
+                  style: AppTextStyles.body.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -1239,8 +1444,18 @@ class _VenueDraftBanner extends StatelessWidget {
 
   static String _dayLabel(DateTime time) {
     const months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     return '${time.day} ${months[time.month - 1]}';
   }

@@ -20,6 +20,16 @@ migrate_working_dir/
 .vscode/
 nextmatchlogo.png
 
+# Local Firebase/API configuration. These values are compiled into client
+# builds, so they are not server secrets, but keep them out of source control
+# and restrict them in Google Cloud Console.
+.env
+.env.*
+!.env.example
+!.env.firebase.example
+firebase_options.local.json
+firebase_options.local.json.example
+
 # The .vscode folder contains launch configuration and tasks you configure in
 # VS Code which you may wish to be included in version control, so this line
 # is commented out by default.

@@ -185,10 +185,7 @@ class MatchViewModel extends ChangeNotifier {
     required String commentId,
   }) async {
     return _runAction(
-      () => _matchService.deleteComment(
-        matchId: matchId,
-        commentId: commentId,
-      ),
+      () => _matchService.deleteComment(matchId: matchId, commentId: commentId),
       failureMessage: 'Could not delete comment.',
     );
   }

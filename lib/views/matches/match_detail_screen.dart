@@ -10,6 +10,7 @@ import '../../core/utils/date_time_helpers.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/empty_state.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/selection_sheet.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../profile/other_user_profile_screen.dart';
@@ -30,8 +31,18 @@ import '../payment/mock_payment_screen.dart';
 String _shareTextFor(FootballMatch match) {
   final start = match.startDateTime;
   const months = [
-    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
   ];
   final h = start.hour.toString().padLeft(2, '0');
   final m = start.minute.toString().padLeft(2, '0');
@@ -105,6 +116,10 @@ class MatchDetailScreen extends StatelessWidget {
               final participants = participantSnapshot.data ?? [];
               final currentParticipant = _currentParticipant(participants);
               final isOrganiser = match.organiserId == currentUser.uid;
+              final canUseChat =
+                  isOrganiser ||
+                  currentParticipant?.hasConfirmedSlot == true ||
+                  currentParticipant?.isPendingPayment == true;
               final canRate =
                   match.isCompleted &&
                   currentParticipant?.attendanceStatus == 'Attended';
@@ -213,7 +228,9 @@ class MatchDetailScreen extends StatelessWidget {
                                                         match.isSplitPayment,
                                                     viewer: currentUser,
                                                     isFriend: friendUids
-                                                        .contains(participant.userId),
+                                                        .contains(
+                                                          participant.userId,
+                                                        ),
                                                   ),
                                                 )
                                                 .toList(),
@@ -227,6 +244,10 @@ class MatchDetailScreen extends StatelessWidget {
                           _CommentsSection(
                             matchId: match.id,
                             currentUser: currentUser,
+                            canComment: canUseChat,
+                            lockedMessage: match.visibility != 'Public'
+                                ? 'Request access before joining the match chat.'
+                                : 'Join the match before posting in the chat.',
                           ),
                           const SizedBox(height: 96),
                         ],
@@ -285,21 +306,26 @@ class MatchDetailScreen extends StatelessWidget {
 
     final result = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       backgroundColor: AppColours.surface,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(8)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setModalState) {
             return SafeArea(
+              top: false,
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Choose your position', style: AppTextStyles.h2),
+                    const SelectionSheetHandle(),
+                    _JoinFlowHeader(match: match),
+                    const SizedBox(height: 18),
+                    Text('Choose your position', style: AppTextStyles.h3),
                     const SizedBox(height: 8),
                     Text(
                       match.isSplitPayment
@@ -327,7 +353,9 @@ class MatchDetailScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 20),
                     PrimaryButton(
-                      label: 'Join match',
+                      label: match.visibility != 'Public'
+                          ? 'Request access'
+                          : 'Join match',
                       icon: match.isSplitPayment
                           ? Icons.how_to_reg
                           : Icons.payments_outlined,
@@ -344,6 +372,26 @@ class MatchDetailScreen extends StatelessWidget {
     );
 
     if (result == null || !context.mounted) return;
+
+    if (match.visibility != 'Public') {
+      final matchViewModel = context.read<MatchViewModel>();
+      final request = await matchViewModel.requestToJoinMatch(
+        match: match,
+        user: currentUser,
+        position: result,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            request?.message ??
+                matchViewModel.errorMessage ??
+                'Could not request access.',
+          ),
+        ),
+      );
+      return;
+    }
 
     if (match.isOrganiserPays) {
       final paymentViewModel = context.read<PaymentViewModel>();
@@ -441,10 +489,7 @@ class MatchDetailScreen extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
-      builder: (_) => _MatchShareSheet(
-        match: match,
-        currentUser: currentUser,
-      ),
+      builder: (_) => _MatchShareSheet(match: match, currentUser: currentUser),
     );
   }
 
@@ -487,6 +532,109 @@ class MatchDetailScreen extends StatelessWidget {
               : viewModel.errorMessage ?? 'Could not withdraw.',
         ),
       ),
+    );
+  }
+}
+
+class _JoinFlowHeader extends StatelessWidget {
+  const _JoinFlowHeader({required this.match});
+
+  final FootballMatch match;
+
+  @override
+  Widget build(BuildContext context) {
+    final steps = match.isSplitPayment
+        ? const [
+            _JoinStepData('1', 'Join match'),
+            _JoinStepData('2', 'Review players'),
+            _JoinStepData('3', 'Pay to secure'),
+          ]
+        : const [
+            _JoinStepData('1', 'Join'),
+            _JoinStepData('2', 'Owe organiser'),
+            _JoinStepData('3', 'Play'),
+          ];
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColours.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: AppColours.line),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            match.isSplitPayment ? 'Join first, pay after' : 'Join this game',
+            style: AppTextStyles.h2,
+          ),
+          const SizedBox(height: 6),
+          Text(
+            match.isSplitPayment
+                ? 'NextMatch lets you inspect the match before committing payment.'
+                : 'Your spot is confirmed now, with payment settled directly with the organiser.',
+            style: AppTextStyles.bodyMuted,
+          ),
+          const SizedBox(height: 14),
+          Row(
+            children: [
+              for (var index = 0; index < steps.length; index++) ...[
+                Expanded(child: _JoinStep(step: steps[index])),
+                if (index != steps.length - 1)
+                  Container(width: 16, height: 1, color: AppColours.line),
+              ],
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JoinStepData {
+  const _JoinStepData(this.number, this.label);
+
+  final String number;
+  final String label;
+}
+
+class _JoinStep extends StatelessWidget {
+  const _JoinStep({required this.step});
+
+  final _JoinStepData step;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        Container(
+          width: 26,
+          height: 26,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: AppColours.accent.withValues(alpha: 0.14),
+            shape: BoxShape.circle,
+            border: Border.all(color: AppColours.accent),
+          ),
+          child: Text(
+            step.number,
+            style: AppTextStyles.small.copyWith(
+              color: AppColours.accent,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          step.label,
+          style: AppTextStyles.small.copyWith(fontSize: 11),
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
     );
   }
 }
@@ -768,99 +916,98 @@ class _PlayerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final isPaid = participant.hasConfirmedSlot &&
+    final isPaid =
+        participant.hasConfirmedSlot &&
         (participant.amountPaid > 0 || isSplitPayment);
     final isPending = participant.isPendingPayment && isSplitPayment;
 
     return InkWell(
       onTap: () => Navigator.of(context).push(
         MaterialPageRoute<void>(
-          builder: (_) => OtherUserProfileScreen(
-            uid: participant.userId,
-            viewer: viewer,
-          ),
+          builder: (_) =>
+              OtherUserProfileScreen(uid: participant.userId, viewer: viewer),
         ),
       ),
       borderRadius: BorderRadius.circular(8),
       child: Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          UserAvatar(
-            fullName: participant.fullName,
-            photoUrl: participant.photoUrl,
-            radius: 20,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(participant.fullName, style: AppTextStyles.body),
-                Text(
-                  '${participant.position} · ${participant.skillLevel}',
-                  style: AppTextStyles.small,
-                ),
-                const SizedBox(height: 5),
-                Wrap(
-                  spacing: 6,
-                  runSpacing: 4,
-                  children: [
-                    if (isFriend)
-                      const _MiniBadge(
-                        label: 'Friend',
-                        colour: AppColours.accent,
-                      ),
-                    if (isSplitPayment && participant.hasConfirmedSlot)
-                      _MiniBadge(
-                        label: participant.amountPaid > 0 ? 'Paid' : 'Paid',
-                        colour: AppColours.accent,
-                      ),
-                    if (isPending)
-                      _MiniBadge(
-                        label: participant.isPaymentOverdue
-                            ? 'Overdue'
-                            : 'Not paid',
-                        colour: participant.isPaymentOverdue
-                            ? AppColours.error
-                            : AppColours.warning,
-                      ),
-                    if (participant.isPendingApproval)
-                      const _MiniBadge(
-                        label: 'Pending approval',
-                        colour: AppColours.mutedText,
-                      ),
-                    if (!isSplitPayment && participant.hasConfirmedSlot)
-                      const _MiniBadge(label: 'Confirmed'),
-                    if (participant.reliabilityScoreAtJoin <
-                        lowReliabilityThreshold)
-                      const _MiniBadge(
-                        label: 'Low rel.',
-                        colour: AppColours.warning,
-                      ),
-                  ],
-                ),
-              ],
+        padding: const EdgeInsets.only(bottom: 10),
+        child: Row(
+          children: [
+            UserAvatar(
+              fullName: participant.fullName,
+              photoUrl: participant.photoUrl,
+              radius: 20,
             ),
-          ),
-          const SizedBox(width: 8),
-          Icon(
-            isPaid
-                ? Icons.check_circle
-                : isPending
-                ? Icons.radio_button_unchecked
-                : Icons.hourglass_top_rounded,
-            color: isPaid
-                ? AppColours.accent
-                : isPending
-                ? AppColours.warning
-                : AppColours.mutedText,
-            size: 18,
-          ),
-        ],
-      ),
-    ),  // close Padding
-    );  // close InkWell
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(participant.fullName, style: AppTextStyles.body),
+                  Text(
+                    '${participant.position} · ${participant.skillLevel}',
+                    style: AppTextStyles.small,
+                  ),
+                  const SizedBox(height: 5),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
+                    children: [
+                      if (isFriend)
+                        const _MiniBadge(
+                          label: 'Friend',
+                          colour: AppColours.accent,
+                        ),
+                      if (isSplitPayment && participant.hasConfirmedSlot)
+                        _MiniBadge(
+                          label: participant.amountPaid > 0 ? 'Paid' : 'Paid',
+                          colour: AppColours.accent,
+                        ),
+                      if (isPending)
+                        _MiniBadge(
+                          label: participant.isPaymentOverdue
+                              ? 'Overdue'
+                              : 'Not paid',
+                          colour: participant.isPaymentOverdue
+                              ? AppColours.error
+                              : AppColours.warning,
+                        ),
+                      if (participant.isPendingApproval)
+                        const _MiniBadge(
+                          label: 'Pending approval',
+                          colour: AppColours.mutedText,
+                        ),
+                      if (!isSplitPayment && participant.hasConfirmedSlot)
+                        const _MiniBadge(label: 'Confirmed'),
+                      if (participant.reliabilityScoreAtJoin <
+                          lowReliabilityThreshold)
+                        const _MiniBadge(
+                          label: 'Low rel.',
+                          colour: AppColours.warning,
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Icon(
+              isPaid
+                  ? Icons.check_circle
+                  : isPending
+                  ? Icons.radio_button_unchecked
+                  : Icons.hourglass_top_rounded,
+              color: isPaid
+                  ? AppColours.accent
+                  : isPending
+                  ? AppColours.warning
+                  : AppColours.mutedText,
+              size: 18,
+            ),
+          ],
+        ),
+      ), // close Padding
+    ); // close InkWell
   }
 }
 
@@ -924,7 +1071,14 @@ class _BottomJoinBar extends StatelessWidget {
             'PendingPayment' => 'Pay to secure',
             'PendingApproval' when isApprovedPendingPayment => 'Pay to secure',
             'PendingApproval' => 'Pending approval',
-            _ => match.isFull ? 'Match Full' : 'Join match',
+            _ =>
+              match.isFull
+                  ? 'Match full'
+                  : match.visibility != 'Public'
+                  ? 'Request access'
+                  : match.isSplitPayment
+                  ? 'Join match'
+                  : 'Join match',
           };
 
     final totalWithFee = CurrencyHelpers.roundMoney(
@@ -951,90 +1105,88 @@ class _BottomJoinBar extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (isPendingPayment && !(participant?.isPaymentOverdue ?? false))
+              Container(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _JoinBarNotice(
+                  icon: Icons.visibility_outlined,
+                  colour: AppColours.warning,
+                  message:
+                      'You can review the players now. Pay before the deadline to lock your slot.',
+                ),
+              ),
             if (isPendingPayment && (participant?.isPaymentOverdue ?? false))
               Container(
                 padding: const EdgeInsets.only(bottom: 10),
-                child: Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppColours.error.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: AppColours.error.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.warning_amber_rounded, color: AppColours.error, size: 16),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Your payment deadline has passed. The organiser has been charged.',
-                          style: AppTextStyles.small.copyWith(color: AppColours.error),
-                        ),
-                      ),
-                    ],
-                  ),
+                child: const _JoinBarNotice(
+                  icon: Icons.warning_amber_rounded,
+                  colour: AppColours.error,
+                  message:
+                      'Your payment deadline has passed. The organiser has been charged.',
                 ),
               ),
             Row(
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(priceLabel, style: AppTextStyles.h3),
-                  Text(subLabel, style: AppTextStyles.small),
-                ],
-              ),
-            ),
-            const SizedBox(width: 14),
-            SizedBox(
-              width: 170,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  PrimaryButton(
-                    label: label,
-                    icon: isOrganiser
-                        ? Icons.admin_panel_settings_outlined
-                        : participant?.hasConfirmedSlot == true
-                        ? Icons.check
-                        : isPendingPayment
-                        ? Icons.lock
-                        : match.isOrganiserPays
-                        ? Icons.how_to_reg
-                        : Icons.how_to_reg,
-                    onPressed: isOrganiser
-                        ? onManage
-                        : match.isFull ||
-                              match.isCompleted ||
-                              match.isCancelled ||
-                              participant?.isRejected == true ||
-                              participant?.isWithdrawn == true ||
-                              (participant?.isPendingApproval == true &&
-                                  !isApprovedPendingPayment)
-                        ? null
-                        : isPendingPayment
-                        ? onPayApproved
-                        : participant?.hasConfirmedSlot == true
-                        ? null
-                        : onJoin,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(priceLabel, style: AppTextStyles.h3),
+                      Text(subLabel, style: AppTextStyles.small),
+                    ],
                   ),
-                  if (participant?.canWithdraw == true &&
-                      !match.hasStarted &&
-                      !match.isCompleted &&
-                      !match.isCancelled) ...[
-                    const SizedBox(height: 8),
-                    TextButton(
-                      onPressed: onWithdraw,
-                      child: const Text('Withdraw'),
-                    ),
-                  ],
-                ],
-              ),
+                ),
+                const SizedBox(width: 14),
+                SizedBox(
+                  width: 170,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      PrimaryButton(
+                        label: label,
+                        icon: isOrganiser
+                            ? Icons.admin_panel_settings_outlined
+                            : participant?.hasConfirmedSlot == true
+                            ? Icons.check
+                            : isPendingPayment
+                            ? Icons.lock
+                            : match.visibility != 'Public'
+                            ? Icons.lock_open_outlined
+                            : match.isOrganiserPays
+                            ? Icons.how_to_reg
+                            : Icons.how_to_reg,
+                        onPressed: isOrganiser
+                            ? onManage
+                            : match.isFull ||
+                                  match.isCompleted ||
+                                  match.isCancelled ||
+                                  participant?.isRejected == true ||
+                                  participant?.isWithdrawn == true ||
+                                  (participant?.isPendingApproval == true &&
+                                      !isApprovedPendingPayment)
+                            ? null
+                            : isPendingPayment
+                            ? onPayApproved
+                            : participant?.hasConfirmedSlot == true
+                            ? null
+                            : onJoin,
+                      ),
+                      if (participant?.canWithdraw == true &&
+                          !match.hasStarted &&
+                          !match.isCompleted &&
+                          !match.isCancelled) ...[
+                        const SizedBox(height: 8),
+                        TextButton(
+                          onPressed: onWithdraw,
+                          child: const Text('Withdraw'),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
           ],
         ),
       ),
@@ -1059,7 +1211,7 @@ class _BottomJoinBar extends StatelessWidget {
       final deadline = participant?.paymentDeadline;
       final isOverdue = participant?.isPaymentOverdue ?? false;
       if (isOverdue) {
-        return 'Deadline passed — organiser covering your share.';
+        return 'Deadline passed. Organiser covering your share.';
       }
       if (deadline != null) {
         final timeLeft = deadline.difference(DateTime.now());
@@ -1072,8 +1224,47 @@ class _BottomJoinBar extends StatelessWidget {
     if (participant?.isPendingApproval == true) {
       return 'Organiser approval needed before payment.';
     }
+    if (match.visibility != 'Public') {
+      return 'Request organiser access before you can join.';
+    }
     return 'Includes ${CurrencyHelpers.formatGBP(fee)} service fee. '
         'Pay within 24h of joining.';
+  }
+}
+
+class _JoinBarNotice extends StatelessWidget {
+  const _JoinBarNotice({
+    required this.icon,
+    required this.colour,
+    required this.message,
+  });
+
+  final IconData icon;
+  final Color colour;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: colour.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: colour.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: colour, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.small.copyWith(color: colour),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1081,10 +1272,14 @@ class _CommentsSection extends StatefulWidget {
   const _CommentsSection({
     required this.matchId,
     required this.currentUser,
+    required this.canComment,
+    required this.lockedMessage,
   });
 
   final String matchId;
   final AppUser currentUser;
+  final bool canComment;
+  final String lockedMessage;
 
   @override
   State<_CommentsSection> createState() => _CommentsSectionState();
@@ -1100,6 +1295,7 @@ class _CommentsSectionState extends State<_CommentsSection> {
   }
 
   Future<void> _post() async {
+    if (!widget.canComment) return;
     final body = _bodyController.text.trim();
     if (body.isEmpty) return;
     final viewModel = context.read<MatchViewModel>();
@@ -1113,9 +1309,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
       _bodyController.clear();
       FocusScope.of(context).unfocus();
     } else if (viewModel.errorMessage != null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(viewModel.errorMessage!)),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(viewModel.errorMessage!)));
     }
   }
 
@@ -1135,6 +1331,10 @@ class _CommentsSectionState extends State<_CommentsSection> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Match chat', style: AppTextStyles.h3),
+          if (!widget.canComment) ...[
+            const SizedBox(height: 8),
+            Text(widget.lockedMessage, style: AppTextStyles.bodyMuted),
+          ],
           const SizedBox(height: 10),
           StreamBuilder<List<MatchComment>>(
             stream: viewModel.commentsStream(widget.matchId),
@@ -1144,7 +1344,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
                 return Padding(
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
-                    'No comments yet. Be the first to chime in.',
+                    widget.canComment
+                        ? 'No comments yet. Be the first to post.'
+                        : 'No comments yet.',
                     style: AppTextStyles.bodyMuted,
                   ),
                 );
@@ -1172,12 +1374,13 @@ class _CommentsSectionState extends State<_CommentsSection> {
               Expanded(
                 child: TextField(
                   controller: _bodyController,
+                  enabled: widget.canComment,
                   maxLines: 3,
                   minLines: 1,
                   textInputAction: TextInputAction.newline,
                   style: AppTextStyles.body,
                   decoration: const InputDecoration(
-                    hintText: 'Write a comment…',
+                    hintText: 'Write a comment...',
                     isDense: true,
                     contentPadding: EdgeInsets.symmetric(
                       horizontal: 12,
@@ -1188,7 +1391,9 @@ class _CommentsSectionState extends State<_CommentsSection> {
               ),
               const SizedBox(width: 8),
               IconButton(
-                onPressed: viewModel.isLoading ? null : _post,
+                onPressed: viewModel.isLoading || !widget.canComment
+                    ? null
+                    : _post,
                 style: IconButton.styleFrom(
                   backgroundColor: AppColours.accent,
                   foregroundColor: const Color(0xFF071014),
@@ -1352,10 +1557,7 @@ class _CancelledBanner extends StatelessWidget {
                 ),
                 if ((match.cancelReason ?? '').isNotEmpty) ...[
                   const SizedBox(height: 4),
-                  Text(
-                    match.cancelReason!,
-                    style: AppTextStyles.small,
-                  ),
+                  Text(match.cancelReason!, style: AppTextStyles.small),
                 ],
               ],
             ),
@@ -1408,9 +1610,7 @@ class _MatchShareSheet extends StatelessWidget {
               const SizedBox(height: 14),
               OutlinedButton.icon(
                 onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: _shareText),
-                  );
+                  await Clipboard.setData(ClipboardData(text: _shareText));
                   if (!context.mounted) return;
                   Navigator.of(context).pop();
                   ScaffoldMessenger.of(context).showSnackBar(
@@ -1433,12 +1633,11 @@ class _MatchShareSheet extends StatelessWidget {
               const SizedBox(height: 8),
               Flexible(
                 child: StreamBuilder<List<Friend>>(
-                  stream: context
-                      .read<FriendsViewModel>()
-                      .friendsStream(currentUser.uid),
+                  stream: context.read<FriendsViewModel>().friendsStream(
+                    currentUser.uid,
+                  ),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState ==
-                        ConnectionState.waiting) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
                       return const Padding(
                         padding: EdgeInsets.all(20),
                         child: Center(
@@ -1461,8 +1660,7 @@ class _MatchShareSheet extends StatelessWidget {
                     return ListView.separated(
                       shrinkWrap: true,
                       itemCount: friends.length,
-                      separatorBuilder: (_, _) =>
-                          const SizedBox(height: 8),
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
                         final friend = friends[index];
                         return InkWell(
@@ -1475,8 +1673,7 @@ class _MatchShareSheet extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: AppColours.card,
                               borderRadius: BorderRadius.circular(10),
-                              border:
-                                  Border.all(color: AppColours.line),
+                              border: Border.all(color: AppColours.line),
                             ),
                             child: Row(
                               children: [
@@ -1533,8 +1730,8 @@ class _MatchShareSheet extends StatelessWidget {
     );
     if (!context.mounted) return;
     Navigator.of(context).pop();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Sent to ${friend.fullName}.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text('Sent to ${friend.fullName}.')));
   }
 }

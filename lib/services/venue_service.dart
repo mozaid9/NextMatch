@@ -122,8 +122,8 @@ class VenueService {
         ],
         openingHour: 8,
         closingHour: 22,
-        rating: 4.5,
-        reviewCount: 128,
+        rating: 0,
+        reviewCount: 0,
         createdAt: now,
       ),
       Venue(
@@ -167,8 +167,8 @@ class VenueService {
         ],
         openingHour: 9,
         closingHour: 23,
-        rating: 4.7,
-        reviewCount: 245,
+        rating: 0,
+        reviewCount: 0,
         createdAt: now,
       ),
       Venue(
@@ -203,8 +203,8 @@ class VenueService {
         ],
         openingHour: 7,
         closingHour: 23,
-        rating: 4.2,
-        reviewCount: 67,
+        rating: 0,
+        reviewCount: 0,
         createdAt: now,
       ),
     ];

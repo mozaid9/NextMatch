@@ -207,9 +207,12 @@ class _StatsCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final relColor = _reliabilityColor(user.reliabilityScore);
-    final relLabel =
-        ReliabilityService.getReliabilityLabel(user.reliabilityScore);
+    final hasHistory = user.hasReliabilityHistory;
+    final relColor =
+        hasHistory ? _reliabilityColor(user.reliabilityScore) : AppColours.mutedText;
+    final relLabel = hasHistory
+        ? ReliabilityService.getReliabilityLabel(user.reliabilityScore)
+        : 'New player';
 
     return Container(
       decoration: BoxDecoration(
@@ -264,7 +267,9 @@ class _StatsCard extends StatelessWidget {
                           alignment: Alignment.center,
                           children: [
                             CircularProgressIndicator(
-                              value: user.reliabilityScore / 100,
+                              value: hasHistory
+                                  ? user.reliabilityScore / 100
+                                  : 0,
                               strokeWidth: 5,
                               strokeCap: StrokeCap.round,
                               backgroundColor: AppColours.line,
@@ -272,7 +277,7 @@ class _StatsCard extends StatelessWidget {
                                   AlwaysStoppedAnimation<Color>(relColor),
                             ),
                             Text(
-                              '${user.reliabilityScore}',
+                              hasHistory ? '${user.reliabilityScore}' : '—',
                               style: TextStyle(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w700,

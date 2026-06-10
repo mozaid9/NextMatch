@@ -51,6 +51,11 @@ class AppUser {
   final DateTime? lastReliabilityUpdateAt;
   final DateTime? lastAbilityRatingAt;
   final int matchesPlayed;
+
+  /// True once any attendance event (attended / no-show / late cancel) has
+  /// been recorded. Until then the default score is meaningless and the UI
+  /// should present the player as new rather than "Excellent".
+  bool get hasReliabilityHistory => lastReliabilityUpdateAt != null;
   // Legacy alias kept while older UI/data migrates to abilityRating.
   final double rating;
   final DateTime createdAt;

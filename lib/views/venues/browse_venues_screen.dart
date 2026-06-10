@@ -95,13 +95,6 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Pitches near you', style: AppTextStyles.h1),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Pick a venue, pick a slot — done. No address typing.',
-                        style: AppTextStyles.bodyMuted,
-                      ),
-                      const SizedBox(height: 14),
                       _SearchField(
                         controller: _searchController,
                         onChanged: (value) =>

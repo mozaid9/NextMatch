@@ -283,7 +283,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     final matchViewModel = context.watch<MatchViewModel>();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Create')),
+      appBar: AppBar(title: const Text('Create a match')),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 20, 20, 112),
@@ -292,16 +292,16 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Create a match', style: AppTextStyles.h1),
-                const SizedBox(height: 8),
-                Text(
-                  widget.venueDraft != null
-                      ? "We've pre-filled the location, date and format from your booking."
-                      : widget.template != null
-                          ? "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like."
-                          : 'Set the terms, collect payments and fill the game.',
-                  style: AppTextStyles.bodyMuted,
-                ),
+                if (widget.venueDraft != null || widget.template != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Text(
+                      widget.venueDraft != null
+                          ? "We've pre-filled the location, date and format from your booking."
+                          : "Running it back — we've copied everything from \"${widget.template!.title}\" and set the date a week later. Tweak anything you like.",
+                      style: AppTextStyles.bodyMuted,
+                    ),
+                  ),
                 if (widget.venueDraft != null) ...[
                   const SizedBox(height: 14),
                   _VenueDraftBanner(draft: widget.venueDraft!),

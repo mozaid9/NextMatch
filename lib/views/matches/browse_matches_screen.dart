@@ -86,13 +86,6 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Open football nearby', style: AppTextStyles.h1),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Find a game, pick your position and secure your spot.',
-                    style: AppTextStyles.bodyMuted,
-                  ),
-                  const SizedBox(height: 16),
                   _FilterRow(
                     format: _format,
                     skill: _skill,

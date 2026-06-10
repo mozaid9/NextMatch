@@ -467,8 +467,17 @@ whole reason this handoff exists. **Do not break them.**
 - **`organiserMatchesStream` removed `.orderBy`** to avoid needing a
   composite index — sorts client-side instead. Same trick used in a
   couple of places. Fine for current scale.
-- **No push notifications** — invites and chats only show inside the
-  app. `notification_service.dart` is a stub.
+- **Push notifications are wired but need one console step**:
+  `NotificationService` registers FCM tokens (users/{uid}/fcmTokens),
+  `web/firebase-messaging-sw.js` handles background pushes, and four
+  Cloud Functions in `functions/` (deployed, europe-west2) fan out
+  invites / chat messages / cancellations / approvals. Web token
+  registration no-ops until the Web Push certificate key is pasted into
+  `kWebVapidKey` in `notification_service.dart` (Console → Project
+  settings → Cloud Messaging → Web Push certificates → Generate).
+  Functions deploy: `firebase deploy --only functions` (first deploy
+  may report timeouts/IAM errors — check `firebase functions:list`,
+  they usually completed server-side; retry is idempotent).
 - **Friends-of-friends suggestions** not implemented — current
   suggestions are just match co-players.
 - **Web hot-restart prints `window.dart:99:12` assertion** sometimes —

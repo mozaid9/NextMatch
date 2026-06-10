@@ -95,3 +95,7 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
   empty state (this bit us twice: chats and teams).
 - Storage rules: `users/<uid>/profile.jpg` — public read, owner write
   (deployed earlier; unchanged).
+- Cloud Functions (`functions/`, europe-west2) run with admin
+  privileges and currently only send pushes. They are the landing zone
+  for the reputation/payment writes above. `users/{uid}/fcmTokens` is
+  owner-only in rules; functions read it via the admin SDK.

@@ -80,6 +80,9 @@ class FootballMatch {
   String get spacesLabel => '$joinedPlayerCount/$totalPlayersNeeded';
   String get displayStatus {
     if (isCompleted || isCancelled) return status;
+    // A match past kick-off that was never completed shouldn't keep
+    // advertising itself as open.
+    if (hasStarted) return 'Started';
     if (isFull || status == 'Full') return 'Full';
     return isNearlyFull ? 'Nearly Full' : status;
   }

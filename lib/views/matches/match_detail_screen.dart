@@ -121,15 +121,6 @@ class MatchDetailScreen extends StatelessWidget {
                             const SizedBox(height: 14),
                           ],
                           _Header(match: match),
-                          if (isOrganiser) ...[
-                            const SizedBox(height: 14),
-                            PrimaryButton(
-                              label: 'Organiser dashboard',
-                              icon: Icons.admin_panel_settings_outlined,
-                              onPressed: () =>
-                                  _openOrganiserDashboard(context, match),
-                            ),
-                          ],
                           if (canRate) ...[
                             const SizedBox(height: 14),
                             PrimaryButton(
@@ -923,7 +914,7 @@ class _BottomJoinBar extends StatelessWidget {
     final isPendingPayment =
         participant?.isPendingPayment == true || isApprovedPendingPayment;
     final label = isOrganiser
-        ? 'Manage match'
+        ? 'Manage'
         : switch (participant?.attendanceStatus) {
             'Joined' => "You're in",
             'Attended' => 'Attended',
@@ -940,7 +931,7 @@ class _BottomJoinBar extends StatelessWidget {
       match.pricePerPlayer + CurrencyHelpers.mockPlatformFee(match.pricePerPlayer),
     );
     final priceLabel = isOrganiser
-        ? 'Manage game'
+        ? 'Your match'
         : CurrencyHelpers.formatGBP(
             match.isOrganiserPays ? match.pricePerPlayer : totalWithFee,
           );

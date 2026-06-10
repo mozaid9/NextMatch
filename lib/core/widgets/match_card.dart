@@ -37,6 +37,7 @@ class MatchCard extends StatelessWidget {
       'Full' => AppColours.error,
       'Nearly Full' => AppColours.warning,
       'Completed' => AppColours.mutedText,
+      'Started' => AppColours.mutedText,
       'Cancelled' => AppColours.error,
       _ => AppColours.accent,
     };

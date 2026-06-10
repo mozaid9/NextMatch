@@ -137,7 +137,15 @@ class _HomeScreenState extends State<HomeScreen> {
                 final friendUids = (friendsSnap.data ?? const <Friend>[])
                     .map((f) => f.uid)
                     .toSet();
-                return StreamBuilder<List<FootballMatch>>(
+                return StreamBuilder<List<Map<String, dynamic>>>(
+                  stream: matchViewModel.joinedMatchSummariesStream(
+                    widget.currentUser.uid,
+                  ),
+                  builder: (context, joinedSnap) {
+                    final joinedIds = (joinedSnap.data ?? const [])
+                        .map((s) => s['matchId'] as String? ?? '')
+                        .toSet();
+                    return StreamBuilder<List<FootballMatch>>(
               stream: matchViewModel.openMatchesStream(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
@@ -149,7 +157,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   );
                 }
 
-                final matches = (snapshot.data ?? []).take(3).toList();
+                // Matches you organise or have already joined live under
+                // "Your next match" / My matches — don't re-list them as
+                // joinable nearby games.
+                final matches = (snapshot.data ?? [])
+                    .where(
+                      (m) =>
+                          m.organiserId != widget.currentUser.uid &&
+                          !joinedIds.contains(m.id),
+                    )
+                    .take(3)
+                    .toList();
                 if (matches.isEmpty) {
                   return SliverPadding(
                     padding: const EdgeInsets.fromLTRB(20, 0, 20, 112),
@@ -196,6 +214,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 );
               },
             );
+                  },
+                );
               },
             ),
           ],
@@ -931,6 +951,7 @@ class _UpcomingJoinedMatch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final matchViewModel = context.watch<MatchViewModel>();
+    final horizon = DateTime.now().subtract(const Duration(hours: 2));
 
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: matchViewModel.joinedMatchSummariesStream(currentUser.uid),
@@ -939,35 +960,120 @@ class _UpcomingJoinedMatch extends StatelessWidget {
         final upcoming = summaries.where((summary) {
           final value = summary['matchDateTime'];
           final date = value is Timestamp ? value.toDate() : DateTime.now();
-          return date.isAfter(
-            DateTime.now().subtract(const Duration(hours: 2)),
-          );
+          return date.isAfter(horizon);
         }).toList();
 
-        if (upcoming.isEmpty) {
-          return const EmptyState(
-            icon: Icons.event_available,
-            title: 'No games yet',
-            message: 'Join a match and it will appear here.',
-          );
-        }
+        return StreamBuilder<List<FootballMatch>>(
+          stream: matchViewModel.organisedMatchesStream(currentUser.uid),
+          builder: (context, organisedSnapshot) {
+            final organisedUpcoming =
+                (organisedSnapshot.data ?? const <FootballMatch>[])
+                    .where(
+                      (m) =>
+                          !m.isCancelled &&
+                          !m.isCompleted &&
+                          m.startDateTime.isAfter(horizon),
+                    )
+                    .toList()
+                  ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
 
-        final summary = upcoming.first;
-        final paymentStatus = summary['paymentStatus'] as String? ?? '';
-        final isPendingPayment = paymentStatus == 'PendingPayment';
-        return FutureBuilder<FootballMatch?>(
-          future: matchViewModel.getMatch(summary['matchId'] as String),
-          builder: (context, matchSnapshot) {
-            final match = matchSnapshot.data;
-            if (match == null) {
-              return const EmptyState(
-                icon: Icons.event_busy,
-                title: 'Loading your match',
-                message: 'Your next confirmed game is being fetched.',
+            DateTime? joinedStart;
+            if (upcoming.isNotEmpty) {
+              final value = upcoming.first['matchDateTime'];
+              joinedStart = value is Timestamp ? value.toDate() : null;
+            }
+            final organisedNext =
+                organisedUpcoming.isNotEmpty ? organisedUpcoming.first : null;
+
+            // Prefer whichever kicks off sooner; organised matches count as
+            // "your next match" too — you're definitely turning up to those.
+            final useOrganised =
+                organisedNext != null &&
+                (joinedStart == null ||
+                    organisedNext.startDateTime.isBefore(joinedStart));
+
+            if (useOrganised) {
+              return MatchCard(
+                match: organisedNext,
+                trailing: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColours.accent.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    "You're organising",
+                    style: TextStyle(color: AppColours.accent, fontSize: 12),
+                  ),
+                ),
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => MatchDetailScreen(
+                        matchId: organisedNext.id,
+                        currentUser: currentUser,
+                      ),
+                    ),
+                  );
+                },
               );
             }
 
-            return MatchCard(
+            if (upcoming.isEmpty) {
+              return const EmptyState(
+                icon: Icons.event_available,
+                title: 'No games yet',
+                message: 'Join or create a match and it will appear here.',
+              );
+            }
+
+            final summary = upcoming.first;
+            final paymentStatus = summary['paymentStatus'] as String? ?? '';
+            final isPendingPayment = paymentStatus == 'PendingPayment';
+            return _JoinedMatchCard(
+              matchViewModel: matchViewModel,
+              summary: summary,
+              isPendingPayment: isPendingPayment,
+              currentUser: currentUser,
+            );
+          },
+        );
+      },
+    );
+  }
+}
+
+class _JoinedMatchCard extends StatelessWidget {
+  const _JoinedMatchCard({
+    required this.matchViewModel,
+    required this.summary,
+    required this.isPendingPayment,
+    required this.currentUser,
+  });
+
+  final MatchViewModel matchViewModel;
+  final Map<String, dynamic> summary;
+  final bool isPendingPayment;
+  final AppUser currentUser;
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<FootballMatch?>(
+      future: matchViewModel.getMatch(summary['matchId'] as String),
+      builder: (context, matchSnapshot) {
+        final match = matchSnapshot.data;
+        if (match == null) {
+          return const EmptyState(
+            icon: Icons.event_busy,
+            title: 'Loading your match',
+            message: 'Your next confirmed game is being fetched.',
+          );
+        }
+
+        return MatchCard(
               match: match,
               trailing: Container(
                 padding: const EdgeInsets.symmetric(
@@ -992,16 +1098,14 @@ class _UpcomingJoinedMatch extends StatelessWidget {
                   ),
                 ),
               ),
-              onTap: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => MatchDetailScreen(
-                      matchId: match.id,
-                      currentUser: currentUser,
-                    ),
-                  ),
-                );
-              },
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute<void>(
+                builder: (_) => MatchDetailScreen(
+                  matchId: match.id,
+                  currentUser: currentUser,
+                ),
+              ),
             );
           },
         );

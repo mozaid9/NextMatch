@@ -15,12 +15,17 @@ class TeamService {
   CollectionReference<Map<String, dynamic>> get _teams =>
       _firestore.collection('teams');
 
+  /// Sorted client-side: arrayContains + orderBy needs a composite index,
+  /// and a user's team list is small.
   Stream<List<Team>> myTeamsStream(String uid) {
     return _teams
         .where('memberIds', arrayContains: uid)
-        .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snapshot) => snapshot.docs.map(Team.fromFirestore).toList());
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(Team.fromFirestore).toList()
+                ..sort((a, b) => b.createdAt.compareTo(a.createdAt)),
+        );
   }
 
   Stream<Team?> teamStream(String teamId) {

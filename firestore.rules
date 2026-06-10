@@ -37,16 +37,6 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/matches/$(matchId)/participants/$(userId));
     }
 
-    function isMatchParticipant(matchId, userId) {
-      return signedIn()
-        && exists(/databases/$(database)/documents/matches/$(matchId)/participants/$(userId));
-    }
-
-    function hasMatchInvite(matchId, userId) {
-      return signedIn()
-        && exists(/databases/$(database)/documents/users/$(userId)/matchInvites/$(matchId));
-    }
-
     function isMatchOrganiser(matchId) {
       return signedIn() && matchDoc(matchId).data.organiserId == request.auth.uid;
     }

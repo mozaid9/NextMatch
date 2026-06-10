@@ -120,7 +120,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
     _cancellationPolicyController = TextEditingController(
       text: template?.cancellationPolicy.isNotEmpty == true
           ? template!.cancellationPolicy
-          : 'Refunds are handled manually in the MVP. Please give notice early.',
+          : 'Withdraw at least 24 hours before kick-off for a full refund.',
     );
     _skillLevel = template?.skillLevel ?? 'Casual';
     _visibility = template?.visibility ?? 'Public';

@@ -217,7 +217,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
-                              'Cancelling notifies joined players. Refund handling is manual until real payments are wired up.',
+                              'Cancelling notifies joined players. Anyone who has already paid will need to be refunded.',
                               style: AppTextStyles.small,
                             ),
                           ),
@@ -297,7 +297,7 @@ class OrganiserMatchDashboardScreen extends StatelessWidget {
       context: context,
       title: 'Cancel match?',
       message:
-          'Joined players will see this match as cancelled. Refunds must be handled manually until real payments are wired up.',
+          'Joined players will see this match as cancelled. Anyone who has already paid will need to be refunded.',
       label: 'Reason (shown to players)',
       hint: 'e.g. Pitch unavailable, not enough players',
       confirmLabel: 'Cancel match',

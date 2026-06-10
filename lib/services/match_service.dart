@@ -1063,6 +1063,10 @@ class MatchService {
     final now = DateTime.now();
     await _seedDemoUsers(now);
 
+    // Put "Friday Night 7s" on an actual Friday.
+    final daysUntilFriday = (DateTime.friday - now.weekday + 7) % 7;
+    final fridayOffset = daysUntilFriday == 0 ? 7 : daysUntilFriday;
+
     final samples = [
       FootballMatch(
         id: '',
@@ -1071,10 +1075,22 @@ class MatchService {
         organiserName: organiser.fullName,
         locationName: 'Manchester Powerleague',
         address: 'Central Manchester',
-        date: now.add(const Duration(days: 5)),
+        date: now.add(Duration(days: fridayOffset)),
         startTime: '19:30',
-        startDateTime: DateTime(now.year, now.month, now.day + 5, 19, 30),
-        endDateTime: DateTime(now.year, now.month, now.day + 5, 20, 30),
+        startDateTime: DateTime(
+          now.year,
+          now.month,
+          now.day + fridayOffset,
+          19,
+          30,
+        ),
+        endDateTime: DateTime(
+          now.year,
+          now.month,
+          now.day + fridayOffset,
+          20,
+          30,
+        ),
         durationMinutes: 60,
         format: '7-a-side',
         totalPlayersNeeded: 14,
@@ -1091,7 +1107,8 @@ class MatchService {
         },
         visibility: 'Public',
         status: 'Open',
-        cancellationPolicy: 'Refunds are handled manually in the MVP.',
+        cancellationPolicy:
+            'Withdraw at least 24 hours before kick-off for a full refund.',
         paymentMode: 'Split',
         createdAt: now,
         updatedAt: now,
@@ -1123,18 +1140,19 @@ class MatchService {
         },
         visibility: 'Public',
         status: 'Open',
-        cancellationPolicy: 'Refunds are handled manually in the MVP.',
+        cancellationPolicy:
+            'Withdraw at least 24 hours before kick-off for a full refund.',
         paymentMode: 'OrganiserPays',
         createdAt: now,
         updatedAt: now,
       ),
       FootballMatch(
         id: '',
-        title: 'Competitive 11-a-side Trial Game',
+        title: 'Sunday League Warm-up 11s',
         organiserId: organiser.uid,
         organiserName: organiser.fullName,
-        locationName: 'Outdoor Grass Pitch',
-        address: 'North field complex',
+        locationName: 'Hough End Playing Fields',
+        address: 'Princess Road, Manchester',
         date: now.add(const Duration(days: 9)),
         startTime: '10:00',
         startDateTime: DateTime(now.year, now.month, now.day + 9, 10),
@@ -1155,14 +1173,15 @@ class MatchService {
         },
         visibility: 'Public',
         status: 'Open',
-        cancellationPolicy: 'Refunds are handled manually in the MVP.',
+        cancellationPolicy:
+            'Withdraw at least 24 hours before kick-off for a full refund.',
         paymentMode: 'Split',
         createdAt: now,
         updatedAt: now,
       ),
       FootballMatch(
         id: '',
-        title: 'Trust Test 7s',
+        title: 'Salford Evening 7s',
         organiserId: organiser.uid,
         organiserName: organiser.fullName,
         locationName: 'Salford Sports Village',
@@ -1179,7 +1198,7 @@ class MatchService {
         skillLevel: 'Intermediate',
         pitchType: '3G/4G',
         description:
-            'Open match requiring approval for players below 70 reliability.',
+            'Decent standard 7s on the 3G. Turn up on time and play hard.',
         neededPositions: const {
           'Goalkeepers': 2,
           'Defenders': 4,
@@ -1189,7 +1208,8 @@ class MatchService {
         visibility: 'Public',
         status: 'Open',
         cancellationPolicy:
-            'Late withdrawals reduce reliability. Stripe refunds are TODO.',
+            'Withdraw at least 24 hours before kick-off for a full refund. '
+            'Late drop-outs affect your reliability score.',
         paymentMode: 'Split',
         minimumReliabilityRequired: 70,
         requiresApprovalForLowReliability: true,
@@ -1198,11 +1218,11 @@ class MatchService {
       ),
       FootballMatch(
         id: '',
-        title: 'Completed Demo 5s',
+        title: 'Midweek Indoor 5s',
         organiserId: organiser.uid,
         organiserName: organiser.fullName,
         locationName: 'City Football Dome',
-        address: 'Demo Road, Manchester',
+        address: 'Hulme, Manchester',
         date: now.subtract(const Duration(days: 2)),
         startTime: '18:30',
         startDateTime: DateTime(now.year, now.month, now.day - 2, 18, 30),
@@ -1214,7 +1234,7 @@ class MatchService {
         pricePerPlayer: 5.00,
         skillLevel: 'Casual',
         pitchType: 'Indoor',
-        description: 'Completed demo match for post-match ratings.',
+        description: 'Weekly indoor 5s — short, sharp games.',
         neededPositions: const {
           'Goalkeepers': 2,
           'Defenders': 2,
@@ -1223,7 +1243,8 @@ class MatchService {
         },
         visibility: 'Public',
         status: 'Completed',
-        cancellationPolicy: 'Completed demo.',
+        cancellationPolicy:
+            'Withdraw at least 24 hours before kick-off for a full refund.',
         paymentMode: 'OrganiserPays',
         completedAt: now.subtract(const Duration(days: 2)),
         createdAt: now,

@@ -235,9 +235,13 @@ whole reason this handoff exists. **Do not break them.**
   - `teams/{teamId}` — `Team`
     - `teams/{id}/messages/{messageId}` — team chat reuses `ChatMessage`
   - `payments/{paymentId}` — `PaymentRecord` (currently mocked)
-- **No security rules deployed yet** — we operate under the default
-  permissive rules from when Firestore was initialised. Production
-  hardening is a TODO.
+- **Security rules ARE deployed** (10 Jun 2026) — see `firestore.rules`
+  and `SECURITY.md` for the model, the dev-only carve-outs, and the
+  pre-launch checklist. Deploy changes with
+  `firebase deploy --only firestore:rules --project nextmatch-eb038`.
+- **Composite-index trap**: don't add `orderBy` to queries that already
+  have `where`/`arrayContains` — sort client-side instead (chats and
+  teams lists silently broke this way; both fixed).
 
 ### Storage
 
@@ -449,7 +453,9 @@ whole reason this handoff exists. **Do not break them.**
 
 - **Apple Sign-In Firebase setup** isn't done (button currently errors).
   Code is ready — just needs Apple Developer account + Service ID + key.
-- **No Firestore security rules deployed** — production hardening needed.
+- **Firestore security rules deployed 10 Jun 2026** — remaining hardening
+  (Cloud Functions for reputation writes, removing dev carve-outs, App
+  Check) is tracked in `SECURITY.md`.
 - **Storage CORS is `*`** for everything — fine for dev, lock down for
   prod by listing real origins.
 - **Mock payments** — `PaymentService.mockPayAndJoin` simulates with a

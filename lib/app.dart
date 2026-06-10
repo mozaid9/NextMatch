@@ -9,6 +9,7 @@ import 'services/auth_service.dart';
 import 'services/chat_service.dart';
 import 'services/friends_service.dart';
 import 'services/match_service.dart';
+import 'services/notification_service.dart';
 import 'services/payment_service.dart';
 import 'services/rating_service.dart';
 import 'services/team_service.dart';
@@ -45,6 +46,7 @@ class NextMatchApp extends StatelessWidget {
         Provider<FriendsService>(create: (_) => FriendsService()),
         Provider<ChatService>(create: (_) => ChatService()),
         Provider<TeamService>(create: (_) => TeamService()),
+        Provider<NotificationService>(create: (_) => NotificationService()),
         Provider<PaymentService>(
           create: (context) => PaymentService(context.read<MatchService>()),
         ),

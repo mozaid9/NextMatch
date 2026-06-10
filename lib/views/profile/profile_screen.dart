@@ -8,6 +8,7 @@ import '../../core/constants/app_text_styles.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
+import '../../services/notification_service.dart';
 import '../../services/reliability_service.dart';
 import '../../services/friends_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
@@ -97,6 +98,12 @@ class ProfileScreen extends StatelessWidget {
                             isDestructive: true,
                           );
                           if (confirmed != true || !context.mounted) return;
+                          // Stop this device receiving pushes for the
+                          // account being signed out.
+                          await context
+                              .read<NotificationService>()
+                              .unregister();
+                          if (!context.mounted) return;
                           await context.read<AuthViewModel>().signOut();
                         },
                         icon: const Icon(Icons.logout),

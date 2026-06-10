@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../models/app_user.dart';
+import '../../services/notification_service.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../models/chat.dart';
 import '../../viewmodels/chat_viewmodel.dart';
@@ -24,6 +27,37 @@ class MainNavigationScreen extends StatefulWidget {
 
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
+  StreamSubscription<dynamic>? _foregroundMessages;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final notifications = context.read<NotificationService>();
+      notifications.initialise(widget.currentUser.uid);
+      // Pushes arriving while the app is open surface as a snackbar
+      // instead of a system notification.
+      _foregroundMessages = notifications.foregroundMessages.listen((message) {
+        final title = message.notification?.title;
+        final body = message.notification?.body;
+        final text = [
+          if (title != null && title.isNotEmpty) title,
+          if (body != null && body.isNotEmpty) body,
+        ].join(' — ');
+        if (text.isEmpty || !mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(text)),
+        );
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _foregroundMessages?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {

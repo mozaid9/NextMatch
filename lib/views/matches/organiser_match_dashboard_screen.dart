@@ -909,7 +909,8 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 20),
                         child: Text(
-                          "You haven't added any friends yet. Add some on the Profile screen.",
+                          'No friends yet — follow players in the Community '
+                          'tab and they appear here once they follow back.',
                           style: AppTextStyles.bodyMuted,
                         ),
                       );

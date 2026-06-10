@@ -2,11 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 
-/// Web push certificate key pair (Firebase Console → Project settings →
+/// Web push certificate public key (Firebase Console → Project settings →
 /// Cloud Messaging → Web configuration → Web Push certificates).
-/// Required for FCM tokens on web; harmless on mobile.
-/// TODO: paste the real key — until then web token registration no-ops.
-const String kWebVapidKey = 'REPLACE_WITH_WEB_PUSH_CERTIFICATE_KEY';
+/// Required for FCM tokens on web; harmless on mobile. This is the public
+/// half of the key pair — safe in source control.
+const String kWebVapidKey =
+    'BGLFOLtEsndeEVqhgJQ48BhZQ44oFfVentYpil41YIbCqgCgKeJTKOraBpSBsZQ3xoT5G-JYMkrOMcCFNeLGh9o';
 
 /// Registers this device for push notifications and keeps its FCM token
 /// stored under `users/{uid}/fcmTokens/{token}` so Cloud Functions can

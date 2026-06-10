@@ -111,9 +111,10 @@ Future<String?> showAppInputSheet({
   bool isDestructive = false,
   int maxLength = 200,
   int maxLines = 3,
+  String? initialValue,
   String? Function(String value)? validator,
 }) {
-  final controller = TextEditingController();
+  final controller = TextEditingController(text: initialValue ?? '');
   String? errorText;
 
   return showModalBottomSheet<String>(

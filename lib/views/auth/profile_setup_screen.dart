@@ -181,11 +181,10 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                 const SizedBox(height: 14),
                 CustomTextField(
                   controller: _bioController,
-                  label: 'Bio',
+                  label: 'Bio (optional)',
+                  hint: 'e.g. Box-to-box midfielder, plays Tuesdays',
                   icon: Icons.notes_outlined,
                   maxLines: 3,
-                  validator: (value) =>
-                      Validators.required(value, label: 'A short bio'),
                 ),
                 if (profile.errorMessage != null) ...[
                   const SizedBox(height: 14),

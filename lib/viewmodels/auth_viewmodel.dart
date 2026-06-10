@@ -34,6 +34,10 @@ class AuthViewModel extends ChangeNotifier {
     await _authService.signOut();
   }
 
+  Future<bool> sendPasswordResetEmail(String email) async {
+    return _runAuthAction(() => _authService.sendPasswordResetEmail(email));
+  }
+
   Future<bool> signInWithGoogle() async {
     return _runAuthAction(() => _authService.signInWithGoogle());
   }

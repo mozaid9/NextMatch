@@ -41,6 +41,10 @@ class AuthService {
 
   Future<void> signOut() => _firebaseAuth.signOut();
 
+  Future<void> sendPasswordResetEmail(String email) {
+    return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
+  }
+
   /// Google Sign-In via popup (web). Requires Google provider enabled in
   /// Firebase Console → Authentication → Sign-in methods.
   Future<UserCredential> signInWithGoogle() async {

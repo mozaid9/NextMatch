@@ -153,11 +153,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                 const SizedBox(height: 14),
                 CustomTextField(
                   controller: _bioController,
-                  label: 'Bio',
+                  label: 'Bio (optional)',
                   icon: Icons.notes_outlined,
                   maxLines: 3,
-                  validator: (value) =>
-                      Validators.required(value, label: 'Bio'),
                 ),
                 if (profile.errorMessage != null) ...[
                   const SizedBox(height: 14),

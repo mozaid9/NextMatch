@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/custom_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/social_sign_in_button.dart';
@@ -27,6 +28,35 @@ class _LoginScreenState extends State<LoginScreen> {
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
+  }
+
+  Future<void> _forgotPassword() async {
+    final email = await showAppInputSheet(
+      context: context,
+      title: 'Reset your password',
+      message: "We'll email you a link to set a new password.",
+      label: 'Email',
+      hint: 'you@example.com',
+      initialValue: _emailController.text.trim(),
+      confirmLabel: 'Send reset link',
+      confirmIcon: Icons.mail_outline,
+      maxLines: 1,
+      validator: (value) => Validators.email(value),
+    );
+    if (email == null || email.isEmpty || !mounted) return;
+
+    final auth = context.read<AuthViewModel>();
+    final success = await auth.sendPasswordResetEmail(email);
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'Reset link sent to $email. Check your inbox.'
+              : auth.errorMessage ?? 'Could not send the reset email.',
+        ),
+      ),
+    );
   }
 
   Future<void> _submit() async {
@@ -120,6 +150,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   obscureText: true,
                   validator: Validators.password,
                   textInputAction: TextInputAction.done,
+                ),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: auth.isLoading ? null : _forgotPassword,
+                    child: const Text('Forgot password?'),
+                  ),
                 ),
                 if (auth.errorMessage != null) ...[
                   const SizedBox(height: 14),

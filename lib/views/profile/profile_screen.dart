@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../core/widgets/app_sheet.dart';
 import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../services/reliability_service.dart';
@@ -85,8 +86,19 @@ class ProfileScreen extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       OutlinedButton.icon(
-                        onPressed: () =>
-                            context.read<AuthViewModel>().signOut(),
+                        onPressed: () async {
+                          final confirmed = await showAppConfirmSheet(
+                            context: context,
+                            title: 'Sign out?',
+                            message:
+                                'You can log back in with the same account any time.',
+                            confirmLabel: 'Sign out',
+                            confirmIcon: Icons.logout,
+                            isDestructive: true,
+                          );
+                          if (confirmed != true || !context.mounted) return;
+                          await context.read<AuthViewModel>().signOut();
+                        },
                         icon: const Icon(Icons.logout),
                         label: const Text('Sign out'),
                         style: OutlinedButton.styleFrom(

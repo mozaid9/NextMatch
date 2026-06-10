@@ -4,7 +4,7 @@ class DateTimeHelpers {
   const DateTimeHelpers._();
 
   static String formatMatchDateTime(DateTime dateTime) {
-    return DateFormat('EEE d MMM - HH:mm').format(dateTime);
+    return DateFormat('EEE d MMM · HH:mm').format(dateTime);
   }
 
   static String formatDate(DateTime dateTime) {

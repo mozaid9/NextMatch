@@ -545,7 +545,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
                 ],
                 const SizedBox(height: 24),
                 PrimaryButton(
-                  label: 'Create Match',
+                  label: 'Create match',
                   icon: Icons.add,
                   isLoading: matchViewModel.isLoading,
                   onPressed: _submit,

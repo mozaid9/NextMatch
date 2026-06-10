@@ -600,7 +600,7 @@ class _Header extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           Text(
-            '${match.spacesLabel} spaces filled - ${match.displayStatus}',
+            '${match.spacesLabel} spaces filled · ${match.displayStatus}',
             style: AppTextStyles.bodyMuted,
           ),
         ],

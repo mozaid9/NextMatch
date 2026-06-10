@@ -352,7 +352,7 @@ class _SummaryCard extends StatelessWidget {
               ),
               _Badge(label: match.status),
               _Badge(label: '${match.spacesLabel} filled'),
-              _Badge(label: 'Min rel. ${match.minimumReliabilityRequired}'),
+              _Badge(label: 'Min ${match.minimumReliabilityRequired} rel.'),
             ],
           ),
         ],

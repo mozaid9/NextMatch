@@ -584,6 +584,14 @@ class _MatchInvitesSection extends StatelessWidget {
 
   final AppUser currentUser;
 
+  /// Invites stop being actionable this long before kick-off.
+  static const _expiryWindow = Duration(hours: 2);
+
+  static DateTime? _inviteKickOff(Map<String, dynamic> invite) {
+    final value = invite['matchDateTime'];
+    return value is Timestamp ? value.toDate() : null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final matchViewModel = context.read<MatchViewModel>();
@@ -591,10 +599,50 @@ class _MatchInvitesSection extends StatelessWidget {
     return StreamBuilder<List<Map<String, dynamic>>>(
       stream: matchViewModel.matchInvitesStream(currentUser.uid),
       builder: (context, snapshot) {
-        final invites = snapshot.data ?? [];
-        if (invites.isEmpty) return const SizedBox.shrink();
+        final allInvites = snapshot.data ?? [];
+        return StreamBuilder<List<Map<String, dynamic>>>(
+          stream: matchViewModel.joinedMatchSummariesStream(currentUser.uid),
+          builder: (context, joinedSnapshot) {
+            final joinedIds = (joinedSnapshot.data ?? const [])
+                .map((s) => s['matchId'] as String? ?? '')
+                .toSet();
 
-        return Column(
+            final now = DateTime.now();
+            final invites = <Map<String, dynamic>>[];
+            final stale = <String>[];
+            for (final invite in allInvites) {
+              final matchId = invite['matchId'] as String? ?? '';
+              final kickOff = _inviteKickOff(invite);
+              final expired =
+                  kickOff == null ||
+                  now.isAfter(kickOff.subtract(_expiryWindow));
+              if (expired || joinedIds.contains(matchId)) {
+                // Joined or too close to kick-off — quietly clear it.
+                if (matchId.isNotEmpty) stale.add(matchId);
+              } else {
+                invites.add(invite);
+              }
+            }
+            if (stale.isNotEmpty) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                for (final matchId in stale) {
+                  matchViewModel.dismissMatchInvite(
+                    uid: currentUser.uid,
+                    matchId: matchId,
+                  );
+                }
+              });
+            }
+            if (invites.isEmpty) return const SizedBox.shrink();
+            return _buildSection(invites);
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildSection(List<Map<String, dynamic>> invites) {
+    return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
@@ -632,8 +680,6 @@ class _MatchInvitesSection extends StatelessWidget {
             const SizedBox(height: 18),
           ],
         );
-      },
-    );
   }
 }
 
@@ -695,6 +741,26 @@ class _MatchInviteCard extends StatelessWidget {
             '$location · $format · ${_formatWhen(when)}',
             style: AppTextStyles.small,
           ),
+          if (_expiryLabel(when) != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                const Icon(
+                  Icons.hourglass_bottom,
+                  size: 13,
+                  color: AppColours.warning,
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  _expiryLabel(when)!,
+                  style: AppTextStyles.small.copyWith(
+                    color: AppColours.warning,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 12),
           Row(
             children: [
@@ -707,15 +773,18 @@ class _MatchInviteCard extends StatelessWidget {
                       matchId: matchId,
                     );
                   },
-                  child: const Text('Dismiss'),
+                  child: const Text('Decline'),
                 ),
               ),
               const SizedBox(width: 8),
               Expanded(
                 child: PrimaryButton(
-                  label: 'View',
-                  icon: Icons.arrow_forward,
+                  label: 'Accept',
+                  icon: Icons.how_to_reg,
                   onPressed: () {
+                    // The invite stays until they actually join (the
+                    // section clears it automatically once the match
+                    // appears in their joined list).
                     Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => MatchDetailScreen(
@@ -724,11 +793,6 @@ class _MatchInviteCard extends StatelessWidget {
                         ),
                       ),
                     );
-                    // Dismiss after opening so the invite doesn't linger.
-                    context.read<MatchViewModel>().dismissMatchInvite(
-                          uid: currentUser.uid,
-                          matchId: matchId,
-                        );
                   },
                 ),
               ),
@@ -737,6 +801,20 @@ class _MatchInviteCard extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  /// "Expires in 5h 12m" once the invite is inside its final 24 hours.
+  /// Invites stop being shown 2 hours before kick-off (see
+  /// _MatchInvitesSection._expiryWindow).
+  String? _expiryLabel(DateTime kickOff) {
+    final expiresAt = kickOff.subtract(const Duration(hours: 2));
+    final remaining = expiresAt.difference(DateTime.now());
+    if (remaining.isNegative || remaining > const Duration(hours: 24)) {
+      return null;
+    }
+    final hours = remaining.inHours;
+    final mins = remaining.inMinutes.remainder(60);
+    return hours > 0 ? 'Expires in ${hours}h ${mins}m' : 'Expires in ${mins}m';
   }
 
   String _formatWhen(DateTime time) {

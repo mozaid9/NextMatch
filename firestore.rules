@@ -209,6 +209,16 @@ service cloud.firestore {
         allow read, write: if owns(userId);
       }
 
+      // In-app notification feed, written by Cloud Functions (admin SDK
+      // bypasses rules). The owner can read, mark as read, and clear.
+      match /notifications/{notificationId} {
+        allow read, delete: if owns(userId);
+        allow update: if owns(userId)
+          && request.resource.data.diff(resource.data).affectedKeys()
+              .hasOnly(['read']);
+        allow create: if false;
+      }
+
       // Invites are written into the invitee's inbox by the inviter and
       // dismissed by the invitee.
       match /matchInvites/{matchId} {

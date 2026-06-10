@@ -12,6 +12,7 @@ import '../../core/widgets/user_avatar.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../services/friends_service.dart';
+import '../../services/notification_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../models/team.dart';
@@ -31,11 +32,15 @@ class HomeScreen extends StatefulWidget {
     required this.currentUser,
     required this.onCreateMatch,
     required this.onBrowseMatches,
+    required this.onOpenCommunity,
+    required this.onOpenProfile,
   });
 
   final AppUser currentUser;
   final VoidCallback onCreateMatch;
   final VoidCallback onBrowseMatches;
+  final VoidCallback onOpenCommunity;
+  final VoidCallback onOpenProfile;
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -83,10 +88,23 @@ class _HomeScreenState extends State<HomeScreen> {
                             ],
                           ),
                         ),
-                        UserAvatar(
-                          fullName: widget.currentUser.fullName,
-                          photoUrl: widget.currentUser.photoUrl,
-                          radius: 24,
+                        _NotificationBell(
+                          currentUser: widget.currentUser,
+                          onOpenCommunity: widget.onOpenCommunity,
+                        ),
+                        const SizedBox(width: 10),
+                        Semantics(
+                          button: true,
+                          label: 'Open your profile',
+                          child: InkWell(
+                            onTap: widget.onOpenProfile,
+                            borderRadius: BorderRadius.circular(99),
+                            child: UserAvatar(
+                              fullName: widget.currentUser.fullName,
+                              photoUrl: widget.currentUser.photoUrl,
+                              radius: 24,
+                            ),
+                          ),
                         ),
                       ],
                     ),
@@ -1194,5 +1212,260 @@ class _JoinedMatchCard extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+/// Bell icon in the Home header. Shows an unread badge for the in-app
+/// notification feed and opens it as a bottom sheet.
+class _NotificationBell extends StatelessWidget {
+  const _NotificationBell({
+    required this.currentUser,
+    required this.onOpenCommunity,
+  });
+
+  final AppUser currentUser;
+  final VoidCallback onOpenCommunity;
+
+  @override
+  Widget build(BuildContext context) {
+    final notifications = context.read<NotificationService>();
+
+    return StreamBuilder<List<Map<String, dynamic>>>(
+      stream: notifications.inAppNotificationsStream(currentUser.uid),
+      builder: (context, snapshot) {
+        final items = snapshot.data ?? const [];
+        final unread = items.where((n) => n['read'] != true).length;
+
+        return Semantics(
+          button: true,
+          label: unread > 0
+              ? 'Notifications, $unread unread'
+              : 'Notifications',
+          child: InkWell(
+            onTap: () => _openFeed(context, items),
+            borderRadius: BorderRadius.circular(99),
+            child: Container(
+              height: 44,
+              width: 44,
+              decoration: BoxDecoration(
+                color: AppColours.card,
+                shape: BoxShape.circle,
+                border: Border.all(color: AppColours.line),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                alignment: Alignment.center,
+                children: [
+                  const Icon(
+                    Icons.notifications_none,
+                    size: 22,
+                    color: AppColours.text,
+                  ),
+                  if (unread > 0)
+                    Positioned(
+                      right: 6,
+                      top: 6,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 4,
+                          vertical: 1,
+                        ),
+                        constraints: const BoxConstraints(minWidth: 15),
+                        decoration: BoxDecoration(
+                          color: AppColours.error,
+                          borderRadius: BorderRadius.circular(99),
+                          border: Border.all(
+                            color: AppColours.background,
+                            width: 1.5,
+                          ),
+                        ),
+                        child: Text(
+                          unread > 9 ? '9+' : '$unread',
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 9,
+                            fontWeight: FontWeight.w800,
+                            color: Colors.white,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openFeed(
+    BuildContext context,
+    List<Map<String, dynamic>> items,
+  ) async {
+    final notifications = context.read<NotificationService>();
+    final unreadIds = items
+        .where((n) => n['read'] != true)
+        .map((n) => n['id'] as String)
+        .toList();
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AppColours.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    margin: const EdgeInsets.only(top: 10),
+                    height: 4,
+                    width: 38,
+                    decoration: BoxDecoration(
+                      color: AppColours.line,
+                      borderRadius: BorderRadius.circular(99),
+                    ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 4),
+                  child: Text('Notifications', style: AppTextStyles.h2),
+                ),
+                if (items.isEmpty)
+                  const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: EmptyState(
+                      icon: Icons.notifications_none,
+                      title: 'Nothing yet',
+                      message:
+                          'Invites, messages and match updates will land '
+                          'here as well as on your device.',
+                    ),
+                  )
+                else
+                  Flexible(
+                    child: ListView.separated(
+                      shrinkWrap: true,
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      itemCount: items.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 8),
+                      itemBuilder: (itemContext, index) =>
+                          _feedTile(itemContext, items[index]),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+
+    // Opening the sheet counts as catching up.
+    await notifications.markNotificationsRead(currentUser.uid, unreadIds);
+  }
+
+  Widget _feedTile(BuildContext context, Map<String, dynamic> item) {
+    final type = item['type'] as String? ?? 'general';
+    final isUnread = item['read'] != true;
+    final matchId = item['matchId'] as String?;
+    final icon = switch (type) {
+      'matchInvite' => Icons.mark_email_unread_outlined,
+      'chatMessage' => Icons.chat_bubble_outline,
+      'matchCancelled' => Icons.cancel_outlined,
+      'participantApproved' => Icons.how_to_reg,
+      _ => Icons.notifications_none,
+    };
+    final colour = switch (type) {
+      'matchCancelled' => AppColours.error,
+      _ => AppColours.accent,
+    };
+
+    return InkWell(
+      onTap: () {
+        Navigator.of(context).pop();
+        if (type == 'chatMessage') {
+          onOpenCommunity();
+        } else if (matchId != null && matchId.isNotEmpty) {
+          Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => MatchDetailScreen(
+                matchId: matchId,
+                currentUser: currentUser,
+              ),
+            ),
+          );
+        }
+      },
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: isUnread
+              ? AppColours.accent.withValues(alpha: 0.06)
+              : AppColours.card,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isUnread
+                ? AppColours.accent.withValues(alpha: 0.35)
+                : AppColours.line,
+          ),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(icon, size: 18, color: colour),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item['title'] as String? ?? 'Notification',
+                    style: AppTextStyles.body.copyWith(
+                      fontWeight:
+                          isUnread ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                  ),
+                  if ((item['body'] as String? ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      item['body'] as String,
+                      style: AppTextStyles.small,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ],
+              ),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              _relativeTime(item['createdAt']),
+              style: AppTextStyles.small,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _relativeTime(Object? value) {
+    if (value is! Timestamp) return '';
+    final delta = DateTime.now().difference(value.toDate());
+    if (delta.inMinutes < 1) return 'now';
+    if (delta.inMinutes < 60) return '${delta.inMinutes}m';
+    if (delta.inHours < 24) return '${delta.inHours}h';
+    return '${delta.inDays}d';
   }
 }

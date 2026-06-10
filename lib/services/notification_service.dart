@@ -27,6 +27,39 @@ class NotificationService {
   /// Foreground messages, surfaced so the UI can show an in-app banner.
   Stream<RemoteMessage> get foregroundMessages => FirebaseMessaging.onMessage;
 
+  /// The user's in-app notification feed (written by Cloud Functions
+  /// alongside every push), newest first.
+  Stream<List<Map<String, dynamic>>> inAppNotificationsStream(String uid) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('notifications')
+        .orderBy('createdAt', descending: true)
+        .limit(30)
+        .snapshots()
+        .map(
+          (snapshot) => snapshot.docs
+              .map((doc) => {...doc.data(), 'id': doc.id})
+              .toList(),
+        );
+  }
+
+  Future<void> markNotificationsRead(String uid, List<String> ids) async {
+    if (ids.isEmpty) return;
+    final batch = _firestore.batch();
+    for (final id in ids) {
+      batch.update(
+        _firestore
+            .collection('users')
+            .doc(uid)
+            .collection('notifications')
+            .doc(id),
+        {'read': true},
+      );
+    }
+    await batch.commit();
+  }
+
   /// Ask for permission and store this device's token. Safe to call on
   /// every sign-in; it no-ops when already registered for the same user,
   /// when permission is declined, or when the web VAPID key isn't set yet.

@@ -72,6 +72,8 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           ),
         ),
         onBrowseMatches: () => setState(() => _currentIndex = 1),
+        onOpenCommunity: () => setState(() => _currentIndex = 2),
+        onOpenProfile: () => setState(() => _currentIndex = 3),
       ),
       BrowseMatchesScreen(currentUser: widget.currentUser),
       CommunityScreen(currentUser: widget.currentUser),

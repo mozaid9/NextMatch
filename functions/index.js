@@ -25,10 +25,34 @@ async function tokensFor(uid) {
 }
 
 /**
+ * Record the notification in the user's in-app feed (the bell icon).
+ * This always happens, even when no device tokens exist — the feed is
+ * the "in case you missed it" backstop for pushes.
+ */
+async function recordInAppNotification(uid, { title, body, data = {} }) {
+  await getFirestore()
+    .collection('users')
+    .doc(uid)
+    .collection('notifications')
+    .add({
+      title,
+      body,
+      type: data.type || 'general',
+      matchId: data.matchId || null,
+      chatId: data.chatId || null,
+      read: false,
+      createdAt: new Date(),
+    });
+}
+
+/**
  * Send a notification to every device a user has registered, pruning
- * tokens FCM reports as dead so the list stays clean.
+ * tokens FCM reports as dead so the list stays clean. Also records the
+ * notification in the user's in-app feed.
  */
 async function pushToUser(uid, { title, body, data = {} }) {
+  await recordInAppNotification(uid, { title, body, data });
+
   const tokens = await tokensFor(uid);
   if (tokens.length === 0) return;
 

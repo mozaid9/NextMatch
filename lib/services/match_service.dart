@@ -39,12 +39,16 @@ class MatchService {
       _firestore.collection('users');
 
   Stream<List<FootballMatch>> openMatchesStream() {
-    return _matches.orderBy('startDateTime').snapshots().map((snapshot) {
+    // Security rules only permit listing public matches, so the query must
+    // constrain visibility server-side. Sorting stays client-side to avoid
+    // a composite index.
+    return _matches.where('visibility', isEqualTo: 'Public').snapshots().map((
+      snapshot,
+    ) {
       return snapshot.docs
           .map(FootballMatch.fromFirestore)
           .where(
             (match) =>
-                match.visibility == 'Public' &&
                 match.status != 'Full' &&
                 match.status != 'Completed' &&
                 match.status != 'Cancelled' &&
@@ -52,7 +56,8 @@ class MatchService {
                   DateTime.now().subtract(const Duration(hours: 2)),
                 ),
           )
-          .toList();
+          .toList()
+        ..sort((a, b) => a.startDateTime.compareTo(b.startDateTime));
     });
   }
 

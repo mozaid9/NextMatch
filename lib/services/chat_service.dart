@@ -13,13 +13,17 @@ class ChatService {
       _firestore.collection('chats');
 
   /// All chats the current user is a participant of, most recent first.
+  /// Sorted client-side: arrayContains + orderBy needs a composite index,
+  /// and chat lists are small.
   Stream<List<Chat>> myChatsStream(String uid) {
     return _chats
         .where('participantIds', arrayContains: uid)
-        .orderBy('lastMessageAt', descending: true)
         .snapshots()
         .map(
-          (snapshot) => snapshot.docs.map(Chat.fromFirestore).toList(),
+          (snapshot) =>
+              snapshot.docs.map(Chat.fromFirestore).toList()..sort(
+                (a, b) => b.lastMessageAt.compareTo(a.lastMessageAt),
+              ),
         );
   }
 

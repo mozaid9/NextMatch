@@ -70,7 +70,15 @@ class _JoinedMatchesList extends StatelessWidget {
         final summaries = (snapshot.data ?? []).where((summary) {
           final date = _summaryDate(summary);
           final isPast = date.isBefore(DateTime.now());
-          return showPast ? isPast : !isPast;
+          if (showPast) return isPast;
+          // Upcoming: hide games you withdrew from or were rejected for —
+          // they stay visible in Past as history.
+          final attendance = summary['attendanceStatus'] as String? ?? '';
+          if (const ['Cancelled', 'LateCancelled', 'Rejected']
+              .contains(attendance)) {
+            return false;
+          }
+          return !isPast;
         }).toList();
 
         if (summaries.isEmpty) {

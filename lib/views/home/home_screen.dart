@@ -958,6 +958,11 @@ class _UpcomingJoinedMatch extends StatelessWidget {
       builder: (context, snapshot) {
         final summaries = snapshot.data ?? [];
         final upcoming = summaries.where((summary) {
+          final attendance = summary['attendanceStatus'] as String? ?? '';
+          if (const ['Cancelled', 'LateCancelled', 'Rejected', 'NoShow']
+              .contains(attendance)) {
+            return false;
+          }
           final value = summary['matchDateTime'];
           final date = value is Timestamp ? value.toDate() : DateTime.now();
           return date.isAfter(horizon);

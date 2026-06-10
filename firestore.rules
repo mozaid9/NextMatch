@@ -1,5 +1,19 @@
 rules_version = '2';
 
+// NextMatch Firestore security rules.
+//
+// Model: the whole database requires authentication. Users own their profile
+// and private subcollections. Organisers control their matches and may write
+// the participant-facing bookkeeping their dashboard performs (approvals,
+// attendance, joined-match summaries). Cross-user writes that the client
+// currently performs (reliability counters, ability ratings) are constrained
+// to exact field allowlists — they remain the weakest link and should move
+// to Cloud Functions before real payments launch (see SECURITY.md).
+//
+// DEV exceptions, remove before production:
+//   - isDemoUid(): lets any signed-in user seed users/demo-* documents
+//   - venues create: lets any signed-in user seed demo venues
+
 service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() {
@@ -8,6 +22,11 @@ service cloud.firestore {
 
     function owns(userId) {
       return signedIn() && request.auth.uid == userId;
+    }
+
+    // DEV ONLY: demo seed documents ("Add demo matches" flow).
+    function isDemoUid(userId) {
+      return userId.matches('demo-.*');
     }
 
     function matchDoc(matchId) {
@@ -22,9 +41,20 @@ service cloud.firestore {
       return signedIn() && matchDoc(matchId).data.organiserId == request.auth.uid;
     }
 
+    function isMatchParticipant(matchId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/matches/$(matchId)/participants/$(request.auth.uid));
+    }
+
+    function isInvitedToMatch(matchId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid)/matchInvites/$(matchId));
+    }
+
+    // Player joins bump the counter by one; status may flip Open <-> Full.
     function validJoinCounterUpdate() {
       return signedIn()
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'joinedPlayerCount',
           'status',
           'updatedAt'
@@ -36,16 +66,17 @@ service cloud.firestore {
 
     function validWithdrawCounterUpdate() {
       return signedIn()
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'joinedPlayerCount',
           'status',
           'updatedAt'
         ])
         && request.resource.data.joinedPlayerCount == resource.data.joinedPlayerCount - 1
+        && request.resource.data.joinedPlayerCount >= 0
         && request.resource.data.status in ['Open', 'Full'];
     }
 
-    function validSelfParticipantCreate(matchId, participantId) {
+    function validSelfParticipantCreate(participantId) {
       return owns(participantId)
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.attendanceStatus in [
@@ -55,12 +86,13 @@ service cloud.firestore {
         ];
     }
 
-    function validSelfWithdraw(matchId, participantId) {
+    function validSelfWithdraw(participantId) {
       return owns(participantId)
-        && request.resource.data.diff(resource.data).changedKeys().hasOnly([
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'attendanceStatus',
           'cancelledAt',
-          'withdrawalReason'
+          'withdrawalReason',
+          'updatedAt'
         ])
         && resource.data.attendanceStatus in [
           'Joined',
@@ -73,7 +105,7 @@ service cloud.firestore {
         ];
     }
 
-    function validSelfPaymentConfirmation(matchId, participantId) {
+    function validSelfPaymentConfirmation(participantId) {
       return owns(participantId)
         && (resource.data.attendanceStatus == 'PendingPayment'
           || (resource.data.attendanceStatus == 'PendingApproval'
@@ -90,6 +122,10 @@ service cloud.firestore {
       return participantDoc(matchId, userId).data.attendanceStatus == 'Attended';
     }
 
+    // Cross-user reputation bookkeeping the client performs today
+    // (organiser completing a match, raters updating ability aggregates).
+    // Field-restricted so profile identity can never be touched.
+    // TODO(Cloud Functions): move these writes server-side before launch.
     function validReputationUpdate() {
       return signedIn()
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
@@ -119,11 +155,54 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if true;
-      allow create: if owns(userId);
-      allow update: if owns(userId) || validReputationUpdate();
+      // Profiles power player search and match tiles; auth required,
+      // unauthenticated scraping blocked.
+      allow read: if signedIn();
+      allow create: if owns(userId)
+        || (signedIn() && isDemoUid(userId)); // DEV ONLY
+      allow update: if owns(userId)
+        || validReputationUpdate()
+        || (signedIn() && isDemoUid(userId)); // DEV ONLY
       allow delete: if false;
 
+      // Social graph: I write my own "following" list, and I write my own
+      // entry into the target's "followers" list. Nobody else can touch
+      // either side.
+      match /following/{targetUid} {
+        allow read: if signedIn();
+        allow create, delete: if owns(userId);
+        allow update: if false;
+      }
+
+      match /followers/{followerUid} {
+        allow read: if signedIn();
+        allow create, delete: if owns(followerUid);
+        allow update: if false;
+      }
+
+      // Legacy pre-follow friendships. Dead data — readable by owner so old
+      // accounts don't break, never writable.
+      match /friends/{friendUid} {
+        allow read: if owns(userId);
+        allow write: if false;
+      }
+
+      match /favouriteVenues/{venueId} {
+        allow read, write: if owns(userId);
+      }
+
+      // Invites are written into the invitee's inbox by the inviter and
+      // dismissed by the invitee.
+      match /matchInvites/{matchId} {
+        allow read: if owns(userId);
+        allow create: if signedIn()
+          && request.resource.data.inviterUid == request.auth.uid;
+        allow delete: if owns(userId);
+        allow update: if false;
+      }
+
+      // Denormalised summaries the organiser maintains alongside the
+      // participant doc (approval, cancellation, completion).
       match /joinedMatches/{matchId} {
         allow read: if owns(userId);
         allow create, update: if owns(userId) || isMatchOrganiser(matchId);
@@ -132,7 +211,7 @@ service cloud.firestore {
 
       match /reliabilityEvents/{eventId} {
         allow read: if owns(userId);
-        // TODO(Cloud Functions): reliability events should be written by trusted backend code.
+        // TODO(Cloud Functions): should be written by trusted backend code.
         allow create: if signedIn();
         allow update, delete: if false;
       }
@@ -146,7 +225,18 @@ service cloud.firestore {
     }
 
     match /matches/{matchId} {
-      allow read: if signedIn()
+      // Single-doc reads: public matches, plus private ones you organise,
+      // joined, or were invited to.
+      allow get: if signedIn()
+        && (resource.data.visibility == 'Public'
+          || resource.data.organiserId == request.auth.uid
+          || isMatchParticipant(matchId)
+          || isInvitedToMatch(matchId));
+
+      // Queries must constrain to public matches or your own
+      // (openMatchesStream filters visibility == 'Public';
+      // organisedMatchesStream filters organiserId == uid).
+      allow list: if signedIn()
         && (resource.data.visibility == 'Public'
           || resource.data.organiserId == request.auth.uid);
 
@@ -163,11 +253,27 @@ service cloud.firestore {
 
       match /participants/{participantId} {
         allow read: if signedIn();
-        allow create: if validSelfParticipantCreate(matchId, participantId);
+        // Players create their own entry; organisers also write entries
+        // (reject, attendance, demo completion seeding).
+        allow create: if validSelfParticipantCreate(participantId)
+          || isMatchOrganiser(matchId);
         allow update: if isMatchOrganiser(matchId)
-          || validSelfWithdraw(matchId, participantId)
-          || validSelfPaymentConfirmation(matchId, participantId);
+          || validSelfWithdraw(participantId)
+          || validSelfPaymentConfirmation(participantId);
         allow delete: if false;
+      }
+
+      // Match chat.
+      match /comments/{commentId} {
+        allow read: if signedIn();
+        allow create: if signedIn()
+          && request.resource.data.authorUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 1000;
+        allow delete: if signedIn()
+          && (resource.data.authorUid == request.auth.uid
+            || isMatchOrganiser(matchId));
+        allow update: if false;
       }
 
       match /ratings/{ratingId} {
@@ -184,9 +290,89 @@ service cloud.firestore {
       }
     }
 
+    match /chats/{chatId} {
+      function isChatParticipant() {
+        return signedIn() && request.auth.uid in resource.data.participantIds;
+      }
+
+      // get must tolerate a missing doc: openChatWith probes for an
+      // existing chat before creating it (deterministic uid-pair ids).
+      allow get: if signedIn()
+        && (resource == null
+          || request.auth.uid in resource.data.participantIds);
+      allow list: if isChatParticipant();
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.participantIds
+        && request.resource.data.participantIds.size() == 2;
+      // Participants update message previews and seen markers; the
+      // participant list itself is immutable.
+      allow update: if isChatParticipant()
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
+          'lastMessage',
+          'lastSenderUid',
+          'lastMessageAt',
+          'seenAt',
+          'updatedAt'
+        ]);
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        function parentChat() {
+          return get(/databases/$(database)/documents/chats/$(chatId));
+        }
+        allow read: if signedIn()
+          && request.auth.uid in parentChat().data.participantIds;
+        allow create: if signedIn()
+          && request.auth.uid in parentChat().data.participantIds
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+
+    match /teams/{teamId} {
+      function isTeamMember() {
+        return signedIn() && request.auth.uid in resource.data.memberIds;
+      }
+
+      allow read: if isTeamMember();
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.memberIds;
+      // Membership management (captain adds, members leave, captain
+      // promotion) is enforced in the service layer; rules guarantee only
+      // current members can touch the team at all.
+      allow update: if isTeamMember();
+      allow delete: if isTeamMember();
+
+      match /messages/{messageId} {
+        function parentTeam() {
+          return get(/databases/$(database)/documents/teams/$(teamId));
+        }
+        allow read: if signedIn()
+          && request.auth.uid in parentTeam().data.memberIds;
+        allow create: if signedIn()
+          && request.auth.uid in parentTeam().data.memberIds
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.body is string
+          && request.resource.data.body.size() <= 2000;
+        allow update, delete: if false;
+      }
+    }
+
+    match /venues/{venueId} {
+      allow read: if signedIn();
+      // DEV ONLY: demo venue seeding from the client. Lock down before
+      // production — venues should come from an admin tool or backend.
+      allow create: if signedIn();
+      allow update, delete: if false;
+    }
+
     match /payments/{paymentId} {
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
+        // Mock payments only — remove once Stripe writes records
+        // server-side. Real payment records must never be client-writable.
         && request.resource.data.mockPayment == true;
 
       allow read: if signedIn()

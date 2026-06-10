@@ -191,6 +191,12 @@ service cloud.firestore {
         allow read, write: if owns(userId);
       }
 
+      // Push notification device tokens. Owner-only; Cloud Functions read
+      // them with admin privileges when fanning out notifications.
+      match /fcmTokens/{token} {
+        allow read, write: if owns(userId);
+      }
+
       // Invites are written into the invitee's inbox by the inviter and
       // dismissed by the invitee.
       match /matchInvites/{matchId} {

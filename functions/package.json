@@ -1,13 +1,14 @@
 {
   "name": "nextmatch-functions",
-  "description": "NextMatch push notification fan-out",
+  "description": "NextMatch push notification fan-out and Stripe payments",
   "engines": {
     "node": "22"
   },
   "main": "index.js",
   "dependencies": {
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.1.0"
+    "firebase-functions": "^6.1.0",
+    "stripe": "^22.2.0"
   },
   "private": true
 }

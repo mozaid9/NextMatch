@@ -58,7 +58,7 @@ lib/
 │   │                   match_detail_screen.dart, my_matches_screen.dart,
 │   │                   organiser_match_dashboard_screen.dart,
 │   │                   post_match_rating_screen.dart
-│   ├── payment/        mock_payment_screen.dart
+│   ├── payment/        payment_screen.dart
 │   ├── profile/        profile_screen.dart, edit_profile_screen.dart,
 │   │                   other_user_profile_screen.dart
 │   ├── social/         community_screen.dart, friends_screen.dart, chats_tab.dart,
@@ -236,7 +236,7 @@ whole reason this handoff exists. **Do not break them.**
     - `chats/{id}/messages/{messageId}` — `ChatMessage`
   - `teams/{teamId}` — `Team`
     - `teams/{id}/messages/{messageId}` — team chat reuses `ChatMessage`
-  - `payments/{paymentId}` — `PaymentRecord` (currently mocked)
+  - `payments/{paymentId}` — `PaymentRecord` (backend-written, Stripe)
 - **Security rules ARE deployed** (10 Jun 2026) — see `firestore.rules`
   and `SECURITY.md` for the model, the dev-only carve-outs, and the
   pre-launch checklist. Deploy changes with
@@ -343,13 +343,15 @@ whole reason this handoff exists. **Do not break them.**
 - `VenueBookingDraft` model carries durationMinutes; `suggestedPrice-
   PerPlayer` = totalPitchCost / capacity.
 
-### Payments (still mocked)
+### Payments (live via Stripe test mode)
 - `paymentMode`: `'Split'` (each player pays) or `'OrganiserPays'`.
 - **24h payment guarantee** — `MatchParticipant.paymentDeadline` set
   to `joinedAt + 24h` (direct join) or `approvedAt + 24h` (approval
   flow). `isPaymentOverdue` returns true when past deadline.
-- `mock_payment_screen.dart` — Apple Pay button (styled but mocked)
-  + card option with inline MM/YY + CVC fields. Cosmetic only.
+- `payment_screen.dart` — price breakdown + redirect to Stripe's hosted
+  checkout. The mock flow is gone; the webhook confirms the spot.
+- Refunds are automatic and server-side: full on organiser cancellation
+  or withdrawal more than 24h before kick-off, none inside 24h.
 
 ### Profile
 - `profile_screen.dart` — banner + tappable avatar (`_AvatarUploader`
@@ -478,10 +480,11 @@ whole reason this handoff exists. **Do not break them.**
     `STRIPE_WEBHOOK_SECRET` (webhook endpoint + signing secret were
     created via the Stripe API, not the dashboard), then
     `firebase deploy --only functions --project nextmatch-eb038`.
-  - Remaining follow-ups: remove `mockPayAndJoin` + the
-    `mockPayment == true` rules carve-out once a real checkout has been
-    verified end-to-end (see SECURITY.md); Stripe Connect organiser
-    payouts are phase two.
+  - Mock path removed and rules locked (payments are backend-write-only)
+    after the first verified end-to-end checkout. Refund functions:
+    `onMatchCancelled` refunds the whole match, `onParticipantWithdrew`
+    refunds early withdrawals only. Stripe Connect organiser payouts are
+    phase two.
 - **Existing matches/participants from before profile photos shipped**
   don't have `photoUrl` on their `MatchParticipant` doc — those tiles
   show the initial fallback. Not worth backfilling for dev data.

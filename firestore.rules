@@ -398,11 +398,9 @@ service cloud.firestore {
     }
 
     match /payments/{paymentId} {
-      allow create: if signedIn()
-        && request.resource.data.userId == request.auth.uid
-        // Mock payments only — remove once Stripe writes records
-        // server-side. Real payment records must never be client-writable.
-        && request.resource.data.mockPayment == true;
+      // Payment records are written exclusively by Cloud Functions after
+      // a verified Stripe charge. No client writes, ever.
+      allow create: if false;
 
       allow read: if signedIn()
         && (resource.data.userId == request.auth.uid

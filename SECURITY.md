@@ -35,9 +35,9 @@ rewrite everything, unauthenticated).
   follow.
 - **Match invites**: only the inviter can write into an invitee's inbox
   (stamped with their uid); only the invitee can dismiss.
-- **Payments**: create-only, by the payer, and only while
-  `mockPayment == true`. No client can ever update or delete a payment
-  record. Readable only by payer and organiser.
+- **Payments**: no client writes at all. Records are created exclusively
+  by Cloud Functions after a verified Stripe charge. Readable only by
+  payer and organiser.
 - **Ratings**: only after match completion, only by an attended player
   about another attended player, never about yourself, value clamped 1–5,
   immutable once written.
@@ -71,8 +71,10 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
       Awaiting test keys (`firebase functions:secrets:set STRIPE_SECRET_KEY`
       + `STRIPE_WEBHOOK_SECRET`), then deploy and flip
       `PaymentService.stripeCheckoutEnabled`.
-- [ ] Once Stripe is live, remove the `mockPayment == true` client-create
-      path from `firestore.rules` (and the mock flow in the app) entirely.
+- [x] Mock payment path removed end to end (11 Jun 2026): rules now deny
+      all client writes to `payments`, the app's mock flow is deleted and
+      refunds run server-side (full on organiser cancellation or early
+      withdrawal, none inside 24h of kick-off).
 - [ ] Restrict `createStripeCheckout` success/cancel URLs to an allowlist
       of real app origins before launch (currently any http(s) URL, fine
       while test keys can't move real money).

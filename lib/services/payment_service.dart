@@ -11,10 +11,6 @@ class PaymentService {
 
   final MatchService _matchService;
 
-  /// Stripe test keys are deployed as Cloud Function secrets and the
-  /// functions are live (11 Jun 2026) — checkout goes through Stripe.
-  static const bool stripeCheckoutEnabled = true;
-
   double platformFeeFor(FootballMatch match) {
     return CurrencyHelpers.serviceFee(match.pricePerPlayer);
   }
@@ -31,20 +27,6 @@ class PaymentService {
     required String position,
   }) async {
     await _matchService.freeJoinMatch(
-      match: match,
-      user: user,
-      position: position,
-    );
-  }
-
-  Future<void> mockPayAndJoin({
-    required FootballMatch match,
-    required AppUser user,
-    required String position,
-  }) async {
-    await Future<void>.delayed(const Duration(milliseconds: 900));
-
-    await _matchService.confirmMockPaymentAndJoin(
       match: match,
       user: user,
       position: position,

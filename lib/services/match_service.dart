@@ -1,12 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:uuid/uuid.dart';
 
-import '../core/utils/currency_helpers.dart';
 import '../models/app_user.dart';
 import '../models/football_match.dart';
 import '../models/match_comment.dart';
 import '../models/match_participant.dart';
-import '../models/payment_record.dart';
 import '../models/reliability_event.dart';
 import 'reliability_service.dart';
 
@@ -31,9 +29,6 @@ class MatchService {
 
   CollectionReference<Map<String, dynamic>> get _matches =>
       _firestore.collection('matches');
-
-  CollectionReference<Map<String, dynamic>> get _payments =>
-      _firestore.collection('payments');
 
   CollectionReference<Map<String, dynamic>> get _users =>
       _firestore.collection('users');
@@ -326,127 +321,6 @@ class MatchService {
         message:
             'Your request has been sent to the organiser. You can pay once they approve you.',
       );
-    });
-  }
-
-  Future<void> confirmMockPaymentAndJoin({
-    required FootballMatch match,
-    required AppUser user,
-    required String position,
-  }) async {
-    // TODO(Cloud Functions): Move paid join fulfilment server-side when Stripe is
-    // live. The client should never be the final authority on payment success.
-    final matchRef = _matches.doc(match.id);
-    final participantRef = matchRef.collection('participants').doc(user.uid);
-    final userJoinedRef = _users
-        .doc(user.uid)
-        .collection('joinedMatches')
-        .doc(match.id);
-    final paymentId = _uuid.v4();
-    final paymentRef = _payments.doc(paymentId);
-
-    await _firestore.runTransaction((transaction) async {
-      final matchSnapshot = await transaction.get(matchRef);
-      if (!matchSnapshot.exists) throw Exception('Match no longer exists.');
-
-      final latestMatch = FootballMatch.fromFirestore(matchSnapshot);
-      if (latestMatch.isFull) throw Exception('This match is already full.');
-      if (latestMatch.isCompleted || latestMatch.isCancelled) {
-        throw Exception('This match is no longer open.');
-      }
-
-      final participantSnapshot = await transaction.get(participantRef);
-      MatchParticipant? existingParticipant;
-      if (participantSnapshot.exists) {
-        existingParticipant = MatchParticipant.fromFirestore(
-          participantSnapshot,
-        );
-        if (existingParticipant.isPendingApproval &&
-            !existingParticipant.organiserApproved) {
-          throw Exception('This spot still needs organiser approval.');
-        }
-        if (existingParticipant.hasConfirmedSlot) {
-          throw Exception('You are already in this match.');
-        }
-        if (existingParticipant.isRejected || existingParticipant.isWithdrawn) {
-          throw Exception('This match request is no longer active.');
-        }
-        if (!existingParticipant.isPendingApproval &&
-            !existingParticipant.isPendingPayment) {
-          throw Exception('This place cannot be paid for yet.');
-        }
-      }
-
-      final joinedAt = DateTime.now();
-      final platformFee = CurrencyHelpers.serviceFee(
-        latestMatch.pricePerPlayer,
-      );
-      final total = CurrencyHelpers.roundMoney(
-        latestMatch.pricePerPlayer + platformFee,
-      );
-
-      final payment = PaymentRecord(
-        paymentId: paymentId,
-        userId: user.uid,
-        matchId: latestMatch.id,
-        organiserId: latestMatch.organiserId,
-        amount: latestMatch.pricePerPlayer,
-        platformFee: platformFee,
-        total: total,
-        status: 'Succeeded',
-        paymentProvider: 'mock',
-        mockPayment: true,
-        createdAt: joinedAt,
-      );
-
-      final participant = MatchParticipant(
-        userId: user.uid,
-        fullName: user.fullName,
-        position: position,
-        skillLevel: user.skillLevel,
-        abilityRatingAtJoin: user.abilityRating,
-        reliabilityScoreAtJoin: user.reliabilityScore,
-        paymentStatus: 'Confirmed',
-        joinedAt: existingParticipant?.joinedAt ?? joinedAt,
-        approvedAt: existingParticipant?.approvedAt,
-        amountPaid: total,
-        amountOwed: 0,
-        attendanceStatus: 'Joined',
-        organiserApproved: true,
-        requiresApproval: false,
-        photoUrl: user.photoUrl,
-      );
-
-      final newCount = latestMatch.joinedPlayerCount + 1;
-      final newStatus = FootballMatch.statusForCount(
-        newCount,
-        latestMatch.totalPlayersNeeded,
-      );
-
-      transaction.set(paymentRef, payment.toMap());
-      transaction.set(
-        participantRef,
-        participant.toMap(),
-        SetOptions(merge: true),
-      );
-      transaction.set(userJoinedRef, {
-        'matchId': latestMatch.id,
-        'joinedAt': Timestamp.fromDate(
-          existingParticipant?.joinedAt ?? joinedAt,
-        ),
-        'paymentStatus': 'Confirmed',
-        'attendanceStatus': 'Joined',
-        'position': position,
-        'matchDateTime': Timestamp.fromDate(latestMatch.startDateTime),
-        'amountOwed': 0,
-        'requiresApproval': false,
-        'organiserApproved': true,
-      }, SetOptions(merge: true));
-      transaction.update(matchRef, {
-        'joinedPlayerCount': newCount,
-        'status': newStatus,
-        'updatedAt': Timestamp.fromDate(joinedAt),
-      });
     });
   }
 

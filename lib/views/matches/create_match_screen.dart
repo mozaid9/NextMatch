@@ -17,7 +17,7 @@ import '../../models/venue.dart';
 import '../../core/widgets/app_sheet.dart';
 import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/venue_viewmodel.dart';
-import '../payment/mock_payment_screen.dart';
+import '../payment/payment_screen.dart';
 import 'organiser_match_dashboard_screen.dart';
 
 class CreateMatchScreen extends StatefulWidget {
@@ -299,7 +299,7 @@ class _CreateMatchScreenState extends State<CreateMatchScreen> {
               : 'Any';
           await Navigator.of(context).push<bool>(
             MaterialPageRoute<bool>(
-              builder: (_) => MockPaymentScreen(
+              builder: (_) => PaymentScreen(
                 match: createdMatch,
                 currentUser: widget.currentUser,
                 position: position,

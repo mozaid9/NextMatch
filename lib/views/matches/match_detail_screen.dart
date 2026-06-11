@@ -26,7 +26,7 @@ import '../../viewmodels/match_viewmodel.dart';
 import '../../viewmodels/payment_viewmodel.dart';
 import 'organiser_match_dashboard_screen.dart';
 import 'post_match_rating_screen.dart';
-import '../payment/mock_payment_screen.dart';
+import '../payment/payment_screen.dart';
 
 String _shareTextFor(FootballMatch match) {
   final start = match.startDateTime;
@@ -457,7 +457,7 @@ class MatchDetailScreen extends StatelessWidget {
   ) async {
     final success = await Navigator.of(context).push<bool>(
       MaterialPageRoute<bool>(
-        builder: (_) => MockPaymentScreen(
+        builder: (_) => PaymentScreen(
           match: match,
           currentUser: currentUser,
           position: position,

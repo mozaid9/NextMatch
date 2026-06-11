@@ -172,9 +172,65 @@ exports.onChatMessageCreated = onDocumentCreated(
   },
 );
 
-/** Organiser cancels a match → tell everyone still holding a spot. */
+/**
+ * Refund every Succeeded Stripe payment matching the filters. Each payment
+ * doc is claimed (Succeeded → RefundPending) in a transaction first, so a
+ * retried trigger can't refund the same charge twice.
+ */
+async function refundStripePayments({ matchId, userId = null }) {
+  const db = getFirestore();
+  let query = db
+    .collection('payments')
+    .where('matchId', '==', matchId)
+    .where('paymentProvider', '==', 'stripe')
+    .where('status', '==', 'Succeeded');
+  if (userId) query = query.where('userId', '==', userId);
+  const snapshot = await query.get();
+
+  const stripe = new Stripe(stripeSecretKey.value());
+  const refunded = [];
+  for (const doc of snapshot.docs) {
+    const payment = doc.data();
+    if (!payment.stripePaymentIntentId) continue;
+
+    const claimed = await db.runTransaction(async (transaction) => {
+      const fresh = await transaction.get(doc.ref);
+      if (fresh.data()?.status !== 'Succeeded') return false;
+      transaction.update(doc.ref, { status: 'RefundPending' });
+      return true;
+    });
+    if (!claimed) continue;
+
+    try {
+      await stripe.refunds.create({
+        payment_intent: payment.stripePaymentIntentId,
+      });
+      await doc.ref.update({ status: 'Refunded', refundedAt: new Date() });
+      refunded.push(payment.userId);
+    } catch (error) {
+      // Already-refunded intents land here on webhook/trigger replays —
+      // record the state rather than leaving the doc stuck in RefundPending.
+      const alreadyRefunded = error?.code === 'charge_already_refunded';
+      await doc.ref.update({
+        status: alreadyRefunded ? 'Refunded' : 'RefundFailed',
+        refundError: alreadyRefunded ? null : String(error.message || error),
+      });
+      if (alreadyRefunded) refunded.push(payment.userId);
+    }
+  }
+  return refunded;
+}
+
+/**
+ * Organiser cancels a match → tell everyone still holding a spot, and
+ * refund every Stripe payment on the match in full.
+ */
 exports.onMatchCancelled = onDocumentUpdated(
-  { document: 'matches/{matchId}', region: REGION },
+  {
+    document: 'matches/{matchId}',
+    region: REGION,
+    secrets: [stripeSecretKey],
+  },
   async (event) => {
     const before = event.data?.before.data();
     const after = event.data?.after.data();
@@ -207,6 +263,64 @@ exports.onMatchCancelled = onDocumentUpdated(
           }),
         ),
     );
+
+    const refundedUids = await refundStripePayments({
+      matchId: event.params.matchId,
+    });
+    await Promise.all(
+      refundedUids.map((uid) =>
+        pushToUser(uid, {
+          title: 'Your payment is being refunded',
+          body: `${after.title || 'The match'} was cancelled, so your full payment is on its way back to your card.`,
+          data: { type: 'paymentRefunded', matchId: event.params.matchId },
+        }),
+      ),
+    );
+  },
+);
+
+/**
+ * Player withdraws from a match they had paid for. Early withdrawals
+ * (more than 24h before kick-off, status 'Cancelled') are refunded in
+ * full; late ones ('LateCancelled') are not refunded automatically —
+ * matching the reliability tiers the app already applies.
+ */
+exports.onParticipantWithdrew = onDocumentUpdated(
+  {
+    document: 'matches/{matchId}/participants/{uid}',
+    region: REGION,
+    secrets: [stripeSecretKey],
+  },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    const wasIn = before.attendanceStatus === 'Joined';
+    const withdrew =
+      after.attendanceStatus === 'Cancelled' ||
+      after.attendanceStatus === 'LateCancelled';
+    if (!wasIn || !withdrew) return;
+    if (!(before.amountPaid > 0)) return;
+
+    const { matchId, uid } = event.params;
+    if (after.attendanceStatus === 'LateCancelled') {
+      await pushToUser(uid, {
+        title: 'Withdrawal confirmed — no automatic refund',
+        body: 'You withdrew within 24 hours of kick-off, so your payment stays with the match. Speak to the organiser if there are special circumstances.',
+        data: { type: 'withdrawalNoRefund', matchId },
+      });
+      return;
+    }
+
+    const refundedUids = await refundStripePayments({ matchId, userId: uid });
+    if (refundedUids.length > 0) {
+      await pushToUser(uid, {
+        title: 'Refund on its way',
+        body: 'You withdrew in good time, so your payment is being refunded in full.',
+        data: { type: 'paymentRefunded', matchId },
+      });
+    }
   },
 );
 

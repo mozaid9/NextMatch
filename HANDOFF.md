@@ -21,8 +21,9 @@ for a new Claude Code session — read it top to bottom before touching code.
 - **Pubspec deps already in place**: `firebase_auth: ^6.5.0`,
   `cloud_firestore: ^6.4.0`, `firebase_storage: ^13.4.0`,
   `provider: ^6.1.5+1`, `uuid: ^4.5.3`, `google_fonts: ^6.2.1`,
-  `image_picker: ^1.1.2`. Don't add new packages unless absolutely
-  necessary — work with what's there first.
+  `image_picker: ^1.1.2`, `firebase_messaging: ^16.3.0`,
+  `cloud_functions: ^6.0.0`, `url_launcher: ^6.3.0`. Don't add new
+  packages unless absolutely necessary — work with what's there first.
 
 ### Folder map (current)
 
@@ -459,9 +460,30 @@ whole reason this handoff exists. **Do not break them.**
   Check) is tracked in `SECURITY.md`.
 - **Storage CORS is `*`** for everything — fine for dev, lock down for
   prod by listing real origins.
-- **Mock payments** — `PaymentService.mockPayAndJoin` simulates with a
-  900ms delay. Real Stripe integration is the next big lift. The
-  payment screen UI is already styled to look real.
+- **Stripe test mode is BUILT but DORMANT** (11 Jun 2026, awaiting the
+  user's test keys). The full pipeline exists:
+  - `functions/index.js`: `createStripeCheckout` callable (server-side
+    pricing from the match doc — 6% service fee, 50p minimum, constants
+    at the top of the file) and `stripeWebhook` (signature-verified
+    fulfilment: payment record keyed on session id for idempotency,
+    participant confirmed, counter bumped, push sent; auto-refund if the
+    match filled/cancelled mid-checkout).
+  - Client: `PaymentService.createStripeCheckoutUrl` → redirect via
+    `url_launcher`; return URL `?checkout=success|cancelled&matchId=...`
+    handled in `main_navigation_screen.dart`.
+  - **To go live (test mode)**, in order:
+    1. `firebase functions:secrets:set STRIPE_SECRET_KEY` (paste sk_test_...)
+    2. `firebase deploy --only functions --project nextmatch-eb038`
+    3. Stripe Dashboard → Developers → Webhooks → Add endpoint:
+       `https://europe-west2-nextmatch-eb038.cloudfunctions.net/stripeWebhook`,
+       event `checkout.session.completed` → copy the signing secret →
+       `firebase functions:secrets:set STRIPE_WEBHOOK_SECRET` → deploy
+       functions again (secret binding).
+    4. Flip `PaymentService.stripeCheckoutEnabled` to `true`, hot restart.
+    5. Test card: 4242 4242 4242 4242, any future expiry, any CVC.
+  - Until then `PaymentService.mockPayAndJoin` (900ms delay) stays the
+    active flow. Once Stripe is verified, remove the mock path + the
+    `mockPayment == true` rules carve-out (see SECURITY.md).
 - **Existing matches/participants from before profile photos shipped**
   don't have `photoUrl` on their `MatchParticipant` doc — those tiles
   show the initial fallback. Not worth backfilling for dev data.

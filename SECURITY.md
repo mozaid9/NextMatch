@@ -63,9 +63,19 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
 
 ## Before money moves (launch checklist)
 
-- [ ] Stripe (or similar) integration where payment records are written by
-      a **backend** (Cloud Function / server) after a verified charge —
-      remove the `mockPayment == true` client-create path entirely.
+- [x] Stripe integration where payment records are written by a
+      **backend** after a verified charge — built 11 Jun 2026.
+      `createStripeCheckout` (callable) prices the charge server-side from
+      the match doc; `stripeWebhook` verifies Stripe's signature and writes
+      the payment record / confirms the participant with the admin SDK.
+      Awaiting test keys (`firebase functions:secrets:set STRIPE_SECRET_KEY`
+      + `STRIPE_WEBHOOK_SECRET`), then deploy and flip
+      `PaymentService.stripeCheckoutEnabled`.
+- [ ] Once Stripe is live, remove the `mockPayment == true` client-create
+      path from `firestore.rules` (and the mock flow in the app) entirely.
+- [ ] Restrict `createStripeCheckout` success/cancel URLs to an allowlist
+      of real app origins before launch (currently any http(s) URL, fine
+      while test keys can't move real money).
 - [ ] Cloud Functions for: match completion bookkeeping, reliability
       events, rating aggregates, invite fan-out, cancellation propagation.
 - [ ] Remove the two DEV-ONLY rule carve-outs (demo uids, venue create).
@@ -96,6 +106,8 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
 - Storage rules: `users/<uid>/profile.jpg` — public read, owner write
   (deployed earlier; unchanged).
 - Cloud Functions (`functions/`, europe-west2) run with admin
-  privileges and currently only send pushes. They are the landing zone
-  for the reputation/payment writes above. `users/{uid}/fcmTokens` is
-  owner-only in rules; functions read it via the admin SDK.
+  privileges and handle pushes + Stripe checkout/fulfilment. They remain
+  the landing zone for the reputation writes above. `users/{uid}/fcmTokens`
+  is owner-only in rules; functions read it via the admin SDK. Stripe
+  keys live in Secret Manager (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`),
+  never in the repo.

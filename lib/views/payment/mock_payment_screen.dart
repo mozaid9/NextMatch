@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_text_styles.dart';
@@ -7,6 +8,7 @@ import '../../core/utils/currency_helpers.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../models/app_user.dart';
 import '../../models/football_match.dart';
+import '../../services/payment_service.dart';
 import '../../viewmodels/payment_viewmodel.dart';
 
 enum _PayMethod { applePay, card }
@@ -143,6 +145,35 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             ),
             const SizedBox(height: 24),
 
+            // Real Stripe checkout — replaces the mock method picker once
+            // the backend keys are deployed.
+            if (PaymentService.stripeCheckoutEnabled) ...[
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColours.card,
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: AppColours.line),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.lock_outline,
+                      color: AppColours.accent,
+                      size: 18,
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        "You'll be redirected to Stripe's secure checkout to "
+                        'pay by card, Apple Pay or Google Pay.',
+                        style: AppTextStyles.small,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ] else ...[
             // Payment method
             Text('Payment method', style: AppTextStyles.h3),
             const SizedBox(height: 12),
@@ -248,6 +279,7 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                 ),
               ),
             ],
+            ],
 
             if (paymentViewModel.errorMessage != null) ...[
               const SizedBox(height: 14),
@@ -260,28 +292,43 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
             const SizedBox(height: 28),
 
             // Pay button
-            PrimaryButton(
-              label: _method == _PayMethod.applePay
-                  ? 'Pay with Apple Pay'
-                  : 'Pay ${CurrencyHelpers.formatGBP(total)}',
-              icon: _method == _PayMethod.applePay
-                  ? Icons.apple
-                  : Icons.lock_outline,
-              isLoading: paymentViewModel.isLoading,
-              onPressed: () async {
-                if (_method == _PayMethod.card &&
-                    _cardFormKey.currentState?.validate() != true) {
-                  return;
-                }
-                final success = await paymentViewModel.payAndJoin(
-                  match: widget.match,
-                  user: widget.currentUser,
-                  position: widget.position,
-                );
-                if (!context.mounted || !success) return;
-                Navigator.of(context).pop(true);
-              },
-            ),
+            if (PaymentService.stripeCheckoutEnabled)
+              PrimaryButton(
+                label: 'Pay ${CurrencyHelpers.formatGBP(total)} securely',
+                icon: Icons.lock_outline,
+                isLoading: paymentViewModel.isLoading,
+                onPressed: () async {
+                  final url = await paymentViewModel.createStripeCheckout(
+                    match: widget.match,
+                    position: widget.position,
+                  );
+                  if (url == null) return;
+                  await launchUrl(url, webOnlyWindowName: '_self');
+                },
+              )
+            else
+              PrimaryButton(
+                label: _method == _PayMethod.applePay
+                    ? 'Pay with Apple Pay'
+                    : 'Pay ${CurrencyHelpers.formatGBP(total)}',
+                icon: _method == _PayMethod.applePay
+                    ? Icons.apple
+                    : Icons.lock_outline,
+                isLoading: paymentViewModel.isLoading,
+                onPressed: () async {
+                  if (_method == _PayMethod.card &&
+                      _cardFormKey.currentState?.validate() != true) {
+                    return;
+                  }
+                  final success = await paymentViewModel.payAndJoin(
+                    match: widget.match,
+                    user: widget.currentUser,
+                    position: widget.position,
+                  );
+                  if (!context.mounted || !success) return;
+                  Navigator.of(context).pop(true);
+                },
+              ),
 
             const SizedBox(height: 12),
             Row(
@@ -294,7 +341,9 @@ class _MockPaymentScreenState extends State<MockPaymentScreen> {
                 ),
                 const SizedBox(width: 4),
                 Text(
-                  'Test mode — no real payment is taken',
+                  PaymentService.stripeCheckoutEnabled
+                      ? 'Stripe test mode — try card 4242 4242 4242 4242'
+                      : 'Test mode — no real payment is taken',
                   style: AppTextStyles.small,
                 ),
               ],

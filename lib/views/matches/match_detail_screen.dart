@@ -1082,7 +1082,7 @@ class _BottomJoinBar extends StatelessWidget {
           };
 
     final totalWithFee = CurrencyHelpers.roundMoney(
-      match.pricePerPlayer + CurrencyHelpers.mockPlatformFee(match.pricePerPlayer),
+      match.pricePerPlayer + CurrencyHelpers.serviceFee(match.pricePerPlayer),
     );
     final priceLabel = isOrganiser
         ? 'Your match'
@@ -1205,7 +1205,7 @@ class _BottomJoinBar extends StatelessWidget {
       return 'Paid to the organiser directly — nothing due in the app.';
     }
 
-    final fee = CurrencyHelpers.mockPlatformFee(match.pricePerPlayer);
+    final fee = CurrencyHelpers.serviceFee(match.pricePerPlayer);
     if (participant?.hasConfirmedSlot == true) return 'Payment confirmed';
     if (isPendingPayment) {
       final deadline = participant?.paymentDeadline;

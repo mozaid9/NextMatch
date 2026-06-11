@@ -378,7 +378,7 @@ class MatchService {
       }
 
       final joinedAt = DateTime.now();
-      final platformFee = CurrencyHelpers.mockPlatformFee(
+      final platformFee = CurrencyHelpers.serviceFee(
         latestMatch.pricePerPlayer,
       );
       final total = CurrencyHelpers.roundMoney(

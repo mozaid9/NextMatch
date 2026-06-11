@@ -42,6 +42,30 @@ class PaymentViewModel extends ChangeNotifier {
     }
   }
 
+  /// Returns the Stripe Checkout URL to redirect to, or null on failure
+  /// (with errorMessage set).
+  Future<Uri?> createStripeCheckout({
+    required FootballMatch match,
+    required String position,
+  }) async {
+    isLoading = true;
+    errorMessage = null;
+    notifyListeners();
+
+    try {
+      return await _paymentService.createStripeCheckoutUrl(
+        match: match,
+        position: position,
+      );
+    } catch (error) {
+      errorMessage = error.toString().replaceFirst('Exception: ', '');
+      return null;
+    } finally {
+      isLoading = false;
+      notifyListeners();
+    }
+  }
+
   Future<bool> payAndJoin({
     required FootballMatch match,
     required AppUser user,

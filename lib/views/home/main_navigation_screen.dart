@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -12,6 +13,7 @@ import '../../models/chat.dart';
 import '../../viewmodels/chat_viewmodel.dart';
 import '../matches/browse_matches_screen.dart';
 import '../matches/create_match_screen.dart';
+import '../matches/match_detail_screen.dart';
 import '../profile/profile_screen.dart';
 import '../social/community_screen.dart';
 import 'home_screen.dart';
@@ -29,11 +31,16 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
   StreamSubscription<dynamic>? _foregroundMessages;
 
+  /// Stripe Checkout redirects back to the app with ?checkout=... in the
+  /// URL. Static so a hot restart in the same page load doesn't replay it.
+  static bool _checkoutReturnHandled = false;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
+      _handleCheckoutReturn();
       final notifications = context.read<NotificationService>();
       notifications.initialise(widget.currentUser.uid);
       // Pushes arriving while the app is open surface as a snackbar
@@ -57,6 +64,37 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   void dispose() {
     _foregroundMessages?.cancel();
     super.dispose();
+  }
+
+  void _handleCheckoutReturn() {
+    if (!kIsWeb || _checkoutReturnHandled) return;
+    final params = Uri.base.queryParameters;
+    final result = params['checkout'];
+    if (result == null) return;
+    _checkoutReturnHandled = true;
+
+    final matchId = params['matchId'] ?? '';
+    if (result == 'success' && matchId.isNotEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Payment received — confirming your spot now.'),
+        ),
+      );
+      Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => MatchDetailScreen(
+            matchId: matchId,
+            currentUser: widget.currentUser,
+          ),
+        ),
+      );
+    } else if (result == 'cancelled') {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Checkout cancelled — your spot is not reserved.'),
+        ),
+      );
+    }
   }
 
   @override

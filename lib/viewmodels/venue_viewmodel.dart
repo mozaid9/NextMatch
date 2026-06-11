@@ -27,20 +27,4 @@ class VenueViewModel extends ChangeNotifier {
     required Venue venue,
   }) =>
       _venueService.toggleFavouriteVenue(uid: uid, venue: venue);
-
-  Future<bool> seedDemoVenues() async {
-    isLoading = true;
-    errorMessage = null;
-    notifyListeners();
-    try {
-      await _venueService.seedDemoVenues();
-      return true;
-    } catch (error) {
-      errorMessage = 'Could not seed demo venues.';
-      return false;
-    } finally {
-      isLoading = false;
-      notifyListeners();
-    }
-  }
 }

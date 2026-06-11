@@ -31,6 +31,21 @@ function serviceFeePence(amountPence) {
   return Math.max(Math.round(amountPence * SERVICE_FEE_RATE), SERVICE_FEE_MIN_PENCE);
 }
 
+// Stripe Checkout may only bounce players back to origins we run.
+const ALLOWED_RETURN_ORIGINS = new Set([
+  'http://localhost:8080', // local dev server
+  'https://nextmatch-eb038.web.app', // Firebase Hosting (future deploy)
+  'https://nextmatch-eb038.firebaseapp.com',
+]);
+
+function isAllowedReturnUrl(url) {
+  try {
+    return ALLOWED_RETURN_ORIGINS.has(new URL(url).origin);
+  } catch (error) {
+    return false;
+  }
+}
+
 /** Fetch a user's registered device tokens. */
 async function tokensFor(uid) {
   const snapshot = await getFirestore()
@@ -380,8 +395,8 @@ exports.createStripeCheckout = onCall(
       throw new HttpsError('invalid-argument', 'matchId is required.');
     }
     for (const url of [successUrl, cancelUrl]) {
-      if (typeof url !== 'string' || !/^https?:\/\//.test(url)) {
-        throw new HttpsError('invalid-argument', 'Return URLs must be http(s).');
+      if (typeof url !== 'string' || !isAllowedReturnUrl(url)) {
+        throw new HttpsError('invalid-argument', 'Return URL origin not allowed.');
       }
     }
 

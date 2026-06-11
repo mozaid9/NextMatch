@@ -54,10 +54,10 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
    manipulate reliability/rating numbers directly. **Fix before launch:**
    move match completion, reliability events and rating aggregation into
    Cloud Functions; tighten the rules to deny those fields client-side.
-2. **Demo seeding carve-outs.** Any signed-in user may create
-   `users/demo-*` documents and create venue documents (the "Add demo
-   matches/venues" dev buttons). **Fix before launch:** delete both
-   carve-outs; venues become admin/backend-managed.
+2. ~~Demo seeding carve-outs.~~ **Removed 11 Jun 2026**: the `demo-*`
+   uid and venue-create carve-outs are gone from the rules and the demo
+   seed buttons are gone from the app. Venues are backend-managed only.
+   Existing demo data in Firestore is untouched and still renders.
 3. **`reliabilityEvents` create is `signedIn()`** for the same reason as
    (1) — needs to be backend-only at launch.
 
@@ -80,7 +80,15 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
       while test keys can't move real money).
 - [ ] Cloud Functions for: match completion bookkeeping, reliability
       events, rating aggregates, invite fan-out, cancellation propagation.
-- [ ] Remove the two DEV-ONLY rule carve-outs (demo uids, venue create).
+- [x] Remove the two DEV-ONLY rule carve-outs (demo uids, venue create) —
+      done 11 Jun 2026, deployed.
+- [x] Close the mock-era self-confirmation hole: clients can no longer
+      flip their own participant doc to Joined/Confirmed, and 'Joined'
+      self-creates plus join counter bumps are only allowed on free or
+      organiser-pays matches. Paid spots are confirmed exclusively by the
+      Stripe webhook (11 Jun 2026, deployed).
+- [x] Stripe checkout return URLs restricted to an origin allowlist
+      (localhost dev + the Firebase Hosting domains) — 11 Jun 2026.
 - [ ] **Storage CORS** is currently `*` (see `cors.json`) — restrict to the
       real app origins.
 - [ ] **Firebase App Check** on Firestore/Storage to cut off non-app

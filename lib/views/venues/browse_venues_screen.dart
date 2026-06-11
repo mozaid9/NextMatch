@@ -127,22 +127,7 @@ class _BrowseVenuesScreenState extends State<BrowseVenuesScreen> {
                             icon: Icons.stadium_outlined,
                             title: 'No venues onboarded yet',
                             message:
-                                'Seed a few partner venues to explore the booking flow.',
-                            action: PrimaryButton(
-                              label: 'Add demo venues',
-                              icon: Icons.auto_awesome,
-                              isLoading: venueViewModel.isLoading,
-                              onPressed: () async {
-                                final ok = await venueViewModel
-                                    .seedDemoVenues();
-                                if (!context.mounted || !ok) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text('Demo venues added.'),
-                                  ),
-                                );
-                              },
-                            ),
+                                'Partner venues are coming soon. You can still create a match anywhere in the meantime.',
                           ),
                         );
                       }

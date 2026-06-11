@@ -145,21 +145,7 @@ class _BrowseMatchesScreenState extends State<BrowseMatchesScreen> {
                                   isSecondary: true,
                                   onPressed: _clearFilters,
                                 )
-                              : PrimaryButton(
-                                  label: 'Add demo matches',
-                                  icon: Icons.auto_awesome,
-                                  isLoading: matchViewModel.isLoading,
-                                  onPressed: () async {
-                                    final success = await matchViewModel
-                                        .seedDemoMatches(widget.currentUser);
-                                    if (!context.mounted || !success) return;
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text('Demo matches added.'),
-                                      ),
-                                    );
-                                  },
-                                ),
+                              : null,
                         ),
                       ),
                     );

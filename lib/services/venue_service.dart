@@ -1,5 +1,4 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/venue.dart';
 
@@ -8,7 +7,6 @@ class VenueService {
       : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
-  static const _uuid = Uuid();
 
   CollectionReference<Map<String, dynamic>> get _venues =>
       _firestore.collection('venues');
@@ -76,143 +74,5 @@ class VenueService {
       }
     }
     return slots;
-  }
-
-  /// Seeds a handful of demo venues so users can explore the flow before
-  /// real venue onboarding happens.
-  Future<void> seedDemoVenues() async {
-    final existing = await _venues.limit(1).get();
-    if (existing.docs.isNotEmpty) {
-      // Already seeded.
-      return;
-    }
-
-    final now = DateTime.now();
-    final venues = [
-      Venue(
-        id: _uuid.v4(),
-        name: 'Powerleague Bolton',
-        address: '52 Manchester Rd, Bolton',
-        city: 'Bolton',
-        description:
-            'Four floodlit 3G pitches with full changing facilities and on-site parking.',
-        photoUrl: '',
-        amenities: const [
-          'Floodlights',
-          'Parking',
-          'Changing rooms',
-          'Showers',
-          'Vending',
-        ],
-        pitches: [
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '5-a-side',
-            surface: '3G',
-            capacity: 10,
-            pricePerHour: 60,
-          ),
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '7-a-side',
-            surface: '3G',
-            capacity: 14,
-            pricePerHour: 85,
-          ),
-        ],
-        openingHour: 8,
-        closingHour: 22,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: now,
-      ),
-      Venue(
-        id: _uuid.v4(),
-        name: 'Goals Manchester',
-        address: '38 Whitworth Park, Manchester',
-        city: 'Manchester',
-        description:
-            'Premium 5 and 7-a-side pitches with bar, café and free WiFi.',
-        photoUrl: '',
-        amenities: const [
-          'Floodlights',
-          'Parking',
-          'Bar',
-          'Café',
-          'WiFi',
-          'Changing rooms',
-        ],
-        pitches: [
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '5-a-side',
-            surface: 'Astroturf',
-            capacity: 10,
-            pricePerHour: 55,
-          ),
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '7-a-side',
-            surface: 'Astroturf',
-            capacity: 14,
-            pricePerHour: 80,
-          ),
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '11-a-side',
-            surface: 'Grass',
-            capacity: 22,
-            pricePerHour: 140,
-          ),
-        ],
-        openingHour: 9,
-        closingHour: 23,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: now,
-      ),
-      Venue(
-        id: _uuid.v4(),
-        name: 'Soccerdome Salford',
-        address: 'Trafford Way, Salford',
-        city: 'Salford',
-        description:
-            'Indoor and outdoor pitches, open late, perfect for after-work games.',
-        photoUrl: '',
-        amenities: const [
-          'Indoor',
-          'Floodlights',
-          'Parking',
-          'Vending',
-        ],
-        pitches: [
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '5-a-side',
-            surface: 'Indoor',
-            capacity: 10,
-            pricePerHour: 50,
-          ),
-          VenuePitch(
-            id: _uuid.v4(),
-            format: '5-a-side',
-            surface: 'Astroturf',
-            capacity: 10,
-            pricePerHour: 45,
-          ),
-        ],
-        openingHour: 7,
-        closingHour: 23,
-        rating: 0,
-        reviewCount: 0,
-        createdAt: now,
-      ),
-    ];
-
-    final batch = _firestore.batch();
-    for (final venue in venues) {
-      batch.set(_venues.doc(venue.id), venue.toMap());
-    }
-    await batch.commit();
   }
 }

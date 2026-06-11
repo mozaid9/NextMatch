@@ -193,22 +193,11 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: EmptyState(
                         icon: Icons.sports_soccer,
                         title: 'No open matches yet',
-                        message:
-                            'Create the first game or add demo matches to explore the flow.',
+                        message: 'Be the first to put a game on near you.',
                         action: PrimaryButton(
-                          label: 'Add demo matches',
-                          icon: Icons.auto_awesome,
-                          isLoading: matchViewModel.isLoading,
-                          onPressed: () async {
-                            final success = await matchViewModel
-                                .seedDemoMatches(widget.currentUser);
-                            if (!context.mounted || !success) return;
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text('Demo matches added.'),
-                              ),
-                            );
-                          },
+                          label: 'Create a match',
+                          icon: Icons.add,
+                          onPressed: widget.onCreateMatch,
                         ),
                       ),
                     ),

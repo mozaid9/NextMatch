@@ -75,14 +75,6 @@ class MatchViewModel extends ChangeNotifier {
       notifyListeners();
     }
   }
-
-  Future<bool> seedDemoMatches(AppUser organiser) async {
-    return _runAction(
-      () => _matchService.seedDemoMatches(organiser),
-      failureMessage: 'Could not add demo matches.',
-    );
-  }
-
   Future<bool> withdrawFromMatch({
     required String matchId,
     required String userId,

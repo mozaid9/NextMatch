@@ -460,8 +460,10 @@ whole reason this handoff exists. **Do not break them.**
   Check) is tracked in `SECURITY.md`.
 - **Storage CORS is `*`** for everything — fine for dev, lock down for
   prod by listing real origins.
-- **Stripe test mode is BUILT but DORMANT** (11 Jun 2026, awaiting the
-  user's test keys). The full pipeline exists:
+- **Stripe test mode is LIVE** (11 Jun 2026): secrets set, functions
+  deployed, webhook endpoint registered (we_1Th6wE1c8aTZNDoULBbEn1m6),
+  `PaymentService.stripeCheckoutEnabled = true`. Test card
+  4242 4242 4242 4242. The pipeline:
   - `functions/index.js`: `createStripeCheckout` callable (server-side
     pricing from the match doc — 6% service fee, 50p minimum, constants
     at the top of the file) and `stripeWebhook` (signature-verified
@@ -471,19 +473,15 @@ whole reason this handoff exists. **Do not break them.**
   - Client: `PaymentService.createStripeCheckoutUrl` → redirect via
     `url_launcher`; return URL `?checkout=success|cancelled&matchId=...`
     handled in `main_navigation_screen.dart`.
-  - **To go live (test mode)**, in order:
-    1. `firebase functions:secrets:set STRIPE_SECRET_KEY` (paste sk_test_...)
-    2. `firebase deploy --only functions --project nextmatch-eb038`
-    3. Stripe Dashboard → Developers → Webhooks → Add endpoint:
-       `https://europe-west2-nextmatch-eb038.cloudfunctions.net/stripeWebhook`,
-       event `checkout.session.completed` → copy the signing secret →
-       `firebase functions:secrets:set STRIPE_WEBHOOK_SECRET` → deploy
-       functions again (secret binding).
-    4. Flip `PaymentService.stripeCheckoutEnabled` to `true`, hot restart.
-    5. Test card: 4242 4242 4242 4242, any future expiry, any CVC.
-  - Until then `PaymentService.mockPayAndJoin` (900ms delay) stays the
-    active flow. Once Stripe is verified, remove the mock path + the
-    `mockPayment == true` rules carve-out (see SECURITY.md).
+  - Go-live steps already done (for reference / key rotation):
+    secrets via `firebase functions:secrets:set STRIPE_SECRET_KEY` /
+    `STRIPE_WEBHOOK_SECRET` (webhook endpoint + signing secret were
+    created via the Stripe API, not the dashboard), then
+    `firebase deploy --only functions --project nextmatch-eb038`.
+  - Remaining follow-ups: remove `mockPayAndJoin` + the
+    `mockPayment == true` rules carve-out once a real checkout has been
+    verified end-to-end (see SECURITY.md); Stripe Connect organiser
+    payouts are phase two.
 - **Existing matches/participants from before profile photos shipped**
   don't have `photoUrl` on their `MatchParticipant` doc — those tiles
   show the initial fallback. Not worth backfilling for dev data.

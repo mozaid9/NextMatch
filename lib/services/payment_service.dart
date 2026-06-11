@@ -11,10 +11,9 @@ class PaymentService {
 
   final MatchService _matchService;
 
-  /// Flip to true once the Stripe test keys are set as Cloud Function
-  /// secrets and `firebase deploy --only functions` has run. Until then
-  /// the mock payment flow stays active.
-  static const bool stripeCheckoutEnabled = false;
+  /// Stripe test keys are deployed as Cloud Function secrets and the
+  /// functions are live (11 Jun 2026) — checkout goes through Stripe.
+  static const bool stripeCheckoutEnabled = true;
 
   double platformFeeFor(FootballMatch match) {
     return CurrencyHelpers.serviceFee(match.pricePerPlayer);

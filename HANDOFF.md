@@ -161,7 +161,9 @@ whole reason this handoff exists. **Do not break them.**
 
   Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>
   ```
-- **Never `git push` unless asked.** Just commit.
+- **Push to GitHub after every commit** (user instruction, 11 Jun 2026:
+  "Push every single commit to GitHub everytime"). Plain
+  `git push origin main`, no force flags ever.
 - **Never `git reset --hard`, `--force` anything, or skip hooks.**
 - Use `git add` with explicit paths, not `git add -A`.
 - The user prefers Co-Authored-By trailer with the exact model name —

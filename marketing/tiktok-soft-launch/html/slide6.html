@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><link rel="stylesheet" href="base.css"><style>
+  .stack { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 64px; width: 920px; text-align: center; }
+  h1 { font-size: 80px; font-weight: 900; line-height: 1.18; letter-spacing: -0.01em; }
+  .cards { display: flex; flex-direction: column; gap: 34px; width: 100%; }
+  .card {
+    display: flex; align-items: center; gap: 30px; text-align: left;
+    background: #101C22; border: 2px solid rgba(255,255,255,0.08);
+    border-radius: 36px; padding: 36px 40px;
+  }
+  .card.bad { border-color: rgba(229,115,115,0.35); }
+  .card.good { border-color: rgba(33,208,122,0.45); box-shadow: 0 0 40px rgba(33,208,122,0.12); }
+  .avatar { width: 110px; height: 110px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 800; flex-shrink: 0; }
+  .good .avatar { background: rgba(33,208,122,0.16); color: #21D07A; }
+  .bad .avatar { background: rgba(229,115,115,0.14); color: #E57373; }
+  .info { flex: 1; }
+  .name { font-size: 44px; font-weight: 800; }
+  .desc { font-size: 32px; color: rgba(255,255,255,0.6); margin-top: 8px; font-weight: 500; }
+  .score { text-align: center; flex-shrink: 0; }
+  .score .num { font-size: 72px; font-weight: 900; }
+  .good .num { color: #21D07A; }
+  .bad .num { color: #E57373; }
+  .score .lbl { font-size: 24px; font-weight: 700; letter-spacing: 0.12em; text-transform: uppercase; color: rgba(255,255,255,0.45); }
+  .punch { font-size: 64px; font-weight: 900; }
+  .small { font-size: 38px; font-weight: 600; color: rgba(255,255,255,0.6); }
+</style></head>
+<body><div class="slide">
+  <div class="glow"></div>
+  <div class="stack">
+    <h1>Your mate who's "forgot"<br>three weeks in a row?</h1>
+    <div class="punch"><span class="green">Everyone can see now.</span></div>
+    <div class="cards">
+      <div class="card good">
+        <div class="avatar">M</div>
+        <div class="info"><div class="name">Mo</div><div class="desc">plays when he says he will</div></div>
+        <div class="score"><div class="num">98</div><div class="lbl">reliability</div></div>
+      </div>
+      <div class="card bad">
+        <div class="avatar">L</div>
+        <div class="info"><div class="name">Liam</div><div class="desc">"sorry lads, car trouble" 😬</div></div>
+        <div class="score"><div class="num">41</div><div class="lbl">reliability</div></div>
+      </div>
+    </div>
+    <div class="small">Reliable players get picked first. As it should be.</div>
+  </div>
+</div></body></html>

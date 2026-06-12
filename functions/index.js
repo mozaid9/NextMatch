@@ -9,7 +9,7 @@ const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
-const { getFirestore } = require('firebase-admin/firestore');
+const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging } = require('firebase-admin/messaging');
 const Stripe = require('stripe');
 
@@ -631,5 +631,180 @@ exports.stripeWebhook = onRequest(
       await fulfilCheckout(stripe, event.data.object);
     }
     response.status(200).send('ok');
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Reputation: reliability scores and ability ratings (backend-authoritative)
+// ---------------------------------------------------------------------------
+//
+// Clients can no longer write any reputation field — these triggers are the
+// only writers. They react to the participant attendance transitions the
+// organiser/player legitimately make, and to rating docs (which the rules
+// already gate to attended players of completed matches).
+
+const ATTEND_REWARD = 1;
+const EARLY_CANCEL_PENALTY = -1;
+const MEDIUM_CANCEL_PENALTY = -3;
+const LATE_CANCEL_PENALTY = -8;
+const NO_SHOW_PENALTY = -15;
+
+function clampScore(score) {
+  return Math.max(0, Math.min(100, score));
+}
+
+/** Withdrawal penalty by how long before kick-off the player pulled out. */
+function withdrawalPenalty(startDate, whenDate) {
+  const hours = (startDate.getTime() - whenDate.getTime()) / 3600000;
+  if (hours > 24) return EARLY_CANCEL_PENALTY;
+  if (hours >= 6) return MEDIUM_CANCEL_PENALTY;
+  return LATE_CANCEL_PENALTY;
+}
+
+function toDateOrNow(value) {
+  return value && typeof value.toDate === 'function' ? value.toDate() : new Date();
+}
+
+/**
+ * Apply a reliability change to a user, idempotently. The event doc id is
+ * deterministic (matchId_eventType), so a re-fired trigger — or the same
+ * outcome arriving via two code paths — applies exactly once.
+ */
+async function applyReputation(uid, { matchId, eventType, scoreChange, note, counters = {} }) {
+  const db = getFirestore();
+  const userRef = db.collection('users').doc(uid);
+  const eventRef = userRef.collection('reliabilityEvents').doc(`${matchId}_${eventType}`);
+
+  await db.runTransaction(async (transaction) => {
+    const eventSnap = await transaction.get(eventRef);
+    if (eventSnap.exists) return; // already applied
+
+    const userSnap = await transaction.get(userRef);
+    const before = Number(userSnap.data()?.reliabilityScore ?? 100);
+    const after = clampScore(before + scoreChange);
+    const now = new Date();
+
+    const update = {
+      reliabilityScore: after,
+      lastReliabilityUpdateAt: now,
+      updatedAt: now,
+    };
+    for (const [key, amount] of Object.entries(counters)) {
+      update[key] = FieldValue.increment(amount);
+    }
+
+    transaction.set(userRef, update, { merge: true });
+    transaction.set(eventRef, {
+      matchId,
+      eventType,
+      scoreChange,
+      scoreBefore: before,
+      scoreAfter: after,
+      note: note || '',
+      createdAt: now,
+    });
+  });
+}
+
+/** Reliability bookkeeping from participant attendance transitions. */
+exports.onParticipantReputation = onDocumentUpdated(
+  { document: 'matches/{matchId}/participants/{uid}', region: REGION },
+  async (event) => {
+    const before = event.data?.before.data();
+    const after = event.data?.after.data();
+    if (!before || !after) return;
+
+    const from = before.attendanceStatus;
+    const to = after.attendanceStatus;
+    if (from === to) return;
+    const { matchId, uid } = event.params;
+
+    if (from === 'Joined' && (to === 'Cancelled' || to === 'LateCancelled')) {
+      // Recompute the penalty from kick-off timing — never trust the label
+      // the client wrote, which is exactly what it could lie about.
+      const matchSnap = await getFirestore().collection('matches').doc(matchId).get();
+      const start = toDateOrNow(matchSnap.data()?.startDateTime);
+      const when = toDateOrNow(after.cancelledAt);
+      const penalty = withdrawalPenalty(start, when);
+      const late = penalty <= MEDIUM_CANCEL_PENALTY;
+      await applyReputation(uid, {
+        matchId,
+        eventType: late ? 'LateCancellation' : 'EarlyCancellation',
+        scoreChange: penalty,
+        note: after.withdrawalReason || 'Player withdrew before kick-off.',
+        counters: late
+          ? { cancelledMatches: 1, lateCancellations: 1 }
+          : { cancelledMatches: 1 },
+      });
+    } else if (to === 'Attended') {
+      await applyReputation(uid, {
+        matchId,
+        eventType: 'MatchAttended',
+        scoreChange: ATTEND_REWARD,
+        note: 'Player attended the match.',
+        counters: { attendedMatches: 1, completedMatches: 1, matchesPlayed: 1 },
+      });
+    } else if (to === 'NoShow') {
+      await applyReputation(uid, {
+        matchId,
+        eventType: 'NoShow',
+        scoreChange: NO_SHOW_PENALTY,
+        note: 'Player did not show up.',
+        counters: { completedMatches: 1, matchesPlayed: 1, noShows: 1 },
+      });
+    }
+  },
+);
+
+/** Ability rating aggregate, recomputed when a rating doc is created. */
+exports.onRatingCreated = onDocumentCreated(
+  { document: 'matches/{matchId}/ratings/{ratingId}', region: REGION },
+  async (event) => {
+    const rating = event.data?.data();
+    if (!rating) return;
+    const ratedUserId = rating.ratedUserId;
+    const value = Number(rating.abilityRating);
+    if (!ratedUserId || !Number.isFinite(value)) return;
+    const { matchId, ratingId } = event.params;
+
+    const db = getFirestore();
+    const ratingRef = event.data.ref;
+    const userRef = db.collection('users').doc(ratedUserId);
+    const evidenceRef = userRef
+      .collection('abilityRatings')
+      .doc(`${matchId}_${rating.ratedByUserId}`);
+
+    await db.runTransaction(async (transaction) => {
+      const ratingSnap = await transaction.get(ratingRef);
+      if (ratingSnap.data()?.aggregated === true) return; // already counted
+
+      const userSnap = await transaction.get(userRef);
+      const data = userSnap.data() || {};
+      const average = Number(data.abilityRating ?? data.rating ?? 3.0);
+      const count = Number(data.abilityRatingCount ?? 0);
+      const newCount = count + 1;
+      const newAverage = Math.round(((average * count + value) / newCount) * 100) / 100;
+      const now = new Date();
+
+      transaction.set(
+        userRef,
+        {
+          abilityRating: newAverage,
+          rating: newAverage,
+          abilityRatingCount: newCount,
+          lastAbilityRatingAt: now,
+          updatedAt: now,
+        },
+        { merge: true },
+      );
+      transaction.set(evidenceRef, {
+        ratingId,
+        matchId,
+        ratedByUserId: rating.ratedByUserId,
+        rating: value,
+        createdAt: now,
+      });
+      transaction.update(ratingRef, { aggregated: true });
+    });
   },
 );

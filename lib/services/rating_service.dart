@@ -54,10 +54,6 @@ class RatingService {
     );
     final matchRef = _firestore.collection('matches').doc(matchId);
     final matchRatingRef = matchRef.collection('ratings').doc(ratingId);
-    final ratedUserRef = _firestore.collection('users').doc(ratedUserId);
-    final userRatingRef = ratedUserRef
-        .collection('abilityRatings')
-        .doc('${matchId}_$ratedByUserId');
     final ratedParticipantRef = matchRef
         .collection('participants')
         .doc(ratedUserId);
@@ -65,10 +61,12 @@ class RatingService {
         .collection('participants')
         .doc(ratedByUserId);
 
+    // The client only writes the rating doc (and flags the match rated). The
+    // rated player's ability aggregate is recomputed server-side by
+    // onRatingCreated, so a player can never inflate their own score.
     await _firestore.runTransaction((transaction) async {
       final matchSnapshot = await transaction.get(matchRef);
       final existingRating = await transaction.get(matchRatingRef);
-      final ratedUserSnapshot = await transaction.get(ratedUserRef);
       final ratedParticipantSnapshot = await transaction.get(
         ratedParticipantRef,
       );
@@ -97,7 +95,6 @@ class RatingService {
         throw Exception('Only attended players can rate attended players.');
       }
 
-      final now = DateTime.now();
       final playerRating = PlayerRating(
         ratingId: ratingId,
         matchId: matchId,
@@ -106,35 +103,11 @@ class RatingService {
         abilityRating: rating,
         reliabilityFeedback: reliabilityFeedback,
         comment: comment,
-        createdAt: now,
+        createdAt: DateTime.now(),
       );
-
-      final userData = ratedUserSnapshot.data() ?? <String, dynamic>{};
-      final currentAverage =
-          (userData['abilityRating'] as num?)?.toDouble() ??
-          (userData['rating'] as num?)?.toDouble() ??
-          3.0;
-      final currentCount =
-          (userData['abilityRatingCount'] as num?)?.toInt() ?? 0;
-      final newCount = currentCount + 1;
-      final newAverage = ((currentAverage * currentCount) + rating) / newCount;
 
       transaction.set(matchRatingRef, playerRating.toMap());
       transaction.set(matchRef, {'isRated': true}, SetOptions(merge: true));
-      transaction.set(userRatingRef, {
-        'ratingId': ratingId,
-        'matchId': matchId,
-        'ratedByUserId': ratedByUserId,
-        'rating': rating,
-        'createdAt': Timestamp.fromDate(now),
-      });
-      transaction.set(ratedUserRef, {
-        'abilityRating': double.parse(newAverage.toStringAsFixed(2)),
-        'rating': double.parse(newAverage.toStringAsFixed(2)),
-        'abilityRatingCount': newCount,
-        'lastAbilityRatingAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
     });
   }
 }

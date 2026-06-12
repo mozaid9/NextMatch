@@ -44,22 +44,21 @@ rewrite everything, unauthenticated).
 
 ## Known-weak by design (acceptable in dev, NOT at launch)
 
-These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
-
-1. **Cross-user reputation writes happen client-side.** When an organiser
-   completes a match, the *client* updates each participant's reliability
-   counters and writes reliability events; raters update the rated user's
-   ability aggregate. Rules restrict these to an exact field allowlist (so
-   identity can't be touched), but a hostile signed-in user could still
-   manipulate reliability/rating numbers directly. **Fix before launch:**
-   move match completion, reliability events and rating aggregation into
-   Cloud Functions; tighten the rules to deny those fields client-side.
+1. ~~Cross-user reputation writes happen client-side.~~ **Closed 12 Jun
+   2026.** Reliability scores, reliability events, ability ratings and all
+   the counters are now written exclusively by Cloud Functions
+   (`onParticipantReputation`, `onRatingCreated`), which react to the
+   attendance transitions and rating docs the client legitimately creates.
+   The rules deny every client write to those fields, including a user
+   writing them onto its own profile doc (`touchesReputation()`), and the
+   `reliabilityEvents` / `abilityRatings` subcollections are backend-write
+   -only. Verified by direct REST writes with a real ID token: changing
+   your own score/counters/ability returns 403, a normal profile edit
+   still returns 200.
 2. ~~Demo seeding carve-outs.~~ **Removed 11 Jun 2026**: the `demo-*`
    uid and venue-create carve-outs are gone from the rules and the demo
    seed buttons are gone from the app. Venues are backend-managed only.
    Existing demo data in Firestore is untouched and still renders.
-3. **`reliabilityEvents` create is `signedIn()`** for the same reason as
-   (1) — needs to be backend-only at launch.
 
 ## Before money moves (launch checklist)
 
@@ -75,11 +74,13 @@ These are marked `DEV ONLY` / `TODO(Cloud Functions)` in `firestore.rules`:
       all client writes to `payments`, the app's mock flow is deleted and
       refunds run server-side (full on organiser cancellation or early
       withdrawal, none inside 24h of kick-off).
-- [ ] Restrict `createStripeCheckout` success/cancel URLs to an allowlist
-      of real app origins before launch (currently any http(s) URL, fine
-      while test keys can't move real money).
-- [ ] Cloud Functions for: match completion bookkeeping, reliability
-      events, rating aggregates, invite fan-out, cancellation propagation.
+- [x] Reliability and rating writes moved to Cloud Functions (12 Jun
+      2026): `onParticipantReputation` and `onRatingCreated` own every
+      score, counter and event; the rules deny all client writes to those
+      fields. Penalty tiers are recomputed server-side from kick-off
+      timing, so the client's cancel label grants nothing.
+- [x] Invite fan-out and cancellation propagation already run in Cloud
+      Functions (notification pipeline).
 - [x] Remove the two DEV-ONLY rule carve-outs (demo uids, venue create) —
       done 11 Jun 2026, deployed.
 - [x] Close the mock-era self-confirmation hole: clients can no longer

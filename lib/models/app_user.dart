@@ -143,6 +143,26 @@ class AppUser {
     };
   }
 
+  /// Only the fields a user may edit about themselves. Reputation fields are
+  /// deliberately excluded — they are backend-owned, and the security rules
+  /// reject any client write that touches them. Use this for profile updates;
+  /// use [toMap] only when first creating the account document.
+  Map<String, dynamic> toProfileMap() {
+    return {
+      'fullName': fullName,
+      'email': email,
+      'age': age,
+      'location': location,
+      'preferredPosition': preferredPosition,
+      'secondaryPosition': secondaryPosition,
+      'skillLevel': skillLevel,
+      'favouriteFoot': favouriteFoot,
+      'bio': bio,
+      'photoUrl': photoUrl,
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
   AppUser copyWith({
     String? fullName,
     String? email,

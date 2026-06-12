@@ -39,7 +39,16 @@ class UserService {
       updatedAt: now,
     );
 
-    await _users.doc(user.uid).set(profile.toMap(), SetOptions(merge: true));
+    if (existing == null) {
+      // First write: create the account doc with its starting reputation.
+      await _users.doc(user.uid).set(profile.toMap());
+    } else {
+      // Edits only ever touch profile-identity fields. Reputation is
+      // backend-owned and the security rules reject any client write to it.
+      await _users
+          .doc(user.uid)
+          .set(profile.toProfileMap(), SetOptions(merge: true));
+    }
   }
 
   Future<void> updateProfile(AppUser user) => saveProfile(user);

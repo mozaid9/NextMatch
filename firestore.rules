@@ -129,27 +129,24 @@ service cloud.firestore {
       return participantDoc(matchId, userId).data.attendanceStatus == 'Attended';
     }
 
-    // Cross-user reputation bookkeeping the client performs today
-    // (organiser completing a match, raters updating ability aggregates).
-    // Field-restricted so profile identity can never be touched.
-    // TODO(Cloud Functions): move these writes server-side before launch.
-    function validReputationUpdate() {
-      return signedIn()
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
-          'reliabilityScore',
-          'abilityRating',
-          'rating',
-          'abilityRatingCount',
-          'completedMatches',
-          'cancelledMatches',
-          'lateCancellations',
-          'noShows',
-          'attendedMatches',
-          'matchesPlayed',
-          'lastReliabilityUpdateAt',
-          'lastAbilityRatingAt',
-          'updatedAt'
-        ]);
+    // Reputation fields are written ONLY by Cloud Functions (admin SDK,
+    // which bypasses these rules). No client may touch them — not even on
+    // its own profile doc — so a player can never inflate their own score.
+    function touchesReputation() {
+      return request.resource.data.diff(resource.data).affectedKeys().hasAny([
+        'reliabilityScore',
+        'abilityRating',
+        'rating',
+        'abilityRatingCount',
+        'completedMatches',
+        'cancelledMatches',
+        'lateCancellations',
+        'noShows',
+        'attendedMatches',
+        'matchesPlayed',
+        'lastReliabilityUpdateAt',
+        'lastAbilityRatingAt'
+      ]);
     }
 
     function validRatedFlagUpdate(matchId) {
@@ -165,9 +162,10 @@ service cloud.firestore {
       // Profiles power player search and match tiles; auth required,
       // unauthenticated scraping blocked.
       allow read: if signedIn();
+      // New accounts are created with their starting scores; after that the
+      // owner may edit their profile but never the reputation fields.
       allow create: if owns(userId);
-      allow update: if owns(userId)
-        || validReputationUpdate();
+      allow update: if owns(userId) && !touchesReputation();
       allow delete: if false;
 
       // Social graph: I write my own "following" list, and I write my own
@@ -230,18 +228,16 @@ service cloud.firestore {
         allow delete: if false;
       }
 
+      // Reliability events and ability-rating evidence are written only by
+      // Cloud Functions (admin SDK) — the audit trail behind the scores.
       match /reliabilityEvents/{eventId} {
         allow read: if owns(userId);
-        // TODO(Cloud Functions): should be written by trusted backend code.
-        allow create: if signedIn();
-        allow update, delete: if false;
+        allow write: if false;
       }
 
       match /abilityRatings/{ratingId} {
         allow read: if owns(userId);
-        allow create: if signedIn()
-          && request.resource.data.ratedByUserId == request.auth.uid;
-        allow update, delete: if false;
+        allow write: if false;
       }
     }
 

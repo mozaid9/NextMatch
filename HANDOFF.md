@@ -459,9 +459,18 @@ whole reason this handoff exists. **Do not break them.**
 
 - **Apple Sign-In Firebase setup** isn't done (button currently errors).
   Code is ready — just needs Apple Developer account + Service ID + key.
-- **Firestore security rules deployed 10 Jun 2026** — remaining hardening
-  (Cloud Functions for reputation writes, removing dev carve-outs, App
-  Check) is tracked in `SECURITY.md`.
+- **Reputation is backend-owned (12 Jun 2026).** Reliability scores,
+  ability ratings, every counter and the reliability-event audit trail
+  are written only by Cloud Functions (`onParticipantReputation` reacts
+  to attendance/withdrawal transitions, `onRatingCreated` recomputes the
+  ability aggregate). The client services only flip participant
+  attendance and create the rating doc; `firestore.rules` deny all client
+  writes to the score fields, including on a user's own profile. Penalty
+  tiers are recomputed server-side from kick-off timing.
+  `ReliabilityService` is now pure display/calculation helpers only.
+- **Firestore security rules** — remaining hardening (App Check, storage
+  CORS lock-down, email enumeration protection) is tracked in
+  `SECURITY.md`. The reputation and payment items there are now done.
 - **Storage CORS is `*`** for everything — fine for dev, lock down for
   prod by listing real origins.
 - **Stripe test mode is LIVE** (11 Jun 2026): secrets set, functions

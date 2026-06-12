@@ -1,11 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:uuid/uuid.dart';
 
 import '../models/app_user.dart';
 import '../models/football_match.dart';
 import '../models/match_comment.dart';
 import '../models/match_participant.dart';
-import '../models/reliability_event.dart';
 import 'reliability_service.dart';
 
 class JoinRequestResult {
@@ -25,7 +23,6 @@ class MatchService {
     : _firestore = firestore ?? FirebaseFirestore.instance;
 
   final FirebaseFirestore _firestore;
-  final Uuid _uuid = const Uuid();
 
   CollectionReference<Map<String, dynamic>> get _matches =>
       _firestore.collection('matches');
@@ -531,7 +528,6 @@ class MatchService {
     await _firestore.runTransaction((transaction) async {
       final matchSnapshot = await transaction.get(matchRef);
       final participantSnapshot = await transaction.get(participantRef);
-      final userSnapshot = await transaction.get(userRef);
       if (!matchSnapshot.exists || !participantSnapshot.exists) {
         throw Exception('Match place not found.');
       }
@@ -546,6 +542,9 @@ class MatchService {
       }
 
       final now = DateTime.now();
+      // The reliability penalty tier is recomputed server-side from kick-off
+      // timing (onParticipantReputation). The client only sets the label for
+      // the UI; it grants nothing, so the backend never trusts it.
       final penalty = participant.hasConfirmedSlot
           ? ReliabilityService.calculateWithdrawalPenalty(
               match.startDateTime,
@@ -558,12 +557,6 @@ class MatchService {
       final newCount = confirmedSlot
           ? (match.joinedPlayerCount - 1).clamp(0, match.totalPlayersNeeded)
           : match.joinedPlayerCount;
-      final scoreBefore =
-          (userSnapshot.data()?['reliabilityScore'] as num?)?.toInt() ?? 100;
-      final scoreAfter = ReliabilityService.applyScoreChange(
-        scoreBefore,
-        penalty,
-      );
 
       transaction.update(participantRef, {
         'attendanceStatus': attendanceStatus,
@@ -575,31 +568,6 @@ class MatchService {
         'cancelledAt': Timestamp.fromDate(now),
         'withdrawalReason': reason,
       }, SetOptions(merge: true));
-      if (confirmedSlot) {
-        transaction.set(userRef, {
-          'reliabilityScore': scoreAfter,
-          'cancelledMatches': FieldValue.increment(1),
-          if (isLate) 'lateCancellations': FieldValue.increment(1),
-          'lastReliabilityUpdateAt': Timestamp.fromDate(now),
-          'updatedAt': Timestamp.fromDate(now),
-        }, SetOptions(merge: true));
-
-        final eventId = _uuid.v4();
-        final event = ReliabilityEvent(
-          eventId: eventId,
-          matchId: matchId,
-          eventType: isLate ? 'LateCancellation' : 'EarlyCancellation',
-          scoreChange: penalty,
-          scoreBefore: scoreBefore,
-          scoreAfter: scoreAfter,
-          createdAt: now,
-          note: reason ?? 'Player withdrew before kick-off.',
-        );
-        transaction.set(
-          userRef.collection('reliabilityEvents').doc(eventId),
-          event.toMap(),
-        );
-      }
 
       if (confirmedSlot) {
         transaction.update(matchRef, {
@@ -622,9 +590,6 @@ class MatchService {
       matchId: matchId,
       userId: userId,
       attendanceStatus: 'Attended',
-      eventType: 'OrganiserMarkedAttended',
-      scoreChange: ReliabilityService.attendMatchScoreChange,
-      note: 'Organiser marked player as attended.',
     );
   }
 
@@ -636,9 +601,6 @@ class MatchService {
       matchId: matchId,
       userId: userId,
       attendanceStatus: 'NoShow',
-      eventType: 'OrganiserMarkedNoShow',
-      scoreChange: ReliabilityService.noShowPenalty,
-      note: 'Organiser marked player as no-show.',
     );
   }
 
@@ -679,46 +641,19 @@ class MatchService {
       'updatedAt': Timestamp.fromDate(now),
     });
 
+    // Flipping each confirmed player to Attended is all the client does.
+    // The reliability reward + counters are applied server-side by
+    // onParticipantReputation reacting to this status change.
     for (final participantDoc in participantsSnapshot.docs) {
       final participant = MatchParticipant.fromFirestore(participantDoc);
       if (participant.attendanceStatus != 'Joined') continue;
 
-      final userRef = _users.doc(participant.userId);
-      final userSnapshot = await userRef.get();
-      final scoreBefore =
-          (userSnapshot.data()?['reliabilityScore'] as num?)?.toInt() ?? 100;
-      final scoreAfter = ReliabilityService.applyScoreChange(
-        scoreBefore,
-        ReliabilityService.attendMatchScoreChange,
-      );
-      final eventId = _uuid.v4();
-      final event = ReliabilityEvent(
-        eventId: eventId,
-        matchId: matchId,
-        eventType: 'MatchCompleted',
-        scoreChange: ReliabilityService.attendMatchScoreChange,
-        scoreBefore: scoreBefore,
-        scoreAfter: scoreAfter,
-        createdAt: now,
-        note: 'Match completed and player attended.',
-      );
-
       batch.update(participantDoc.reference, {'attendanceStatus': 'Attended'});
-      batch.set(userRef, {
-        'reliabilityScore': scoreAfter,
-        'attendedMatches': FieldValue.increment(1),
-        'completedMatches': FieldValue.increment(1),
-        'matchesPlayed': FieldValue.increment(1),
-        'lastReliabilityUpdateAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
       batch.set(
-        userRef.collection('reliabilityEvents').doc(eventId),
-        event.toMap(),
+        _users.doc(participant.userId).collection('joinedMatches').doc(matchId),
+        {'attendanceStatus': 'Attended'},
+        SetOptions(merge: true),
       );
-      batch.set(userRef.collection('joinedMatches').doc(matchId), {
-        'attendanceStatus': 'Attended',
-      }, SetOptions(merge: true));
     }
 
     await batch.commit();
@@ -890,18 +825,16 @@ class MatchService {
     required String matchId,
     required String userId,
     required String attendanceStatus,
-    required String eventType,
-    required int scoreChange,
-    required String note,
   }) async {
     final matchRef = _matches.doc(matchId);
     final participantRef = matchRef.collection('participants').doc(userId);
-    final userRef = _users.doc(userId);
-    final userJoinedRef = userRef.collection('joinedMatches').doc(matchId);
+    final userJoinedRef = _users
+        .doc(userId)
+        .collection('joinedMatches')
+        .doc(matchId);
 
     await _firestore.runTransaction((transaction) async {
       final participantSnapshot = await transaction.get(participantRef);
-      final userSnapshot = await transaction.get(userRef);
       if (!participantSnapshot.exists) {
         throw Exception('Participant not found.');
       }
@@ -914,46 +847,14 @@ class MatchService {
         throw Exception('This player does not have a confirmed place.');
       }
 
-      final now = DateTime.now();
-      final scoreBefore =
-          (userSnapshot.data()?['reliabilityScore'] as num?)?.toInt() ?? 100;
-      final scoreAfter = ReliabilityService.applyScoreChange(
-        scoreBefore,
-        scoreChange,
-      );
-      final eventId = _uuid.v4();
-      final event = ReliabilityEvent(
-        eventId: eventId,
-        matchId: matchId,
-        eventType: eventType,
-        scoreChange: scoreChange,
-        scoreBefore: scoreBefore,
-        scoreAfter: scoreAfter,
-        createdAt: now,
-        note: note,
-      );
-
+      // The reliability score, counters and event are applied server-side by
+      // onParticipantReputation reacting to this attendance change.
       transaction.update(participantRef, {
         'attendanceStatus': attendanceStatus,
       });
       transaction.set(userJoinedRef, {
         'attendanceStatus': attendanceStatus,
       }, SetOptions(merge: true));
-      transaction.set(userRef, {
-        'reliabilityScore': scoreAfter,
-        if (attendanceStatus == 'Attended') ...{
-          'attendedMatches': FieldValue.increment(1),
-          'completedMatches': FieldValue.increment(1),
-          'matchesPlayed': FieldValue.increment(1),
-        },
-        if (attendanceStatus == 'NoShow') 'noShows': FieldValue.increment(1),
-        'lastReliabilityUpdateAt': Timestamp.fromDate(now),
-        'updatedAt': Timestamp.fromDate(now),
-      }, SetOptions(merge: true));
-      transaction.set(
-        userRef.collection('reliabilityEvents').doc(eventId),
-        event.toMap(),
-      );
     });
   }
 }

@@ -946,7 +946,7 @@ class _CoPlayersStrip extends StatelessWidget {
             Text('Players you run with', style: AppTextStyles.h2),
             const SizedBox(height: 12),
             SizedBox(
-              height: 90,
+              height: 108,
               child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: players.length,
@@ -1001,6 +1001,7 @@ class _CoPlayerCard extends StatelessWidget {
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
           UserAvatar(
             fullName: firstName,

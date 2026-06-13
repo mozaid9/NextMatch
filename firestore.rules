@@ -253,6 +253,23 @@ service cloud.firestore {
       }
     }
 
+    // Unique @handle reservation index. One doc per handle (id = the
+    // canonical lowercase handle), value = { uid }. Anyone signed in can read
+    // (availability checks and profile lookups). You may only claim a free
+    // handle for yourself and only release one you own. Handles are immutable
+    // — a change is a delete of the old plus a create of the new — so updates
+    // are forbidden, which is precisely what stops one player overwriting
+    // another player's handle.
+    match /usernames/{handle} {
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt']);
+      allow delete: if signedIn()
+        && resource.data.uid == request.auth.uid;
+      allow update: if false;
+    }
+
     match /matches/{matchId} {
       // Single-doc reads: public matches, plus private ones you organise,
       // joined, or were invited to.

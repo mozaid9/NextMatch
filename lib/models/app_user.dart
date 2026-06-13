@@ -5,6 +5,7 @@ class AppUser {
     required this.uid,
     required this.fullName,
     required this.email,
+    this.username = '',
     required this.age,
     required this.location,
     required this.preferredPosition,
@@ -25,6 +26,8 @@ class AppUser {
     this.lastAbilityRatingAt,
     this.matchesPlayed = 0,
     this.rating = 3.0,
+    this.notificationsEnabled = true,
+    this.deleted = false,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -32,6 +35,11 @@ class AppUser {
   final String uid;
   final String fullName;
   final String email;
+
+  /// Unique @handle, stored canonical (lowercase). Empty until the player
+  /// claims one from the Account screen. Reserved atomically via the
+  /// `usernames/{handle}` collection (see [UserService.claimUsername]).
+  final String username;
   final int age;
   final String location;
   final String preferredPosition;
@@ -58,8 +66,18 @@ class AppUser {
   bool get hasReliabilityHistory => lastReliabilityUpdateAt != null;
   // Legacy alias kept while older UI/data migrates to abilityRating.
   final double rating;
+
+  /// Master push-notification preference. When false the device deregisters
+  /// its FCM tokens so no pushes are delivered.
+  final bool notificationsEnabled;
+
+  /// Set when the account has been deleted (anonymised in place — the doc is
+  /// retained so the player's past matches still resolve an organiser name).
+  final bool deleted;
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  bool get hasUsername => username.isNotEmpty;
 
   factory AppUser.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
@@ -73,6 +91,7 @@ class AppUser {
       uid: data['uid'] as String? ?? uid,
       fullName: data['fullName'] as String? ?? '',
       email: data['email'] as String? ?? '',
+      username: data['username'] as String? ?? '',
       age: (data['age'] as num?)?.toInt() ?? 0,
       location: data['location'] as String? ?? '',
       preferredPosition: data['preferredPosition'] as String? ?? 'Any',
@@ -104,6 +123,8 @@ class AppUser {
           (data['rating'] as num?)?.toDouble() ??
           (data['abilityRating'] as num?)?.toDouble() ??
           3.0,
+      notificationsEnabled: data['notificationsEnabled'] as bool? ?? true,
+      deleted: data['deleted'] as bool? ?? false,
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
@@ -114,6 +135,7 @@ class AppUser {
       'uid': uid,
       'fullName': fullName,
       'email': email,
+      'username': username,
       'age': age,
       'location': location,
       'preferredPosition': preferredPosition,
@@ -138,6 +160,8 @@ class AppUser {
           : Timestamp.fromDate(lastAbilityRatingAt!),
       'matchesPlayed': matchesPlayed,
       'rating': abilityRating,
+      'notificationsEnabled': notificationsEnabled,
+      'deleted': deleted,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -166,6 +190,7 @@ class AppUser {
   AppUser copyWith({
     String? fullName,
     String? email,
+    String? username,
     int? age,
     String? location,
     String? preferredPosition,
@@ -186,6 +211,8 @@ class AppUser {
     DateTime? lastAbilityRatingAt,
     int? matchesPlayed,
     double? rating,
+    bool? notificationsEnabled,
+    bool? deleted,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -193,6 +220,7 @@ class AppUser {
       uid: uid,
       fullName: fullName ?? this.fullName,
       email: email ?? this.email,
+      username: username ?? this.username,
       age: age ?? this.age,
       location: location ?? this.location,
       preferredPosition: preferredPosition ?? this.preferredPosition,
@@ -214,6 +242,8 @@ class AppUser {
       lastAbilityRatingAt: lastAbilityRatingAt ?? this.lastAbilityRatingAt,
       matchesPlayed: matchesPlayed ?? this.matchesPlayed,
       rating: rating ?? abilityRating ?? this.rating,
+      notificationsEnabled: notificationsEnabled ?? this.notificationsEnabled,
+      deleted: deleted ?? this.deleted,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

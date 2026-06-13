@@ -46,7 +46,7 @@ class ProfileScreen extends StatelessWidget {
                 tooltip: 'Settings',
                 onPressed: () => Navigator.of(context).push(
                   MaterialPageRoute<void>(
-                    builder: (_) => const SettingsScreen(),
+                    builder: (_) => SettingsScreen(currentUser: user),
                   ),
                 ),
               ),
@@ -196,6 +196,13 @@ class _ProfileHeader extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           Text(displayName, style: AppTextStyles.h2),
+          if (user.hasUsername) ...[
+            const SizedBox(height: 2),
+            Text(
+              '@${user.username}',
+              style: AppTextStyles.small.copyWith(color: AppColours.accent),
+            ),
+          ],
           const SizedBox(height: 4),
           Text(
             '${user.preferredPosition} · ${user.skillLevel}',

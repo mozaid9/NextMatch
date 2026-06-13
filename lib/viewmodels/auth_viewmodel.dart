@@ -34,6 +34,24 @@ class AuthViewModel extends ChangeNotifier {
     await _authService.signOut();
   }
 
+  String get primaryProviderId => _authService.primaryProviderId;
+
+  Future<bool> reauthenticateWithPassword(String password) {
+    return _runAuthAction(
+      () => _authService.reauthenticateWithPassword(password),
+    );
+  }
+
+  Future<bool> reauthenticateWithProvider(String providerId) {
+    return _runAuthAction(
+      () => _authService.reauthenticateWithProvider(providerId),
+    );
+  }
+
+  Future<bool> deleteAccount() {
+    return _runAuthAction(() => _authService.deleteAccount());
+  }
+
   Future<bool> sendPasswordResetEmail(String email) async {
     return _runAuthAction(() => _authService.sendPasswordResetEmail(email));
   }

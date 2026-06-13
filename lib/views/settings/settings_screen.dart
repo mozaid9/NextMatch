@@ -4,23 +4,54 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colours.dart';
 import '../../core/constants/app_palette.dart';
 import '../../core/constants/app_text_styles.dart';
+import '../../models/app_user.dart';
 import '../../viewmodels/settings_viewmodel.dart';
+import 'account_screen.dart';
 
-/// App settings: appearance (accent colour) and accessibility (text size,
-/// high contrast, reduce motion). The account section is added in a later
-/// phase.
+/// App settings: account, appearance (accent colour) and accessibility (text
+/// size, high contrast, reduce motion).
 class SettingsScreen extends StatelessWidget {
-  const SettingsScreen({super.key});
+  const SettingsScreen({super.key, this.currentUser});
+
+  /// The signed-in player, threaded in so the Account section can edit their
+  /// username, display name and notification preference. When null (e.g. the
+  /// screen is opened before a profile exists) the Account section is hidden.
+  final AppUser? currentUser;
 
   @override
   Widget build(BuildContext context) {
     final settings = context.watch<SettingsViewModel>();
+    final user = currentUser;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
         children: [
+          if (user != null) ...[
+            _SectionHeader('Account'),
+            _Card(
+              padding: EdgeInsets.zero,
+              child: ListTile(
+                leading: Icon(
+                  Icons.manage_accounts_outlined,
+                  color: AppColours.accent,
+                ),
+                title: const Text('Account & username'),
+                subtitle: Text(
+                  user.hasUsername ? '@${user.username}' : 'Set a username',
+                  style: AppTextStyles.bodyMuted,
+                ),
+                trailing: const Icon(Icons.chevron_right),
+                onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => AccountScreen(user: user),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 24),
+          ],
           _SectionHeader('Appearance'),
           _Card(
             child: Column(

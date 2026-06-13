@@ -41,6 +41,56 @@ class AuthService {
 
   Future<void> signOut() => _firebaseAuth.signOut();
 
+  /// The sign-in method backing the current account: 'password', 'google.com'
+  /// or 'apple.com'. Drives which re-auth flow the delete confirmation uses.
+  String get primaryProviderId {
+    final providers = _firebaseAuth.currentUser?.providerData ?? const [];
+    if (providers.isEmpty) return 'password';
+    return providers.first.providerId;
+  }
+
+  /// Re-authenticate a password user. Firebase requires a fresh credential
+  /// before sensitive actions like account deletion.
+  Future<void> reauthenticateWithPassword(String password) async {
+    final user = _firebaseAuth.currentUser;
+    final email = user?.email;
+    if (user == null || email == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No signed-in user to re-authenticate.',
+      );
+    }
+    final credential = EmailAuthProvider.credential(
+      email: email,
+      password: password,
+    );
+    await user.reauthenticateWithCredential(credential);
+  }
+
+  /// Re-authenticate an OAuth user (Google/Apple) via popup.
+  Future<void> reauthenticateWithProvider(String providerId) async {
+    final user = _firebaseAuth.currentUser;
+    if (user == null) {
+      throw FirebaseAuthException(
+        code: 'no-current-user',
+        message: 'No signed-in user to re-authenticate.',
+      );
+    }
+    final AuthProvider provider = switch (providerId) {
+      'google.com' => GoogleAuthProvider()..addScope('email'),
+      'apple.com' => OAuthProvider('apple.com')..addScope('email'),
+      _ => throw FirebaseAuthException(
+        code: 'unsupported-provider',
+        message: 'Re-authentication for $providerId is not supported here.',
+      ),
+    };
+    await user.reauthenticateWithPopup(provider);
+  }
+
+  /// Permanently delete the Firebase Auth user. Call only after Firestore
+  /// cleanup, since this drops the credential the writes depend on.
+  Future<void> deleteAccount() => _firebaseAuth.currentUser!.delete();
+
   Future<void> sendPasswordResetEmail(String email) {
     return _firebaseAuth.sendPasswordResetEmail(email: email.trim());
   }
@@ -90,6 +140,8 @@ class AuthService {
       'user-not-found' => 'No account found for that email.',
       'wrong-password' => 'Incorrect password.',
       'invalid-credential' => 'Email or password is incorrect.',
+      'requires-recent-login' =>
+        'For security, please confirm your password to continue.',
       'weak-password' => 'Use a stronger password.',
       'popup-closed-by-user' || 'cancelled-popup-request' => '',
       'account-exists-with-different-credential' =>

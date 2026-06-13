@@ -4,6 +4,7 @@ import '../models/app_user.dart';
 import '../models/football_match.dart';
 import '../models/match_comment.dart';
 import '../models/match_participant.dart';
+import '../models/waitlist_entry.dart';
 import 'reliability_service.dart';
 
 class JoinRequestResult {
@@ -856,5 +857,91 @@ class MatchService {
         'attendanceStatus': attendanceStatus,
       }, SetOptions(merge: true));
     });
+  }
+
+  // ----- Waitlist -------------------------------------------------------
+
+  /// All waitlist entries on a match, oldest first (queue order).
+  Stream<List<WaitlistEntry>> waitlistStream(String matchId) {
+    return _matches
+        .doc(matchId)
+        .collection('waitlist')
+        .orderBy('joinedAt')
+        .snapshots()
+        .map(
+          (snapshot) =>
+              snapshot.docs.map(WaitlistEntry.fromFirestore).toList(),
+        );
+  }
+
+  /// The current user's own waitlist entry on a match, or null.
+  Stream<WaitlistEntry?> myWaitlistEntryStream(String matchId, String uid) {
+    return _matches
+        .doc(matchId)
+        .collection('waitlist')
+        .doc(uid)
+        .snapshots()
+        .map((doc) => doc.exists ? WaitlistEntry.fromFirestore(doc) : null);
+  }
+
+  /// Join the waitlist for a full match. Promotion to an offered spot is
+  /// handled server-side when a place opens up.
+  Future<void> joinWaitlist({
+    required FootballMatch match,
+    required AppUser user,
+    required String position,
+  }) async {
+    final matchRef = _matches.doc(match.id);
+    final waitlistRef = matchRef.collection('waitlist').doc(user.uid);
+    final participantRef = matchRef.collection('participants').doc(user.uid);
+
+    await _firestore.runTransaction((transaction) async {
+      final matchSnapshot = await transaction.get(matchRef);
+      if (!matchSnapshot.exists) throw Exception('Match no longer exists.');
+      final latestMatch = FootballMatch.fromFirestore(matchSnapshot);
+      if (latestMatch.isCompleted || latestMatch.isCancelled) {
+        throw Exception('This match is no longer open.');
+      }
+      if (latestMatch.hasStarted) {
+        throw Exception('This match has already kicked off.');
+      }
+
+      final participantSnapshot = await transaction.get(participantRef);
+      if (participantSnapshot.exists) {
+        final participant = MatchParticipant.fromFirestore(participantSnapshot);
+        if (participant.hasConfirmedSlot ||
+            participant.isPendingPayment ||
+            participant.isPendingApproval) {
+          throw Exception('You already have a place in this match.');
+        }
+      }
+
+      final existing = await transaction.get(waitlistRef);
+      if (existing.exists) {
+        throw Exception('You are already on the waitlist.');
+      }
+
+      final entry = WaitlistEntry(
+        userId: user.uid,
+        fullName: user.fullName,
+        position: position,
+        photoUrl: user.photoUrl,
+        status: 'Waiting',
+        joinedAt: DateTime.now(),
+      );
+      transaction.set(waitlistRef, entry.toMap());
+    });
+  }
+
+  /// Leave the waitlist (whether still waiting or holding an offer).
+  Future<void> leaveWaitlist({
+    required String matchId,
+    required String uid,
+  }) async {
+    await _matches
+        .doc(matchId)
+        .collection('waitlist')
+        .doc(uid)
+        .delete();
   }
 }

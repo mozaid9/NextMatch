@@ -4,6 +4,7 @@ import '../models/app_user.dart';
 import '../models/football_match.dart';
 import '../models/match_comment.dart';
 import '../models/match_participant.dart';
+import '../models/waitlist_entry.dart';
 import '../services/match_service.dart';
 
 class MatchViewModel extends ChangeNotifier {
@@ -87,6 +88,37 @@ class MatchViewModel extends ChangeNotifier {
         reason: reason,
       ),
       failureMessage: 'Could not withdraw from this match.',
+    );
+  }
+
+  Stream<WaitlistEntry?> myWaitlistEntryStream(String matchId, String uid) =>
+      _matchService.myWaitlistEntryStream(matchId, uid);
+
+  Stream<List<WaitlistEntry>> waitlistStream(String matchId) =>
+      _matchService.waitlistStream(matchId);
+
+  Future<bool> joinWaitlist({
+    required FootballMatch match,
+    required AppUser user,
+    required String position,
+  }) async {
+    return _runAction(
+      () => _matchService.joinWaitlist(
+        match: match,
+        user: user,
+        position: position,
+      ),
+      failureMessage: 'Could not join the waitlist.',
+    );
+  }
+
+  Future<bool> leaveWaitlist({
+    required String matchId,
+    required String uid,
+  }) async {
+    return _runAction(
+      () => _matchService.leaveWaitlist(matchId: matchId, uid: uid),
+      failureMessage: 'Could not leave the waitlist.',
     );
   }
 

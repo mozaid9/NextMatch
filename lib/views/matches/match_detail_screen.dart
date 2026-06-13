@@ -19,6 +19,7 @@ import '../../models/app_user.dart';
 import '../../models/football_match.dart';
 import '../../models/match_comment.dart';
 import '../../models/match_participant.dart';
+import '../../models/waitlist_entry.dart';
 import '../../services/friends_service.dart';
 import '../../services/reliability_service.dart';
 import '../../viewmodels/friends_viewmodel.dart';
@@ -253,26 +254,45 @@ class MatchDetailScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    _BottomJoinBar(
-                      match: match,
-                      participant: currentParticipant,
-                      isOrganiser: isOrganiser,
-                      onManage: () => _openOrganiserDashboard(context, match),
-                      onJoin: () => _choosePosition(context, match),
-                      onPayApproved: currentParticipant == null
-                          ? null
-                          : () => _openPayment(
-                              context,
-                              match,
-                              currentParticipant.position,
-                            ),
-                      onWithdraw: currentParticipant == null
-                          ? null
-                          : () => _confirmWithdraw(
-                              context,
-                              match,
-                              currentParticipant,
-                            ),
+                    StreamBuilder<WaitlistEntry?>(
+                      stream: matchViewModel.myWaitlistEntryStream(
+                        match.id,
+                        currentUser.uid,
+                      ),
+                      builder: (context, waitlistSnapshot) {
+                        return _BottomJoinBar(
+                          match: match,
+                          participant: currentParticipant,
+                          waitlistEntry: waitlistSnapshot.data,
+                          isOrganiser: isOrganiser,
+                          onManage: () =>
+                              _openOrganiserDashboard(context, match),
+                          onJoin: () => _choosePosition(context, match),
+                          onPayApproved: currentParticipant == null
+                              ? null
+                              : () => _openPayment(
+                                  context,
+                                  match,
+                                  currentParticipant.position,
+                                ),
+                          onWithdraw: currentParticipant == null
+                              ? null
+                              : () => _confirmWithdraw(
+                                  context,
+                                  match,
+                                  currentParticipant,
+                                ),
+                          onJoinWaitlist: () =>
+                              _joinWaitlist(context, match),
+                          onLeaveWaitlist: () =>
+                              _leaveWaitlist(context, match),
+                          onClaimOffer: () => _claimWaitlistOffer(
+                            context,
+                            match,
+                            waitlistSnapshot.data,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -508,7 +528,9 @@ class MatchDetailScreen extends StatelessWidget {
       message: [
         warning,
         if (match.isSplitPayment && participant.amountPaid > 0)
-          'Refund handling will be added when real payments are enabled.',
+          'If you withdraw more than 24 hours before kick-off you are '
+              'refunded in full. Inside 24 hours the payment stays with '
+              'the match.',
       ].join('\n\n'),
       confirmLabel: 'Withdraw',
       confirmIcon: Icons.logout,
@@ -533,6 +555,100 @@ class MatchDetailScreen extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _joinWaitlist(BuildContext context, FootballMatch match) async {
+    final defaultPosition =
+        AppStrings.positions.contains(currentUser.preferredPosition)
+        ? currentUser.preferredPosition
+        : 'Any';
+    final position = await showSelectionSheet(
+      context: context,
+      title: 'Join the waitlist',
+      selectedValue: defaultPosition,
+      options: AppStrings.positions,
+    );
+    if (position == null || !context.mounted) return;
+
+    final viewModel = context.read<MatchViewModel>();
+    final success = await viewModel.joinWaitlist(
+      match: match,
+      user: currentUser,
+      position: position,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? "You're on the waitlist. We'll notify you the moment a spot opens."
+              : viewModel.errorMessage ?? 'Could not join the waitlist.',
+        ),
+      ),
+    );
+  }
+
+  Future<void> _leaveWaitlist(BuildContext context, FootballMatch match) async {
+    final confirmed = await showAppConfirmSheet(
+      context: context,
+      title: 'Leave the waitlist?',
+      message: 'You will lose your place in the queue for this match.',
+      confirmLabel: 'Leave',
+      confirmIcon: Icons.logout,
+      cancelLabel: 'Stay',
+      isDestructive: true,
+    );
+    if (!context.mounted || confirmed != true) return;
+
+    final viewModel = context.read<MatchViewModel>();
+    final success = await viewModel.leaveWaitlist(
+      matchId: match.id,
+      uid: currentUser.uid,
+    );
+    if (!context.mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          success
+              ? 'You have left the waitlist.'
+              : viewModel.errorMessage ?? 'Could not leave the waitlist.',
+        ),
+      ),
+    );
+  }
+
+  /// The player holds a live offer for a freed spot — route them straight
+  /// into the normal join/payment flow for their reserved position.
+  Future<void> _claimWaitlistOffer(
+    BuildContext context,
+    FootballMatch match,
+    WaitlistEntry? entry,
+  ) async {
+    final position = entry?.position ?? 'Any';
+
+    if (match.isOrganiserPays) {
+      final paymentViewModel = context.read<PaymentViewModel>();
+      final success = await paymentViewModel.freeJoin(
+        match: match,
+        user: currentUser,
+        position: position,
+      );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            success
+                ? "You're in. You owe the organiser directly."
+                : paymentViewModel.errorMessage ?? 'Could not claim the spot.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    // Split payment — go through Stripe checkout. The backend allows this
+    // because the spot is reserved for this player.
+    await _openPayment(context, match, position);
   }
 }
 
@@ -1037,23 +1153,61 @@ class _BottomJoinBar extends StatelessWidget {
   const _BottomJoinBar({
     required this.match,
     required this.participant,
+    required this.waitlistEntry,
     required this.isOrganiser,
     required this.onManage,
     required this.onJoin,
     required this.onPayApproved,
     required this.onWithdraw,
+    required this.onJoinWaitlist,
+    required this.onLeaveWaitlist,
+    required this.onClaimOffer,
   });
 
   final FootballMatch match;
   final MatchParticipant? participant;
+  final WaitlistEntry? waitlistEntry;
   final bool isOrganiser;
   final VoidCallback onManage;
   final VoidCallback onJoin;
   final VoidCallback? onPayApproved;
   final VoidCallback? onWithdraw;
+  final VoidCallback onJoinWaitlist;
+  final VoidCallback onLeaveWaitlist;
+  final VoidCallback onClaimOffer;
 
   @override
   Widget build(BuildContext context) {
+    // Waitlist takes over the bar only for players without an active place
+    // and when there's nothing else for them to do (the match is full, or
+    // they're holding an offer / waiting).
+    final isActiveParticipant =
+        participant != null &&
+        !participant!.isWithdrawn &&
+        !participant!.isRejected;
+    if (!isOrganiser &&
+        !isActiveParticipant &&
+        !match.isCompleted &&
+        !match.isCancelled &&
+        !match.hasStarted) {
+      if (waitlistEntry?.hasLiveOffer == true) {
+        return _WaitlistBar.offer(
+          match: match,
+          entry: waitlistEntry!,
+          onClaim: onClaimOffer,
+          onLeave: onLeaveWaitlist,
+        );
+      }
+      if (match.isFull) {
+        return waitlistEntry?.isWaiting == true
+            ? _WaitlistBar.waiting(onLeave: onLeaveWaitlist)
+            : _WaitlistBar.join(onJoin: onJoinWaitlist);
+      }
+    }
+    return _buildStandardBar(context);
+  }
+
+  Widget _buildStandardBar(BuildContext context) {
     final isApprovedPendingPayment =
         participant?.isPendingApproval == true &&
         participant?.organiserApproved == true &&
@@ -1229,6 +1383,140 @@ class _BottomJoinBar extends StatelessWidget {
     }
     return 'Includes ${CurrencyHelpers.formatGBP(fee)} service fee. '
         'Pay within 24h of joining.';
+  }
+}
+
+enum _WaitlistMode { join, waiting, offer }
+
+/// The bottom bar shown to a player when the match is full: join the
+/// waitlist, sit in the queue, or claim a freed spot that's being held.
+class _WaitlistBar extends StatelessWidget {
+  const _WaitlistBar._({
+    required this.mode,
+    this.entry,
+    this.onJoin,
+    this.onLeave,
+    this.onClaim,
+  });
+
+  factory _WaitlistBar.join({required VoidCallback onJoin}) =>
+      _WaitlistBar._(mode: _WaitlistMode.join, onJoin: onJoin);
+
+  factory _WaitlistBar.waiting({required VoidCallback onLeave}) =>
+      _WaitlistBar._(mode: _WaitlistMode.waiting, onLeave: onLeave);
+
+  factory _WaitlistBar.offer({
+    required FootballMatch match,
+    required WaitlistEntry entry,
+    required VoidCallback onClaim,
+    required VoidCallback onLeave,
+  }) => _WaitlistBar._(
+    mode: _WaitlistMode.offer,
+    entry: entry,
+    onClaim: onClaim,
+    onLeave: onLeave,
+  );
+
+  final _WaitlistMode mode;
+  final WaitlistEntry? entry;
+  final VoidCallback? onJoin;
+  final VoidCallback? onLeave;
+  final VoidCallback? onClaim;
+
+  String _timeLeftLabel() {
+    final left = entry?.timeLeft ?? Duration.zero;
+    if (left.isNegative) return 'Expiring now';
+    final hours = left.inHours;
+    final mins = left.inMinutes.remainder(60);
+    if (hours > 0) return '${hours}h ${mins}m left to claim';
+    return '${mins}m left to claim';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
+      decoration: const BoxDecoration(
+        color: AppColours.surface,
+        border: Border(top: BorderSide(color: AppColours.line)),
+      ),
+      child: SafeArea(
+        top: false,
+        child: switch (mode) {
+          _WaitlistMode.join => _buildJoin(),
+          _WaitlistMode.waiting => _buildWaiting(),
+          _WaitlistMode.offer => _buildOffer(),
+        },
+      ),
+    );
+  }
+
+  Widget _buildJoin() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _JoinBarNotice(
+          icon: Icons.hourglass_empty,
+          colour: AppColours.warning,
+          message:
+              "This match is full. Join the waitlist and we'll notify you "
+              'the moment a spot opens.',
+        ),
+        const SizedBox(height: 12),
+        PrimaryButton(
+          label: 'Join waitlist',
+          icon: Icons.playlist_add,
+          onPressed: onJoin,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWaiting() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const _JoinBarNotice(
+          icon: Icons.how_to_reg_outlined,
+          colour: AppColours.accent,
+          message:
+              "You're on the waitlist. We'll send you a notification the "
+              'moment a place opens up.',
+        ),
+        const SizedBox(height: 12),
+        PrimaryButton(
+          label: 'Leave waitlist',
+          icon: Icons.logout,
+          isSecondary: true,
+          onPressed: onLeave,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOffer() {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _JoinBarNotice(
+          icon: Icons.bolt,
+          colour: AppColours.accent,
+          message:
+              'A spot opened up and is being held for you. ${_timeLeftLabel()}.',
+        ),
+        const SizedBox(height: 12),
+        PrimaryButton(
+          label: 'Claim your spot',
+          icon: Icons.check_circle_outline,
+          onPressed: onClaim,
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: onLeave,
+          child: const Text('No thanks, give it up'),
+        ),
+      ],
+    );
   }
 }
 

@@ -41,6 +41,16 @@ service cloud.firestore {
         && exists(/databases/$(database)/documents/matches/$(matchId)/participants/$(request.auth.uid));
     }
 
+    // A freed spot can be held for a waitlisted player (reservedForUid /
+    // reservedUntil, written by the backend). While that hold is live, only
+    // the reserved player may take the spot. An absent or expired hold is
+    // claimable by anyone.
+    function spotClaimableBy(matchData) {
+      return matchData.get('reservedForUid', null) == null
+        || matchData.get('reservedUntil', request.time) < request.time
+        || matchData.reservedForUid == request.auth.uid;
+    }
+
     function isInvitedToMatch(matchId) {
       return signedIn()
         && exists(/databases/$(database)/documents/users/$(request.auth.uid)/matchInvites/$(matchId));
@@ -65,6 +75,7 @@ service cloud.firestore {
       return signedIn()
         && (resource.data.paymentMode == 'OrganiserPays'
           || resource.data.pricePerPlayer == 0)
+        && spotClaimableBy(resource.data)
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly([
           'joinedPlayerCount',
           'status',
@@ -93,6 +104,7 @@ service cloud.firestore {
     function validSelfParticipantCreate(matchId, participantId) {
       return owns(participantId)
         && request.resource.data.userId == request.auth.uid
+        && spotClaimableBy(matchDoc(matchId).data)
         && (request.resource.data.attendanceStatus in [
             'PendingPayment',
             'PendingApproval'
@@ -277,6 +289,18 @@ service cloud.firestore {
         allow update: if isMatchOrganiser(matchId)
           || validSelfWithdraw(participantId);
         allow delete: if false;
+      }
+
+      // Waitlist for a full match. A player adds and removes their own entry
+      // as 'Waiting'; the status transitions (Offered / Claimed / Expired)
+      // and the spot reservation are written only by Cloud Functions.
+      match /waitlist/{waitlistId} {
+        allow read: if signedIn();
+        allow create: if owns(waitlistId)
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.status == 'Waiting';
+        allow delete: if owns(waitlistId);
+        allow update: if false;
       }
 
       // Match chat — only people involved in the game can post.

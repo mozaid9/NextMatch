@@ -5,8 +5,13 @@
  * rules). Stripe checkout/fulfilment lives here so the client never decides
  * what to charge and never writes real payment records — see SECURITY.md.
  */
-const { onDocumentCreated, onDocumentUpdated } = require('firebase-functions/v2/firestore');
+const {
+  onDocumentCreated,
+  onDocumentUpdated,
+  onDocumentDeleted,
+} = require('firebase-functions/v2/firestore');
 const { onCall, onRequest, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { defineSecret } = require('firebase-functions/params');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
@@ -316,26 +321,31 @@ exports.onParticipantWithdrew = onDocumentUpdated(
       after.attendanceStatus === 'Cancelled' ||
       after.attendanceStatus === 'LateCancelled';
     if (!wasIn || !withdrew) return;
-    if (!(before.amountPaid > 0)) return;
 
     const { matchId, uid } = event.params;
-    if (after.attendanceStatus === 'LateCancelled') {
-      await pushToUser(uid, {
-        title: 'Withdrawal confirmed — no automatic refund',
-        body: 'You withdrew within 24 hours of kick-off, so your payment stays with the match. Speak to the organiser if there are special circumstances.',
-        data: { type: 'withdrawalNoRefund', matchId },
-      });
-      return;
+
+    // Refunds apply only when the leaver had actually paid.
+    if (before.amountPaid > 0) {
+      if (after.attendanceStatus === 'LateCancelled') {
+        await pushToUser(uid, {
+          title: 'Withdrawal confirmed — no automatic refund',
+          body: 'You withdrew within 24 hours of kick-off, so your payment stays with the match. Speak to the organiser if there are special circumstances.',
+          data: { type: 'withdrawalNoRefund', matchId },
+        });
+      } else {
+        const refundedUids = await refundStripePayments({ matchId, userId: uid });
+        if (refundedUids.length > 0) {
+          await pushToUser(uid, {
+            title: 'Refund on its way',
+            body: 'You withdrew in good time, so your payment is being refunded in full.',
+            data: { type: 'paymentRefunded', matchId },
+          });
+        }
+      }
     }
 
-    const refundedUids = await refundStripePayments({ matchId, userId: uid });
-    if (refundedUids.length > 0) {
-      await pushToUser(uid, {
-        title: 'Refund on its way',
-        body: 'You withdrew in good time, so your payment is being refunded in full.',
-        data: { type: 'paymentRefunded', matchId },
-      });
-    }
+    // A confirmed player leaving frees a spot — offer it to the waitlist.
+    await promoteWaitlist(matchId);
   },
 );
 
@@ -411,6 +421,19 @@ exports.createStripeCheckout = onCall(
     }
     if ((match.joinedPlayerCount || 0) >= (match.totalPlayersNeeded || 0)) {
       throw new HttpsError('failed-precondition', 'This match is already full.');
+    }
+    // A freed spot held for a waitlisted player can only be bought by them.
+    const reservedUntil = match.reservedUntil?.toDate?.();
+    if (
+      match.reservedForUid &&
+      reservedUntil &&
+      reservedUntil > new Date() &&
+      match.reservedForUid !== uid
+    ) {
+      throw new HttpsError(
+        'failed-precondition',
+        'This spot is reserved for someone on the waitlist.',
+      );
     }
     if (match.paymentMode !== 'Split') {
       throw new HttpsError('failed-precondition', 'This match is not paid per player.');
@@ -806,5 +829,181 @@ exports.onRatingCreated = onDocumentCreated(
       });
       transaction.update(ratingRef, { aggregated: true });
     });
+  },
+);
+
+// ---------------------------------------------------------------------------
+// Waitlist: auto-promote a freed spot to the next person in the queue
+// ---------------------------------------------------------------------------
+
+const OFFER_WINDOW_MS = 2 * 60 * 60 * 1000; // hold a freed spot for 2 hours
+
+/**
+ * Offer a freed spot to the next person waiting. No-op if the match has no
+ * free spot, already has a live reservation, or nobody is waiting. The held
+ * spot is NOT added to joinedPlayerCount — the reservation fields gate it —
+ * so the counter stays honest and the claim simply bumps it as a normal join.
+ */
+async function promoteWaitlist(matchId) {
+  const db = getFirestore();
+  const matchRef = db.collection('matches').doc(matchId);
+
+  // Queries can't run inside a transaction, so find the candidate first.
+  // Single-field filter only (no orderBy) to avoid a composite index — the
+  // queue order is applied by sorting joinedAt in code.
+  const waitingSnap = await matchRef
+    .collection('waitlist')
+    .where('status', '==', 'Waiting')
+    .get();
+  if (waitingSnap.empty) return;
+  const earliest = waitingSnap.docs.sort((a, b) => {
+    const at = a.data().joinedAt?.toMillis?.() ?? 0;
+    const bt = b.data().joinedAt?.toMillis?.() ?? 0;
+    return at - bt;
+  })[0];
+  const candidateRef = earliest.ref;
+
+  const result = await db.runTransaction(async (transaction) => {
+    const matchSnap = await transaction.get(matchRef);
+    const candidateSnap = await transaction.get(candidateRef);
+    if (!matchSnap.exists || !candidateSnap.exists) return null;
+    const match = matchSnap.data();
+    const candidate = candidateSnap.data();
+
+    if (match.status === 'Cancelled' || match.status === 'Completed') return null;
+    if (candidate.status !== 'Waiting') return null;
+    if ((match.joinedPlayerCount || 0) >= (match.totalPlayersNeeded || 0)) return null;
+
+    const now = new Date();
+    const reservedUntil = match.reservedUntil?.toDate?.();
+    if (match.reservedForUid && reservedUntil && reservedUntil > now) return null;
+
+    const expires = new Date(now.getTime() + OFFER_WINDOW_MS);
+    transaction.update(matchRef, {
+      reservedForUid: candidate.userId,
+      reservedUntil: expires,
+      updatedAt: now,
+    });
+    transaction.update(candidateRef, {
+      status: 'Offered',
+      offeredAt: now,
+      offerExpiresAt: expires,
+    });
+    return { uid: candidate.userId, title: match.title || 'a match' };
+  });
+
+  if (result) {
+    await pushToUser(result.uid, {
+      title: 'A spot opened up',
+      body: `You're off the waitlist for ${result.title}. Claim and pay within 2 hours to lock it in.`,
+      data: { type: 'waitlistOffer', matchId },
+    });
+  }
+}
+
+/** Release a match reservation held for uid and mark their offer claimed. */
+async function clearReservationFor(matchId, uid) {
+  const db = getFirestore();
+  const matchRef = db.collection('matches').doc(matchId);
+  const waitlistRef = matchRef.collection('waitlist').doc(uid);
+  await db.runTransaction(async (transaction) => {
+    const matchSnap = await transaction.get(matchRef);
+    const waitlistSnap = await transaction.get(waitlistRef);
+    if (matchSnap.exists && matchSnap.data().reservedForUid === uid) {
+      transaction.update(matchRef, {
+        reservedForUid: FieldValue.delete(),
+        reservedUntil: FieldValue.delete(),
+        updatedAt: new Date(),
+      });
+    }
+    if (waitlistSnap.exists && waitlistSnap.data().status !== 'Claimed') {
+      transaction.update(waitlistRef, { status: 'Claimed' });
+    }
+  });
+}
+
+/**
+ * When a player takes a spot (a Joined participant doc is created — by the
+ * free-join client write or the Stripe webhook), release any reservation
+ * that was being held for them.
+ */
+exports.onParticipantJoined = onDocumentCreated(
+  { document: 'matches/{matchId}/participants/{uid}', region: REGION },
+  async (event) => {
+    const data = event.data?.data();
+    if (!data || data.attendanceStatus !== 'Joined') return;
+    await clearReservationFor(event.params.matchId, event.params.uid);
+  },
+);
+
+/**
+ * If the player holding an offer leaves the waitlist, release the spot and
+ * offer it to the next person straight away.
+ */
+exports.onWaitlistEntryRemoved = onDocumentDeleted(
+  { document: 'matches/{matchId}/waitlist/{waitlistId}', region: REGION },
+  async (event) => {
+    const { matchId, waitlistId } = event.params;
+    const db = getFirestore();
+    const matchRef = db.collection('matches').doc(matchId);
+    const released = await db.runTransaction(async (transaction) => {
+      const matchSnap = await transaction.get(matchRef);
+      if (matchSnap.exists && matchSnap.data().reservedForUid === waitlistId) {
+        transaction.update(matchRef, {
+          reservedForUid: FieldValue.delete(),
+          reservedUntil: FieldValue.delete(),
+          updatedAt: new Date(),
+        });
+        return true;
+      }
+      return false;
+    });
+    if (released) await promoteWaitlist(matchId);
+  },
+);
+
+/** Expire stale waitlist offers and roll the spot to the next person. */
+exports.expireWaitlistOffers = onSchedule(
+  { schedule: 'every 10 minutes', region: REGION },
+  async () => {
+    const db = getFirestore();
+    const now = new Date();
+    // Single-field collection-group filter (auto-indexed); expiry checked here.
+    const offered = await db
+      .collectionGroup('waitlist')
+      .where('status', '==', 'Offered')
+      .get();
+
+    const affectedMatches = new Set();
+    for (const doc of offered.docs) {
+      const expiresAt = doc.data().offerExpiresAt?.toDate?.();
+      if (!expiresAt || expiresAt > now) continue;
+
+      const matchId = doc.ref.parent.parent.id;
+      affectedMatches.add(matchId);
+      await doc.ref.update({ status: 'Expired' });
+
+      const matchRef = db.collection('matches').doc(matchId);
+      await db.runTransaction(async (transaction) => {
+        const matchSnap = await transaction.get(matchRef);
+        if (matchSnap.exists && matchSnap.data().reservedForUid === doc.data().userId) {
+          transaction.update(matchRef, {
+            reservedForUid: FieldValue.delete(),
+            reservedUntil: FieldValue.delete(),
+            updatedAt: new Date(),
+          });
+        }
+      });
+
+      await pushToUser(doc.data().userId, {
+        title: 'Your waitlist spot expired',
+        body: "You didn't claim your spot in time, so it's gone to the next person.",
+        data: { type: 'waitlistExpired', matchId },
+      });
+    }
+
+    for (const matchId of affectedMatches) {
+      await promoteWaitlist(matchId);
+    }
   },
 );

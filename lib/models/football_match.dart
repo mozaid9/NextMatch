@@ -32,6 +32,8 @@ class FootballMatch {
     this.completedAt,
     this.cancelledAt,
     this.cancelReason,
+    this.reservedForUid,
+    this.reservedUntil,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -66,8 +68,24 @@ class FootballMatch {
   final DateTime? completedAt;
   final DateTime? cancelledAt;
   final String? cancelReason;
+
+  /// When a player withdraws from a full match the freed spot is held for the
+  /// next person on the waitlist until [reservedUntil]. Written only by the
+  /// backend (waitlist promotion); the client reads it to gate other joins.
+  final String? reservedForUid;
+  final DateTime? reservedUntil;
+
   final DateTime createdAt;
   final DateTime updatedAt;
+
+  /// A held spot is active only while its deadline is in the future.
+  bool get hasActiveReservation =>
+      reservedForUid != null &&
+      reservedUntil != null &&
+      reservedUntil!.isAfter(DateTime.now());
+
+  bool reservedForOther(String uid) =>
+      hasActiveReservation && reservedForUid != uid;
 
   bool get isOrganiserPays => paymentMode == 'OrganiserPays';
   bool get isSplitPayment => paymentMode == 'Split';
@@ -129,6 +147,8 @@ class FootballMatch {
       completedAt: _readNullableDate(data['completedAt']),
       cancelledAt: _readNullableDate(data['cancelledAt']),
       cancelReason: data['cancelReason'] as String?,
+      reservedForUid: data['reservedForUid'] as String?,
+      reservedUntil: _readNullableDate(data['reservedUntil']),
       createdAt: _readDate(data['createdAt']),
       updatedAt: _readDate(data['updatedAt']),
     );
@@ -172,6 +192,10 @@ class FootballMatch {
           ? null
           : Timestamp.fromDate(cancelledAt!),
       'cancelReason': cancelReason,
+      'reservedForUid': reservedForUid,
+      'reservedUntil': reservedUntil == null
+          ? null
+          : Timestamp.fromDate(reservedUntil!),
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -208,6 +232,8 @@ class FootballMatch {
     DateTime? completedAt,
     DateTime? cancelledAt,
     String? cancelReason,
+    String? reservedForUid,
+    DateTime? reservedUntil,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -247,6 +273,8 @@ class FootballMatch {
       completedAt: completedAt ?? this.completedAt,
       cancelledAt: cancelledAt ?? this.cancelledAt,
       cancelReason: cancelReason ?? this.cancelReason,
+      reservedForUid: reservedForUid ?? this.reservedForUid,
+      reservedUntil: reservedUntil ?? this.reservedUntil,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );

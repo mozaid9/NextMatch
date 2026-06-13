@@ -751,13 +751,14 @@ class _PlayerPanel extends StatelessWidget {
 }
 
 class _Badge extends StatelessWidget {
-  const _Badge({required this.label, this.colour = AppColours.accent});
+  const _Badge({required this.label, this.colour});
 
   final String label;
-  final Color colour;
+  final Color? colour;
 
   @override
   Widget build(BuildContext context) {
+    final colour = this.colour ?? AppColours.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
       decoration: BoxDecoration(
@@ -895,7 +896,7 @@ class _InviteFriendsSheetState extends State<_InviteFriendsSheet> {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.all(24),
                         child: Center(
                           child: CircularProgressIndicator(

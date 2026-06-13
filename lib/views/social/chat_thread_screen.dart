@@ -177,7 +177,7 @@ class _ChatThreadScreenState extends State<ChatThreadScreen> {
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: AppColours.surface,
                 border: Border(top: BorderSide(color: AppColours.line)),
               ),

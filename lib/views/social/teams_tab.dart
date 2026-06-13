@@ -25,7 +25,7 @@ class TeamsTab extends StatelessWidget {
       stream: viewModel.myTeamsStream(currentUser.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: AppColours.accent),
           );
         }
@@ -153,7 +153,7 @@ class _TeamCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
+            Icon(Icons.chevron_right,
                 color: AppColours.mutedText, size: 18),
           ],
         ),

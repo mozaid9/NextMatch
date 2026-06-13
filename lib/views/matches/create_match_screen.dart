@@ -1408,7 +1408,7 @@ class _VenueDraftBanner extends StatelessWidget {
               color: AppColours.accent.withValues(alpha: 0.18),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(
+            child: Icon(
               Icons.stadium,
               color: AppColours.accent,
               size: 20,

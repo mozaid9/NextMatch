@@ -83,7 +83,7 @@ class _LogoSplashView extends StatelessWidget {
                   },
                 ),
                 const SizedBox(height: 24),
-                const SizedBox(
+                SizedBox(
                   width: 22,
                   height: 22,
                   child: CircularProgressIndicator(

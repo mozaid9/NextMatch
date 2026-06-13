@@ -213,7 +213,7 @@ class _SearchField extends StatelessWidget {
         decoration: InputDecoration(
           hintText: 'Search by name, city or address',
           hintStyle: AppTextStyles.bodyMuted,
-          prefixIcon: const Icon(Icons.search, color: AppColours.mutedText),
+          prefixIcon: Icon(Icons.search, color: AppColours.mutedText),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
@@ -390,7 +390,7 @@ class _VenueCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
-        side: const BorderSide(color: AppColours.line),
+        side: BorderSide(color: AppColours.line),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(10),
@@ -416,7 +416,7 @@ class _VenueCard extends StatelessWidget {
                       end: Alignment.bottomRight,
                     ),
                   ),
-                  child: const Center(
+                  child: Center(
                     child: Icon(
                       Icons.stadium,
                       color: AppColours.accent,
@@ -434,7 +434,7 @@ class _VenueCard extends StatelessWidget {
                         color: AppColours.surface.withValues(alpha: 0.85),
                         shape: BoxShape.circle,
                       ),
-                      child: const Icon(
+                      child: Icon(
                         Icons.bookmark,
                         size: 16,
                         color: AppColours.accent,
@@ -472,7 +472,7 @@ class _VenueCard extends StatelessWidget {
                   const SizedBox(height: 4),
                   Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.place_outlined,
                         size: 13,
                         color: AppColours.mutedText,
@@ -519,7 +519,7 @@ class _VenueCard extends StatelessWidget {
                         ),
                       ),
                       const Spacer(),
-                      const Icon(
+                      Icon(
                         Icons.chevron_right,
                         color: AppColours.mutedText,
                         size: 18,

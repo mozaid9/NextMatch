@@ -190,7 +190,7 @@ class _NextMatchTabBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DecoratedBox(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.surface,
         border: Border(top: BorderSide(color: AppColours.line)),
       ),

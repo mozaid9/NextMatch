@@ -94,7 +94,7 @@ class MatchDetailScreen extends StatelessWidget {
         stream: matchViewModel.matchStream(matchId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColours.accent),
             );
           }
@@ -831,7 +831,7 @@ class _Header extends StatelessWidget {
                   color: AppColours.accent.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(
+                child: Icon(
                   Icons.sports_soccer,
                   color: AppColours.accent,
                 ),
@@ -1070,7 +1070,7 @@ class _PlayerTile extends StatelessWidget {
                     runSpacing: 4,
                     children: [
                       if (isFriend)
-                        const _MiniBadge(
+                        _MiniBadge(
                           label: 'Friend',
                           colour: AppColours.accent,
                         ),
@@ -1089,7 +1089,7 @@ class _PlayerTile extends StatelessWidget {
                               : AppColours.warning,
                         ),
                       if (participant.isPendingApproval)
-                        const _MiniBadge(
+                        _MiniBadge(
                           label: 'Pending approval',
                           colour: AppColours.mutedText,
                         ),
@@ -1128,13 +1128,14 @@ class _PlayerTile extends StatelessWidget {
 }
 
 class _MiniBadge extends StatelessWidget {
-  const _MiniBadge({required this.label, this.colour = AppColours.accent});
+  const _MiniBadge({required this.label, this.colour});
 
   final String label;
-  final Color colour;
+  final Color? colour;
 
   @override
   Widget build(BuildContext context) {
+    final colour = this.colour ?? AppColours.accent;
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
@@ -1250,7 +1251,7 @@ class _BottomJoinBar extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.surface,
         border: Border(top: BorderSide(color: AppColours.line)),
       ),
@@ -1436,7 +1437,7 @@ class _WaitlistBar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.surface,
         border: Border(top: BorderSide(color: AppColours.line)),
       ),
@@ -1476,7 +1477,7 @@ class _WaitlistBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const _JoinBarNotice(
+        _JoinBarNotice(
           icon: Icons.how_to_reg_outlined,
           colour: AppColours.accent,
           message:
@@ -1746,7 +1747,7 @@ class _CommentTile extends StatelessWidget {
                       InkWell(
                         onTap: onDelete,
                         borderRadius: BorderRadius.circular(99),
-                        child: const Padding(
+                        child: Padding(
                           padding: EdgeInsets.all(2),
                           child: Icon(
                             Icons.close,
@@ -1794,7 +1795,7 @@ class _FriendsInMatchBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Icon(Icons.groups, color: AppColours.accent, size: 18),
+          Icon(Icons.groups, color: AppColours.accent, size: 18),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -1926,7 +1927,7 @@ class _MatchShareSheet extends StatelessWidget {
                   ),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.all(20),
                         child: Center(
                           child: CircularProgressIndicator(
@@ -1979,7 +1980,7 @@ class _MatchShareSheet extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.send_outlined,
                                   color: AppColours.accent,
                                   size: 18,

@@ -54,7 +54,7 @@ class AppTextStyles {
 
     return base.copyWith(
       scaffoldBackgroundColor: AppColours.background,
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: AppColours.accent,
         secondary: AppColours.secondaryGreen,
         surface: AppColours.surface,
@@ -77,9 +77,9 @@ class AppTextStyles {
         indicatorColor: AppColours.accent.withValues(alpha: 0.15),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: AppColours.accent);
+            return IconThemeData(color: AppColours.accent);
           }
-          return const IconThemeData(color: AppColours.mutedText);
+          return IconThemeData(color: AppColours.mutedText);
         }),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
@@ -104,15 +104,15 @@ class AppTextStyles {
         hintStyle: GoogleFonts.inter(color: AppColours.mutedText),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColours.line),
+          borderSide: BorderSide(color: AppColours.line),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColours.line),
+          borderSide: BorderSide(color: AppColours.line),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
-          borderSide: const BorderSide(color: AppColours.accent, width: 1.5),
+          borderSide: BorderSide(color: AppColours.accent, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(8),
@@ -126,7 +126,7 @@ class AppTextStyles {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AppColours.line),
+          side: BorderSide(color: AppColours.line),
         ),
         actionTextColor: AppColours.accent,
         insetPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
@@ -144,7 +144,7 @@ class AppTextStyles {
         }),
         trackOutlineColor: WidgetStateProperty.all(AppColours.line),
       ),
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
+      progressIndicatorTheme: ProgressIndicatorThemeData(
         color: AppColours.accent,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
@@ -159,7 +159,7 @@ class AppTextStyles {
         backgroundColor: AppColours.surface,
         surfaceTintColor: Colors.transparent,
       ),
-      popupMenuTheme: const PopupMenuThemeData(
+      popupMenuTheme: PopupMenuThemeData(
         color: AppColours.card,
         surfaceTintColor: Colors.transparent,
         shape: RoundedRectangleBorder(
@@ -167,12 +167,12 @@ class AppTextStyles {
           side: BorderSide(color: AppColours.line),
         ),
       ),
-      dividerTheme: const DividerThemeData(
+      dividerTheme: DividerThemeData(
         color: AppColours.line,
         space: 1,
         thickness: 1,
       ),
-      iconTheme: const IconThemeData(color: AppColours.text),
+      iconTheme: IconThemeData(color: AppColours.text),
       textSelectionTheme: TextSelectionThemeData(
         cursorColor: AppColours.accent,
         selectionColor: AppColours.accent.withValues(alpha: 0.3),
@@ -183,7 +183,7 @@ class AppTextStyles {
           foregroundColor: AppColours.text,
           minimumSize: const Size.fromHeight(48),
           padding: const EdgeInsets.symmetric(horizontal: 18),
-          side: const BorderSide(color: AppColours.line),
+          side: BorderSide(color: AppColours.line),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(8),
           ),
@@ -228,7 +228,7 @@ class AppTextStyles {
           return Colors.transparent;
         }),
         checkColor: WidgetStateProperty.all(AppColours.background),
-        side: const BorderSide(color: AppColours.line, width: 1.5),
+        side: BorderSide(color: AppColours.line, width: 1.5),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
       ),
       radioTheme: RadioThemeData(
@@ -244,16 +244,16 @@ class AppTextStyles {
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(10),
-          side: const BorderSide(color: AppColours.line),
+          side: BorderSide(color: AppColours.line),
         ),
       ),
-      listTileTheme: const ListTileThemeData(
+      listTileTheme: ListTileThemeData(
         iconColor: AppColours.mutedText,
         textColor: AppColours.text,
       ),
       chipTheme: ChipThemeData(
         backgroundColor: AppColours.cardAlt,
-        side: const BorderSide(color: AppColours.line),
+        side: BorderSide(color: AppColours.line),
         labelStyle: GoogleFonts.inter(
           color: AppColours.text,
           fontSize: 12,

@@ -46,7 +46,7 @@ class ConnectionsScreen extends StatelessWidget {
         stream: stream,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColours.accent),
             );
           }
@@ -135,7 +135,7 @@ class _ConnectionTile extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(
+            Icon(
               Icons.chevron_right,
               color: AppColours.mutedText,
               size: 18,

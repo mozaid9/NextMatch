@@ -54,7 +54,7 @@ class PaymentScreen extends StatelessWidget {
                       color: AppColours.accent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Icon(
+                    child: Icon(
                       Icons.sports_soccer,
                       color: AppColours.accent,
                       size: 20,
@@ -88,7 +88,7 @@ class PaymentScreen extends StatelessWidget {
               label: 'Service fee',
               value: CurrencyHelpers.formatGBP(platformFee),
             ),
-            const Padding(
+            Padding(
               padding: EdgeInsets.symmetric(vertical: 6),
               child: Divider(color: AppColours.line),
             ),
@@ -108,7 +108,7 @@ class PaymentScreen extends StatelessWidget {
               ),
               child: Row(
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.lock_outline,
                     color: AppColours.accent,
                     size: 18,
@@ -153,7 +153,7 @@ class PaymentScreen extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(
+                Icon(
                   Icons.science_outlined,
                   size: 12,
                   color: AppColours.mutedText,

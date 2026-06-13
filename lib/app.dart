@@ -22,6 +22,7 @@ import 'viewmodels/match_viewmodel.dart';
 import 'viewmodels/payment_viewmodel.dart';
 import 'viewmodels/profile_viewmodel.dart';
 import 'viewmodels/rating_viewmodel.dart';
+import 'viewmodels/settings_viewmodel.dart';
 import 'viewmodels/team_viewmodel.dart';
 import 'viewmodels/venue_viewmodel.dart';
 import 'views/auth/profile_setup_screen.dart';
@@ -30,14 +31,20 @@ import 'views/home/main_navigation_screen.dart';
 import 'views/splash/animated_splash_screen.dart';
 
 class NextMatchApp extends StatelessWidget {
-  const NextMatchApp({super.key, this.startupFuture});
+  const NextMatchApp({
+    super.key,
+    required this.settings,
+    this.startupFuture,
+  });
 
+  final SettingsViewModel settings;
   final Future<void>? startupFuture;
 
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
       providers: [
+        ChangeNotifierProvider<SettingsViewModel>.value(value: settings),
         Provider<AuthService>(create: (_) => AuthService()),
         Provider<UserService>(create: (_) => UserService()),
         Provider<MatchService>(create: (_) => MatchService()),
@@ -79,16 +86,59 @@ class NextMatchApp extends StatelessWidget {
           create: (context) => TeamViewModel(context.read<TeamService>()),
         ),
       ],
-      child: MaterialApp(
-        title: 'NextMatch',
-        debugShowCheckedModeBanner: false,
-        theme: AppTextStyles.theme(),
-        home: AnimatedSplashScreen(
-          startupFuture: startupFuture ?? Future<void>.value(),
-          child: const AuthGate(),
-        ),
+      child: Consumer<SettingsViewModel>(
+        builder: (context, settings, _) {
+          final theme = AppTextStyles.theme();
+          return MaterialApp(
+            title: 'NextMatch',
+            debugShowCheckedModeBanner: false,
+            theme: settings.reduceMotion
+                ? theme.copyWith(pageTransitionsTheme: _noPageTransitions)
+                : theme,
+            builder: (context, child) {
+              // Apply the user's text-size preference app-wide.
+              final media = MediaQuery.of(context);
+              return MediaQuery(
+                data: media.copyWith(
+                  textScaler: TextScaler.linear(settings.textScale),
+                ),
+                child: child ?? const SizedBox.shrink(),
+              );
+            },
+            home: AnimatedSplashScreen(
+              startupFuture: startupFuture ?? Future<void>.value(),
+              child: const AuthGate(),
+            ),
+          );
+        },
       ),
     );
+  }
+}
+
+/// Page transitions that render instantly, used when "reduce motion" is on.
+const _noPageTransitions = PageTransitionsTheme(
+  builders: {
+    TargetPlatform.android: _NoTransitionsBuilder(),
+    TargetPlatform.iOS: _NoTransitionsBuilder(),
+    TargetPlatform.macOS: _NoTransitionsBuilder(),
+    TargetPlatform.windows: _NoTransitionsBuilder(),
+    TargetPlatform.linux: _NoTransitionsBuilder(),
+  },
+);
+
+class _NoTransitionsBuilder extends PageTransitionsBuilder {
+  const _NoTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
   }
 }
 

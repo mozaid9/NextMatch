@@ -35,7 +35,7 @@ class OtherUserProfileScreen extends StatelessWidget {
         stream: profileViewModel.userStream(uid),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColours.accent),
             );
           }
@@ -193,7 +193,7 @@ class _Header extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.card,
         border: Border(bottom: BorderSide(color: AppColours.line)),
       ),
@@ -247,7 +247,7 @@ class _Header extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.place_outlined,
                   size: 14,
                   color: AppColours.mutedText,

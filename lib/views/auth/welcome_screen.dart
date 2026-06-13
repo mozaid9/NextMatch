@@ -86,7 +86,7 @@ class WelcomeScreen extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         child: Row(
                           children: [
-                            const Expanded(
+                            Expanded(
                               child: Divider(color: AppColours.line),
                             ),
                             Padding(
@@ -95,7 +95,7 @@ class WelcomeScreen extends StatelessWidget {
                               ),
                               child: Text('or', style: AppTextStyles.small),
                             ),
-                            const Expanded(
+                            Expanded(
                               child: Divider(color: AppColours.line),
                             ),
                           ],

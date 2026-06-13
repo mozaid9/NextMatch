@@ -362,7 +362,7 @@ class _MyTeamsStrip extends StatelessWidget {
             const SizedBox(height: 26),
             Row(
               children: [
-                const Icon(Icons.shield_outlined,
+                Icon(Icons.shield_outlined,
                     color: AppColours.accent, size: 18),
                 const SizedBox(width: 8),
                 Text('Your teams', style: AppTextStyles.h2),
@@ -480,7 +480,7 @@ class _SavedVenuesStrip extends StatelessWidget {
             const SizedBox(height: 26),
             Row(
               children: [
-                const Icon(Icons.bookmark,
+                Icon(Icons.bookmark,
                     color: AppColours.accent, size: 18),
                 const SizedBox(width: 8),
                 Text('Saved venues', style: AppTextStyles.h2),
@@ -552,7 +552,7 @@ class _SavedVenueCard extends StatelessWidget {
                     color: AppColours.accent.withValues(alpha: 0.14),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.stadium,
                     color: AppColours.accent,
                     size: 18,
@@ -727,7 +727,7 @@ class _MatchInviteCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              const Icon(Icons.mark_email_unread_outlined,
+              Icon(Icons.mark_email_unread_outlined,
                   color: AppColours.accent, size: 18),
               const SizedBox(width: 8),
               Expanded(
@@ -872,7 +872,7 @@ class _BookPitchCard extends StatelessWidget {
                 color: AppColours.accent.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: const Icon(
+              child: Icon(
                 Icons.stadium,
                 color: AppColours.accent,
                 size: 22,
@@ -915,7 +915,7 @@ class _BookPitchCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right,
+            Icon(Icons.chevron_right,
                 size: 20, color: AppColours.accent),
           ],
         ),
@@ -1094,7 +1094,7 @@ class _UpcomingJoinedMatch extends StatelessWidget {
                     color: AppColours.accent.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                   ),
-                  child: const Text(
+                  child: Text(
                     "You're organising",
                     style: TextStyle(color: AppColours.accent, fontSize: 12),
                   ),
@@ -1245,7 +1245,7 @@ class _NotificationBell extends StatelessWidget {
                 clipBehavior: Clip.none,
                 alignment: Alignment.center,
                 children: [
-                  const Icon(
+                  Icon(
                     Icons.notifications_none,
                     size: 22,
                     color: AppColours.text,

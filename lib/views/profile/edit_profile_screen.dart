@@ -294,7 +294,7 @@ class _PhotoRowState extends State<_PhotoRow> {
                 radius: 28,
               ),
               if (_uploading)
-                const SizedBox(
+                SizedBox(
                   width: 24,
                   height: 24,
                   child: CircularProgressIndicator(

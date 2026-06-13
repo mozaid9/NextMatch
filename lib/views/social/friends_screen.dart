@@ -180,7 +180,7 @@ class _SearchField extends StatelessWidget {
         style: AppTextStyles.body,
         decoration: InputDecoration(
           hintText: 'Search players by name',
-          prefixIcon: const Icon(Icons.search, color: AppColours.mutedText),
+          prefixIcon: Icon(Icons.search, color: AppColours.mutedText),
           suffixIcon: controller.text.isEmpty
               ? null
               : IconButton(
@@ -290,7 +290,7 @@ class _StatBox extends StatelessWidget {
                     Text(label, style: AppTextStyles.small),
                   ],
                 ),
-                const Icon(
+                Icon(
                   Icons.chevron_right,
                   size: 18,
                   color: AppColours.mutedText,
@@ -327,7 +327,7 @@ class _SuggestionsSection extends StatelessWidget {
           children: [
             Row(
               children: [
-                const Icon(Icons.auto_awesome,
+                Icon(Icons.auto_awesome,
                     color: AppColours.accent, size: 18),
                 const SizedBox(width: 8),
                 Text('People you may know', style: AppTextStyles.h2),
@@ -470,7 +470,7 @@ class _SearchResultsSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Padding(
+      return Padding(
         padding: EdgeInsets.symmetric(vertical: 30),
         child: Center(
           child: CircularProgressIndicator(color: AppColours.accent),
@@ -601,7 +601,7 @@ class _FriendsListSection extends StatelessWidget {
       stream: friendsViewModel.friendsStream(currentUser.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Padding(
+          return Padding(
             padding: EdgeInsets.symmetric(vertical: 24),
             child: Center(
               child: CircularProgressIndicator(color: AppColours.accent),
@@ -765,7 +765,7 @@ class _FriendTile extends StatelessWidget {
             IconButton(
               tooltip: 'Unfollow',
               onPressed: onRemove,
-              icon: const Icon(
+              icon: Icon(
                 Icons.more_vert,
                 size: 18,
                 color: AppColours.mutedText,

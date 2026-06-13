@@ -92,7 +92,7 @@ class _VenueDetailScreenState extends State<VenueDetailScreen> {
         future: _venueFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColours.accent),
             );
           }
@@ -296,7 +296,7 @@ class _Header extends StatelessWidget {
                 end: Alignment.bottomRight,
               ),
             ),
-            child: const Center(
+            child: Center(
               child: Icon(Icons.stadium, color: AppColours.accent, size: 56),
             ),
           ),
@@ -325,7 +325,7 @@ class _Header extends StatelessWidget {
                 const SizedBox(height: 6),
                 Row(
                   children: [
-                    const Icon(Icons.place_outlined,
+                    Icon(Icons.place_outlined,
                         size: 14, color: AppColours.mutedText),
                     const SizedBox(width: 4),
                     Expanded(
@@ -418,7 +418,7 @@ class _PitchTile extends StatelessWidget {
               color: AppColours.accent.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.groups_2, color: AppColours.accent),
+            child: Icon(Icons.groups_2, color: AppColours.accent),
           ),
           const SizedBox(width: 12),
           Expanded(
@@ -630,7 +630,7 @@ class _BookingBar extends StatelessWidget {
     final totalCost = slot.pitch.pricePerHour * (durationMinutes / 60);
     return Container(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 20),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.surface,
         border: Border(top: BorderSide(color: AppColours.line)),
       ),

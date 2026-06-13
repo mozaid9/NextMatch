@@ -170,7 +170,7 @@ class _RatingTile extends StatelessWidget {
                   participant.fullName.isEmpty
                       ? '?'
                       : participant.fullName[0].toUpperCase(),
-                  style: const TextStyle(color: AppColours.accent),
+                  style: TextStyle(color: AppColours.accent),
                 ),
               ),
               const SizedBox(width: 12),

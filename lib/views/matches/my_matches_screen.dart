@@ -25,7 +25,7 @@ class MyMatchesScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('My matches'),
-          bottom: const TabBar(
+          bottom: TabBar(
             indicatorColor: AppColours.accent,
             labelColor: AppColours.accent,
             unselectedLabelColor: AppColours.mutedText,
@@ -62,7 +62,7 @@ class _JoinedMatchesList extends StatelessWidget {
       stream: matchViewModel.joinedMatchSummariesStream(currentUser.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: AppColours.accent),
           );
         }
@@ -105,7 +105,7 @@ class _JoinedMatchesList extends StatelessWidget {
               builder: (context, matchSnapshot) {
                 final match = matchSnapshot.data;
                 if (match == null) {
-                  return const SizedBox(
+                  return SizedBox(
                     height: 120,
                     child: Center(
                       child: CircularProgressIndicator(
@@ -160,7 +160,7 @@ class _OrganisedMatchesList extends StatelessWidget {
       stream: matchViewModel.organisedMatchesStream(currentUser.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: AppColours.accent),
           );
         }
@@ -254,7 +254,7 @@ class _OrganisedMatchCard extends StatelessWidget {
                             padding: const EdgeInsets.only(bottom: 8),
                             child: Row(
                               children: [
-                                const Icon(
+                                Icon(
                                   Icons.check_circle,
                                   color: AppColours.accent,
                                   size: 18,

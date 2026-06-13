@@ -26,7 +26,7 @@ class ChatsTab extends StatelessWidget {
       stream: viewModel.myChatsStream(currentUser.uid),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: AppColours.accent),
           );
         }
@@ -56,7 +56,7 @@ class ChatsTab extends StatelessWidget {
             ListView.separated(
               padding: const EdgeInsets.fromLTRB(0, 8, 0, 90),
               itemCount: chats.length,
-              separatorBuilder: (_, _) => const Divider(
+              separatorBuilder: (_, _) => Divider(
                 height: 1,
                 indent: 76,
                 color: AppColours.line,
@@ -179,7 +179,7 @@ class _ChatRow extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: const BoxDecoration(
+                          decoration: BoxDecoration(
                             color: AppColours.accent,
                             shape: BoxShape.circle,
                           ),
@@ -254,7 +254,7 @@ class _NewChatSheet extends StatelessWidget {
                   builder: (context, snapshot) {
                     if (snapshot.connectionState ==
                         ConnectionState.waiting) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.all(24),
                         child: Center(
                           child: CircularProgressIndicator(
@@ -318,7 +318,7 @@ class _NewChatSheet extends StatelessWidget {
                                     ),
                                   ),
                                 ),
-                                const Icon(
+                                Icon(
                                   Icons.chat_bubble_outline,
                                   color: AppColours.accent,
                                   size: 18,

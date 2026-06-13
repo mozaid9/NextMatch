@@ -86,7 +86,7 @@ class VenueAutocompleteField extends StatelessWidget {
                     padding: EdgeInsets.zero,
                     shrinkWrap: true,
                     itemCount: options.length,
-                    separatorBuilder: (_, _) => const Divider(
+                    separatorBuilder: (_, _) => Divider(
                       height: 1,
                       color: AppColours.line,
                     ),
@@ -101,7 +101,7 @@ class VenueAutocompleteField extends StatelessWidget {
                           ),
                           child: Row(
                             children: [
-                              const Icon(
+                              Icon(
                                 Icons.stadium,
                                 color: AppColours.accent,
                                 size: 18,

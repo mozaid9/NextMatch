@@ -14,6 +14,7 @@ import '../../services/friends_service.dart';
 import '../../viewmodels/auth_viewmodel.dart';
 import '../../viewmodels/friends_viewmodel.dart';
 import '../../viewmodels/profile_viewmodel.dart';
+import '../settings/settings_screen.dart';
 import '../social/friends_screen.dart';
 import 'edit_profile_screen.dart';
 
@@ -37,7 +38,20 @@ class ProfileScreen extends StatelessWidget {
         final user = snapshot.data ?? currentUser;
 
         return Scaffold(
-          appBar: AppBar(title: const Text('Profile')),
+          appBar: AppBar(
+            title: const Text('Profile'),
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.settings_outlined),
+                tooltip: 'Settings',
+                onPressed: () => Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => const SettingsScreen(),
+                  ),
+                ),
+              ),
+            ],
+          ),
           body: SafeArea(
             child: ListView(
               padding: EdgeInsets.zero,
@@ -142,7 +156,7 @@ class _ProfileHeader extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.card,
         border: Border(bottom: BorderSide(color: AppColours.line)),
       ),
@@ -192,7 +206,7 @@ class _ProfileHeader extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                const Icon(
+                Icon(
                   Icons.place_outlined,
                   size: 14,
                   color: AppColours.mutedText,
@@ -531,7 +545,7 @@ class _AvatarUploaderState extends State<_AvatarUploader> {
                 borderColor: AppColours.surface,
               ),
               if (_uploading)
-                const SizedBox(
+                SizedBox(
                   width: 80,
                   height: 80,
                   child: CircleAvatar(

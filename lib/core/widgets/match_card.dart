@@ -47,7 +47,7 @@ class MatchCard extends StatelessWidget {
       margin: EdgeInsets.zero,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(8),
-        side: const BorderSide(color: AppColours.line),
+        side: BorderSide(color: AppColours.line),
       ),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),
@@ -161,7 +161,7 @@ class MatchCard extends StatelessWidget {
                       label: Text(actionLabel!),
                     )
                   else if (trailing == null)
-                    const Icon(
+                    Icon(
                       Icons.chevron_right,
                       size: 18,
                       color: AppColours.mutedText,
@@ -248,7 +248,7 @@ class _FriendsInMatchChip extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Icon(
+              Icon(
                 Icons.people_alt,
                 size: 14,
                 color: AppColours.accent,

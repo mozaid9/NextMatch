@@ -124,12 +124,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 20),
                   child: Row(
                     children: [
-                      const Expanded(child: Divider(color: AppColours.line)),
+                      Expanded(child: Divider(color: AppColours.line)),
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 14),
                         child: Text('or sign in with email', style: AppTextStyles.small),
                       ),
-                      const Expanded(child: Divider(color: AppColours.line)),
+                      Expanded(child: Divider(color: AppColours.line)),
                     ],
                   ),
                 ),

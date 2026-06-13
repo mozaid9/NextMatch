@@ -52,7 +52,7 @@ class SelectionSheetField extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.keyboard_arrow_down, color: AppColours.accent),
+            Icon(Icons.keyboard_arrow_down, color: AppColours.accent),
           ],
         ),
       ),

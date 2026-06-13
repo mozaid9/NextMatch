@@ -5,11 +5,19 @@ import 'package:flutter/material.dart';
 
 import 'app.dart';
 import 'firebase_options.dart';
+import 'viewmodels/settings_viewmodel.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  runApp(NextMatchApp(startupFuture: _initialiseFirebase()));
+  // Load appearance/accessibility prefs first so the saved accent and contrast
+  // are applied to AppColours before the first frame renders.
+  final settings = SettingsViewModel();
+  await settings.load();
+
+  runApp(
+    NextMatchApp(settings: settings, startupFuture: _initialiseFirebase()),
+  );
 }
 
 Future<void> _initialiseFirebase() async {

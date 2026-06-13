@@ -49,7 +49,7 @@ class PrimaryButton extends StatelessWidget {
           onPressed: isLoading ? null : onPressed,
           style: OutlinedButton.styleFrom(
             foregroundColor: AppColours.text,
-            side: const BorderSide(color: AppColours.line),
+            side: BorderSide(color: AppColours.line),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(8),
             ),

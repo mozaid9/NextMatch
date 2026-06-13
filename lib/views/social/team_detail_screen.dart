@@ -68,7 +68,7 @@ class _TeamDetailScreenState extends State<TeamDetailScreen> {
         stream: teamViewModel.teamStream(widget.teamId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
+            return Center(
               child: CircularProgressIndicator(color: AppColours.accent),
             );
           }
@@ -207,7 +207,7 @@ class _TeamHeader extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        border: const Border(bottom: BorderSide(color: AppColours.line)),
+        border: Border(bottom: BorderSide(color: AppColours.line)),
       ),
       child: Row(
         children: [
@@ -433,7 +433,7 @@ class _ChatComposer extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: AppColours.surface,
         border: Border(top: BorderSide(color: AppColours.line)),
       ),
@@ -527,7 +527,7 @@ class _AddMembersSheetState extends State<_AddMembersSheet> {
                       friendsViewModel.friendsStream(widget.currentUser.uid),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
-                      return const Padding(
+                      return Padding(
                         padding: EdgeInsets.all(24),
                         child: Center(
                           child: CircularProgressIndicator(

@@ -7,6 +7,7 @@ class AppUser {
     required this.email,
     this.username = '',
     required this.age,
+    this.dateOfBirth,
     required this.location,
     required this.preferredPosition,
     required this.secondaryPosition,
@@ -40,7 +41,14 @@ class AppUser {
   /// claims one from the Account screen. Reserved atomically via the
   /// `usernames/{handle}` collection (see [UserService.claimUsername]).
   final String username;
+
+  /// Stored age. Retained for accounts created before date-of-birth capture
+  /// and kept in sync (= [computedAge]) whenever a [dateOfBirth] is saved, so
+  /// any backend query on `age` stays correct. Prefer [computedAge] in the UI.
   final int age;
+
+  /// The player's date of birth, when provided. Age is derived from this.
+  final DateTime? dateOfBirth;
   final String location;
   final String preferredPosition;
   final String secondaryPosition;
@@ -79,6 +87,22 @@ class AppUser {
 
   bool get hasUsername => username.isNotEmpty;
 
+  /// The player's age today: computed from [dateOfBirth] when present, else the
+  /// stored [age] for legacy accounts that predate date-of-birth capture.
+  int get computedAge =>
+      dateOfBirth != null ? ageFromDate(dateOfBirth!) : age;
+
+  /// Whole years between [dob] and [asOf] (defaults to today).
+  static int ageFromDate(DateTime dob, [DateTime? asOf]) {
+    final today = asOf ?? DateTime.now();
+    var years = today.year - dob.year;
+    if (today.month < dob.month ||
+        (today.month == dob.month && today.day < dob.day)) {
+      years--;
+    }
+    return years;
+  }
+
   factory AppUser.fromFirestore(
     DocumentSnapshot<Map<String, dynamic>> document,
   ) {
@@ -93,6 +117,7 @@ class AppUser {
       email: data['email'] as String? ?? '',
       username: data['username'] as String? ?? '',
       age: (data['age'] as num?)?.toInt() ?? 0,
+      dateOfBirth: _readNullableDate(data['dateOfBirth']),
       location: data['location'] as String? ?? '',
       preferredPosition: data['preferredPosition'] as String? ?? 'Any',
       secondaryPosition: data['secondaryPosition'] as String? ?? 'Any',
@@ -137,6 +162,8 @@ class AppUser {
       'email': email,
       'username': username,
       'age': age,
+      'dateOfBirth':
+          dateOfBirth == null ? null : Timestamp.fromDate(dateOfBirth!),
       'location': location,
       'preferredPosition': preferredPosition,
       'secondaryPosition': secondaryPosition,
@@ -176,6 +203,8 @@ class AppUser {
       'fullName': fullName,
       'email': email,
       'age': age,
+      'dateOfBirth':
+          dateOfBirth == null ? null : Timestamp.fromDate(dateOfBirth!),
       'location': location,
       'preferredPosition': preferredPosition,
       'secondaryPosition': secondaryPosition,
@@ -192,6 +221,7 @@ class AppUser {
     String? email,
     String? username,
     int? age,
+    DateTime? dateOfBirth,
     String? location,
     String? preferredPosition,
     String? secondaryPosition,
@@ -222,6 +252,7 @@ class AppUser {
       email: email ?? this.email,
       username: username ?? this.username,
       age: age ?? this.age,
+      dateOfBirth: dateOfBirth ?? this.dateOfBirth,
       location: location ?? this.location,
       preferredPosition: preferredPosition ?? this.preferredPosition,
       secondaryPosition: secondaryPosition ?? this.secondaryPosition,

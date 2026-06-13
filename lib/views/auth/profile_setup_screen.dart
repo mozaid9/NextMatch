@@ -7,6 +7,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
+import '../../core/widgets/dob_picker_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
 import '../../models/app_user.dart';
@@ -24,10 +25,10 @@ class ProfileSetupScreen extends StatefulWidget {
 class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  final _ageController = TextEditingController();
   final _locationController = TextEditingController();
   final _bioController = TextEditingController();
 
+  DateTime? _dateOfBirth;
   String _preferredPosition = 'Any';
   String _secondaryPosition = 'Any';
   String _skillLevel = 'Casual';
@@ -44,7 +45,6 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _ageController.dispose();
     _locationController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -53,12 +53,21 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final dob = _dateOfBirth;
+    if (dob == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please add your date of birth.')),
+      );
+      return;
+    }
+
     final now = DateTime.now();
     final user = AppUser(
       uid: widget.firebaseUser.uid,
       fullName: _nameController.text.trim(),
       email: widget.firebaseUser.email ?? '',
-      age: int.parse(_ageController.text),
+      age: AppUser.ageFromDate(dob),
+      dateOfBirth: dob,
       location: _locationController.text.trim(),
       preferredPosition: _preferredPosition,
       secondaryPosition: _secondaryPosition,
@@ -132,13 +141,9 @@ class _ProfileSetupScreenState extends State<ProfileSetupScreen> {
                       Validators.required(value, label: 'Full name'),
                 ),
                 const SizedBox(height: 14),
-                CustomTextField(
-                  controller: _ageController,
-                  label: 'Age',
-                  icon: Icons.cake_outlined,
-                  keyboardType: TextInputType.number,
-                  validator: (value) =>
-                      Validators.positiveInt(value, label: 'Age'),
+                DobPickerField(
+                  value: _dateOfBirth,
+                  onChanged: (date) => setState(() => _dateOfBirth = date),
                 ),
                 const SizedBox(height: 14),
                 CustomTextField(

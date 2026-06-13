@@ -397,7 +397,7 @@ class _DetailPanel extends StatelessWidget {
         children: [
           Text('Player details', style: AppTextStyles.h3),
           const SizedBox(height: 12),
-          _DetailRow(label: 'Age', value: user.age.toString()),
+          _DetailRow(label: 'Age', value: user.computedAge.toString()),
           _DetailRow(
             label: 'Preferred position',
             value: user.preferredPosition,

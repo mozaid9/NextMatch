@@ -7,6 +7,7 @@ import '../../core/constants/app_strings.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/utils/validators.dart';
 import '../../core/widgets/custom_text_field.dart';
+import '../../core/widgets/dob_picker_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/selection_sheet.dart';
 import '../../core/widgets/user_avatar.dart';
@@ -25,9 +26,9 @@ class EditProfileScreen extends StatefulWidget {
 class _EditProfileScreenState extends State<EditProfileScreen> {
   final _formKey = GlobalKey<FormState>();
   late final TextEditingController _nameController;
-  late final TextEditingController _ageController;
   late final TextEditingController _locationController;
   late final TextEditingController _bioController;
+  DateTime? _dateOfBirth;
   late String _preferredPosition;
   late String _secondaryPosition;
   late String _skillLevel;
@@ -37,9 +38,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.user.fullName);
-    _ageController = TextEditingController(text: widget.user.age.toString());
     _locationController = TextEditingController(text: widget.user.location);
     _bioController = TextEditingController(text: widget.user.bio);
+    _dateOfBirth = widget.user.dateOfBirth;
     _preferredPosition = widget.user.preferredPosition;
     _secondaryPosition = widget.user.secondaryPosition;
     _skillLevel = widget.user.skillLevel;
@@ -49,7 +50,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   void dispose() {
     _nameController.dispose();
-    _ageController.dispose();
     _locationController.dispose();
     _bioController.dispose();
     super.dispose();
@@ -58,9 +58,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
 
+    final dob = _dateOfBirth;
     final updated = widget.user.copyWith(
       fullName: _nameController.text.trim(),
-      age: int.parse(_ageController.text),
+      dateOfBirth: dob,
+      age: dob != null ? AppUser.ageFromDate(dob) : widget.user.age,
       location: _locationController.text.trim(),
       preferredPosition: _preferredPosition,
       secondaryPosition: _secondaryPosition,
@@ -104,13 +106,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                       Validators.required(value, label: 'Full name'),
                 ),
                 const SizedBox(height: 14),
-                CustomTextField(
-                  controller: _ageController,
-                  label: 'Age',
-                  icon: Icons.cake_outlined,
-                  keyboardType: TextInputType.number,
-                  validator: (value) =>
-                      Validators.positiveInt(value, label: 'Age'),
+                DobPickerField(
+                  value: _dateOfBirth,
+                  fallbackAge: widget.user.age,
+                  onChanged: (date) => setState(() => _dateOfBirth = date),
                 ),
                 const SizedBox(height: 14),
                 CustomTextField(
